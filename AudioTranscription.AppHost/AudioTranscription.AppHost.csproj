@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AudioTranscription.Api\AudioTranscription.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.5.3" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.5.3" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.5.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>1f7901f4-5093-4d92-9847-8ad6e543126f</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "AudioTranscription.AppHost.csproj"
+  }
+}

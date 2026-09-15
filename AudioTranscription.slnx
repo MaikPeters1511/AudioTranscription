@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="AudioTranscription.Api/AudioTranscription.Api.csproj" />
+  <Project Path="AudioTranscription.AppHost/AudioTranscription.AppHost.csproj" />
+  <Project Path="AudioTranscription.Domain/AudioTranscription.Domain.csproj" />
+  <Project Path="AudioTranscription.Infrastructure/AudioTranscription.Infrastructure.csproj" />
+  <Project Path="AudioTranscription.ServiceDefaults/AudioTranscription.ServiceDefaults.csproj" />
+  <Project Path="AudioTranscription.Tests/AudioTranscription.Tests.csproj" />
+</Solution>

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: audio-transcription-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+
+  api:
+    build:
+      context: .
+      dockerfile: AudioTranscription.Api/Dockerfile
+    container_name: audio-transcription-api
+    depends_on:
+      - sql
+    environment:
+      - ConnectionStrings__transcriptiondb=Server=sql;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+    ports:
+      - "8080:8080"
+    volumes:
+      - api-uploads:/app/uploads
+
+  web:
+    build:
+      context: ./AudioTranscription.Web
+      dockerfile: Dockerfile
+    container_name: audio-transcription-web
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+
+volumes:
+  sql-data:
+  api-uploads:

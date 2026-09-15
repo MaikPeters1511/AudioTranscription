@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* DaisyUI Theme Configuration */
+:root {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
