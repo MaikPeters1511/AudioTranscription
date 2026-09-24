@@ -33,7 +33,128 @@ public static class AudioJobEndpoints
         group.MapGet("/{id:guid}", GetAudioJob)
             .WithName("GetAudioJob")
             .WithDescription("Get a specific audio job by ID");
+
+        group.MapDelete("/{id:guid}", DeleteAudioJob)
+            .WithName("DeleteAudioJob")
+            .WithDescription("Delete a job with its transcript and uploaded file; cancels it first if it is running");
+
+        group.MapPost("/{id:guid}/cancel", CancelAudioJob)
+            .WithName("CancelAudioJob")
+            .WithDescription("Cancel a pending or running job");
+
+        group.MapPost("/{id:guid}/retry", RetryAudioJob)
+            .WithName("RetryAudioJob")
+            .WithDescription("Re-queue a failed or cancelled job using its kept upload");
     }
+
+    private static async Task<Results<NoContent, NotFound<ProblemDetails>>> DeleteAudioJob(
+        Guid id,
+        AppDbContext dbContext,
+        JobCancellationRegistry cancellations,
+        ITempFileStore tempFileStore,
+        IHubContext<TranscriptionHub> hubContext,
+        ILogger<AudioJob> logger)
+    {
+        var job = await dbContext.AudioJobs.FindAsync(id);
+        if (job is null)
+            return JobNotFound(id);
+
+        // A running job is stopped first; the worker notices the deletion and ends quietly
+        cancellations.Cancel(id);
+
+        dbContext.AudioJobs.Remove(job);
+        await dbContext.SaveChangesAsync();
+        tempFileStore.DeleteUpload(tempFileStore.GetUploadPath(job.Id, job.FileName));
+
+        // Only the id is logged: file names can contain personal data
+        logger.LogInformation("Audio job {JobId} deleted", id);
+        await hubContext.Clients.All.SendAsync("JobDeleted", id);
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Results<Accepted, NotFound<ProblemDetails>, Conflict<ProblemDetails>>> CancelAudioJob(
+        Guid id,
+        AppDbContext dbContext,
+        JobCancellationRegistry cancellations,
+        IHubContext<TranscriptionHub> hubContext)
+    {
+        var job = await dbContext.AudioJobs.FindAsync(id);
+        if (job is null)
+            return JobNotFound(id);
+
+        if (job.Status is not (AudioJobStatus.Pending or AudioJobStatus.Processing))
+            return JobConflict($"Only pending or processing jobs can be cancelled (current status: {job.Status}).");
+
+        // A running job is stopped by the worker, which then sets and broadcasts Cancelled
+        if (job.Status == AudioJobStatus.Processing && cancellations.Cancel(id))
+            return TypedResults.Accepted($"/api/audio-jobs/{id}");
+
+        // Pending (or a stale Processing job no worker is running): the worker will skip it
+        job.Status = AudioJobStatus.Cancelled;
+        job.CompletedAtUtc = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync();
+        await hubContext.Clients.All.SendAsync("JobStatusChanged", ToListDto(job));
+
+        return TypedResults.Accepted($"/api/audio-jobs/{id}");
+    }
+
+    private static async Task<Results<Accepted, NotFound<ProblemDetails>, Conflict<ProblemDetails>, ProblemHttpResult>> RetryAudioJob(
+        Guid id,
+        AppDbContext dbContext,
+        TranscriptionQueue queue,
+        ITempFileStore tempFileStore,
+        IHubContext<TranscriptionHub> hubContext)
+    {
+        var job = await dbContext.AudioJobs.FindAsync(id);
+        if (job is null)
+            return JobNotFound(id);
+
+        if (job.Status is not (AudioJobStatus.Failed or AudioJobStatus.Cancelled))
+            return JobConflict($"Only failed or cancelled jobs can be retried (current status: {job.Status}).");
+
+        var filePath = tempFileStore.GetUploadPath(job.Id, job.FileName);
+        if (!File.Exists(filePath))
+        {
+            return TypedResults.Problem(
+                title: "Upload no longer available",
+                detail: "The uploaded file of this job was already removed. Please upload it again.",
+                statusCode: StatusCodes.Status410Gone);
+        }
+
+        job.Status = AudioJobStatus.Pending;
+        job.ErrorMessage = null;
+        job.RawTranscript = null;
+        job.ProcessedTranscript = null;
+        job.CompletedAtUtc = null;
+        await dbContext.SaveChangesAsync();
+
+        await hubContext.Clients.All.SendAsync("JobStatusChanged", ToListDto(job));
+        await queue.EnqueueAsync(new TranscriptionJobRequest(job.Id, filePath));
+
+        return TypedResults.Accepted($"/api/audio-jobs/{id}");
+    }
+
+    private static NotFound<ProblemDetails> JobNotFound(Guid id) =>
+        TypedResults.NotFound(new ProblemDetails
+        {
+            Title = "Job not found",
+            Detail = $"No audio job with ID '{id}' was found.",
+            Status = StatusCodes.Status404NotFound
+        });
+
+    private static Conflict<ProblemDetails> JobConflict(string detail) =>
+        TypedResults.Conflict(new ProblemDetails
+        {
+            Title = "Invalid job status",
+            Detail = detail,
+            Status = StatusCodes.Status409Conflict
+        });
+
+    private static AudioJobListDto ToListDto(AudioJob job) =>
+        new(job.Id, job.FileName, job.FileSizeBytes,
+            job.Status, job.Language, job.DurationSeconds,
+            job.CreatedAtUtc, job.CompletedAtUtc);
 
     private static async Task<Results<Accepted<CreateAudioJobResponse>, ValidationProblem, ProblemHttpResult>> UploadAudioJob(
         IFormFile file,

@@ -84,6 +84,33 @@ public class TranscriptionWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessJob_WhenJobIsDeletedWhileCancelling_EndsQuietlyAndRemovesUpload()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<string, CancellationToken>(async (_, ct) =>
+            {
+                // What DELETE does: cancel the running job, then remove it
+                _registry.Cancel(jobId);
+                using (var scope = _provider!.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    db.AudioJobs.Remove(await db.AudioJobs.SingleAsync(j => j.Id == jobId));
+                    await db.SaveChangesAsync();
+                }
+                ct.ThrowIfCancellationRequested();
+                return new TranscriptionResult("unreachable", null, null);
+            });
+
+        var exception = await Record.ExceptionAsync(() =>
+            worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None));
+
+        exception.Should().BeNull();
+        File.Exists(file).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ProcessJob_WhenCleanupFails_LogsWarningAndKeepsJobStatus()
     {
         var store = new Mock<ITempFileStore>();
