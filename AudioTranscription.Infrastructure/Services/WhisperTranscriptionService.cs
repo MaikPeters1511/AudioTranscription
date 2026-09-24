@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NAudio.Wave;
 using Whisper.net;
 using Whisper.net.Ggml;
@@ -9,37 +10,44 @@ namespace AudioTranscription.Infrastructure.Services;
 
 /// <summary>
 /// Transcription service using Whisper.net (whisper.cpp bindings).
-/// Automatically downloads the GGML model on first use and converts audio to 16kHz WAV.
+/// Downloads each GGML model on first use, keeps one loaded model per model type
+/// (registered as singleton) and converts audio to 16kHz WAV.
 /// </summary>
 public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposable
 {
     private readonly ILogger<WhisperTranscriptionService> _logger;
+    private readonly WhisperOptions _options;
     private readonly string _modelsDirectory;
-    private readonly GgmlType _modelType;
-    private WhisperFactory? _factory;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
-    private bool _initialized;
+    private readonly KeyedAsyncCache<GgmlType, WhisperFactory> _factories;
 
-    public WhisperTranscriptionService(ILogger<WhisperTranscriptionService> logger)
+    public WhisperTranscriptionService(IOptions<WhisperOptions> options, ILogger<WhisperTranscriptionService> logger)
     {
         _logger = logger;
-        _modelsDirectory = Path.Combine(AppContext.BaseDirectory, "whisper-models");
-        _modelType = GgmlType.Base;
+        _options = options.Value;
+        _modelsDirectory = Path.Combine(AppContext.BaseDirectory, _options.ModelsDirectory);
+        _factories = new KeyedAsyncCache<GgmlType, WhisperFactory>(LoadFactoryAsync);
     }
 
-    public async Task<TranscriptionResult> TranscribeAsync(string audioFilePath, CancellationToken cancellationToken = default)
+    public async Task<TranscriptionResult> TranscribeAsync(
+        string audioFilePath, TranscriptionSettings settings, CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
+        // Also guards jobs stored before an operator removed their model from the allowlist
+        if (!_options.TryResolveModel(settings.Model, out var model) || !WhisperOptions.TryParseModelType(model, out var modelType))
+            throw new InvalidOperationException($"Das Whisper-Modell '{settings.Model}' ist nicht freigegeben.");
 
+        var factory = await _factories.GetAsync(modelType, cancellationToken);
         var wavPath = await ConvertToWavAsync(audioFilePath, cancellationToken);
 
         try
         {
-            _logger.LogInformation("Starting transcription for {FilePath}", audioFilePath);
+            _logger.LogInformation("Starting transcription for {FilePath} with model {Model}, language={Language}",
+                audioFilePath, modelType, settings.Language ?? WhisperOptions.AutomaticLanguage);
 
-            using var processor = _factory!.CreateBuilder()
-                .WithLanguageDetection()
-                .Build();
+            var builder = factory.CreateBuilder();
+            builder = settings.Language is null
+                ? builder.WithLanguageDetection()
+                : builder.WithLanguage(settings.Language);
+            using var processor = builder.Build();
 
             var segments = new StringBuilder();
             string? detectedLanguage = null;
@@ -57,11 +65,12 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             }
 
             var text = segments.ToString().Trim();
+            var language = detectedLanguage ?? settings.Language;
             _logger.LogInformation(
                 "Transcription complete: {CharCount} chars, language={Language}, duration={Duration:F1}s",
-                text.Length, detectedLanguage, maxEndTime);
+                text.Length, language, maxEndTime);
 
-            return new TranscriptionResult(text, detectedLanguage, maxEndTime > 0 ? maxEndTime : null);
+            return new TranscriptionResult(text, language, maxEndTime > 0 ? maxEndTime : null);
         }
         finally
         {
@@ -80,40 +89,32 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
         }
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
+    private async Task<WhisperFactory> LoadFactoryAsync(GgmlType modelType, CancellationToken cancellationToken)
     {
-        if (_initialized) return;
+        Directory.CreateDirectory(_modelsDirectory);
+        var modelFileName = $"ggml-{modelType.ToString().ToLowerInvariant()}.bin";
+        var modelPath = Path.Combine(_modelsDirectory, modelFileName);
 
-        await _initLock.WaitAsync(cancellationToken);
-        try
+        if (!File.Exists(modelPath))
         {
-            if (_initialized) return;
-
-            Directory.CreateDirectory(_modelsDirectory);
-            var modelFileName = $"ggml-{_modelType.ToString().ToLowerInvariant()}.bin";
-            var modelPath = Path.Combine(_modelsDirectory, modelFileName);
-
-            if (!File.Exists(modelPath))
+            // Download to a temporary file first so an aborted download never leaves a broken model behind
+            var downloadPath = modelPath + ".download";
+            _logger.LogInformation("Downloading Whisper model '{Model}' to {Path}...", modelType, modelPath);
+            await using (var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(modelType, cancellationToken: cancellationToken))
+            await using (var fileStream = File.Create(downloadPath))
             {
-                _logger.LogInformation("Downloading Whisper model '{Model}' to {Path}...", _modelType, modelPath);
-                await using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(_modelType, cancellationToken: cancellationToken);
-                await using var fileStream = File.Create(modelPath);
                 await modelStream.CopyToAsync(fileStream, cancellationToken);
-                _logger.LogInformation("Whisper model downloaded successfully ({Size:F1} MB)",
-                    new FileInfo(modelPath).Length / (1024.0 * 1024.0));
             }
-            else
-            {
-                _logger.LogInformation("Using existing Whisper model at {Path}", modelPath);
-            }
-
-            _factory = WhisperFactory.FromPath(modelPath);
-            _initialized = true;
+            File.Move(downloadPath, modelPath, overwrite: true);
+            _logger.LogInformation("Whisper model downloaded successfully ({Size:F1} MB)",
+                new FileInfo(modelPath).Length / (1024.0 * 1024.0));
         }
-        finally
+        else
         {
-            _initLock.Release();
+            _logger.LogInformation("Using existing Whisper model at {Path}", modelPath);
         }
+
+        return WhisperFactory.FromPath(modelPath);
     }
 
     /// <summary>
@@ -198,11 +199,9 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _factory?.Dispose();
-        _initLock.Dispose();
+        await _factories.DisposeAsync();
         GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

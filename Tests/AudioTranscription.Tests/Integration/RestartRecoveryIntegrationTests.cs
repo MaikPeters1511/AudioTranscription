@@ -30,7 +30,7 @@ public class RestartRecoveryIntegrationTests : IClassFixture<WebApplicationFacto
     {
         var transcription = new Mock<ITranscriptionService>();
         transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Nach dem Neustart fertig", "de", 2));
 
         _factory = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>

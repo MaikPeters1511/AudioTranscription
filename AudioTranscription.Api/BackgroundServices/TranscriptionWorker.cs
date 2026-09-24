@@ -114,8 +114,9 @@ public class TranscriptionWorker : BackgroundService
 
         try
         {
-            // Run transcription
-            var result = await transcriptionService.TranscribeAsync(request.FilePath, cancellationToken);
+            // Run transcription with the settings chosen at upload (also after a restart or retry)
+            var settings = new TranscriptionSettings(job.Model, job.RequestedLanguage);
+            var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, cancellationToken);
 
             // Optional post-processing; stored separately so the original is never lost
             string? processedTranscript = null;

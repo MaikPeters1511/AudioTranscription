@@ -42,8 +42,8 @@ public class TranscriptionWorkerTests : IDisposable
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns<string, CancellationToken>((_, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, CancellationToken>((_, _, ct) =>
             {
                 _registry.Cancel(jobId).Should().BeTrue("the job is registered while it runs");
                 ct.ThrowIfCancellationRequested();
@@ -88,8 +88,8 @@ public class TranscriptionWorkerTests : IDisposable
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns<string, CancellationToken>(async (_, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, CancellationToken>(async (_, _, ct) =>
             {
                 // What DELETE does: cancel the running job, then remove it
                 _registry.Cancel(jobId);
@@ -138,8 +138,8 @@ public class TranscriptionWorkerTests : IDisposable
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         using var shutdown = new CancellationTokenSource();
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns<string, CancellationToken>((_, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, CancellationToken>((_, _, ct) =>
             {
                 shutdown.Cancel();
                 ct.ThrowIfCancellationRequested();
@@ -161,7 +161,7 @@ public class TranscriptionWorkerTests : IDisposable
 
         File.Exists(file).Should().BeFalse();
         _transcription.Verify(
-            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Theory]
@@ -176,8 +176,34 @@ public class TranscriptionWorkerTests : IDisposable
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
         _transcription.Verify(
-            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
         (await GetJobAsync(jobId)).Status.Should().Be(status);
+    }
+
+    [Fact]
+    public async Task ProcessJob_PassesModelAndLanguageOfTheJobToTranscription()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(
+            deleteAfterTranscription: true, model: "Small", requestedLanguage: "de");
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _transcription.Verify(t => t.TranscribeAsync(
+            file, new TranscriptionSettings("Small", "de"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessJob_WithoutRequestedLanguage_UsesLanguageDetection()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, model: "Base");
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _transcription.Verify(t => t.TranscribeAsync(
+            file, new TranscriptionSettings("Base", null), It.IsAny<CancellationToken>()), Times.Once);
+        (await GetJobAsync(jobId)).Language.Should().Be("de", "the detected language is stored");
     }
 
     [Fact]
@@ -231,7 +257,9 @@ public class TranscriptionWorkerTests : IDisposable
         bool deleteAfterTranscription,
         ITempFileStore? store = null,
         AudioJobStatus status = AudioJobStatus.Pending,
-        ITranscriptPostProcessor? postProcessor = null)
+        ITranscriptPostProcessor? postProcessor = null,
+        string model = "Base",
+        string? requestedLanguage = null)
     {
         var options = Options.Create(new UploadOptions
         {
@@ -262,7 +290,11 @@ public class TranscriptionWorkerTests : IDisposable
         using (var scope = _provider.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.AudioJobs.Add(new AudioJob { Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status });
+            db.AudioJobs.Add(new AudioJob
+            {
+                Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status,
+                Model = model, RequestedLanguage = requestedLanguage
+            });
             await db.SaveChangesAsync();
         }
 
@@ -277,12 +309,12 @@ public class TranscriptionWorkerTests : IDisposable
 
     private void TranscriptionSucceeds() =>
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Hallo Welt", "de", 1.5));
 
     private void TranscriptionThrows(Exception exception) =>
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
 
     private async Task<AudioJob> GetJobAsync(Guid jobId)

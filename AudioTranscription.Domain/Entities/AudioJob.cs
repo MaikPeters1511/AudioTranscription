@@ -14,7 +14,12 @@ public class AudioJob
     /// <summary>LLM post-processed transcript; null if no post-processing ran or it changed nothing.</summary>
     public string? ProcessedTranscript { get; set; }
     public string? ErrorMessage { get; set; }
+    /// <summary>Detected language, or the requested one if detection was off.</summary>
     public string? Language { get; set; }
+    /// <summary>Whisper model chosen at upload, e.g. "Base".</summary>
+    public string Model { get; set; } = string.Empty;
+    /// <summary>Language chosen at upload (ISO-639-1); null means automatic detection.</summary>
+    public string? RequestedLanguage { get; set; }
     public double? DurationSeconds { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }

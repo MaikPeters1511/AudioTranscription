@@ -7,6 +7,7 @@ using AudioTranscription.Api.Validation;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
+using AudioTranscription.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -158,14 +159,26 @@ public static class AudioJobEndpoints
 
     private static async Task<Results<Accepted<CreateAudioJobResponse>, ValidationProblem, ProblemHttpResult>> UploadAudioJob(
         IFormFile file,
+        [FromForm] string? model,
+        [FromForm] string? language,
         AppDbContext dbContext,
         TranscriptionQueue queue,
         IOptions<UploadOptions> uploadOptions,
+        IOptions<WhisperOptions> whisperOptions,
         IHubContext<TranscriptionHub> hubContext,
         ITempFileStore tempFileStore,
         ILogger<AudioJob> logger)
     {
         var options = uploadOptions.Value;
+
+        // Model and language must come from the allowlists (see GET /api/transcription-options)
+        var settingErrors = new Dictionary<string, string[]>();
+        if (!whisperOptions.Value.TryResolveModel(model, out var resolvedModel))
+            settingErrors["model"] = [$"Model '{model}' is not available. Allowed models: {string.Join(", ", whisperOptions.Value.AllowedModels)}."];
+        if (!whisperOptions.Value.TryResolveLanguage(language, out var resolvedLanguage))
+            settingErrors["language"] = [$"Language '{language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
+        if (settingErrors.Count > 0)
+            return TypedResults.ValidationProblem(settingErrors);
 
         // Validate file presence
         if (file is null || file.Length == 0)
@@ -225,6 +238,8 @@ public static class AudioJobEndpoints
             FileSizeBytes = file.Length,
             ContentType = contentType,
             Status = AudioJobStatus.Pending,
+            Model = resolvedModel,
+            RequestedLanguage = resolvedLanguage,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -289,6 +304,7 @@ public static class AudioJobEndpoints
             job.Id, job.FileName, job.FileSizeBytes, job.ContentType,
             job.Status, job.RawTranscript, job.ProcessedTranscript, job.ErrorMessage,
             job.Language, job.DurationSeconds,
-            job.CreatedAtUtc, job.CompletedAtUtc));
+            job.CreatedAtUtc, job.CompletedAtUtc,
+            job.Model, job.RequestedLanguage));
     }
 }

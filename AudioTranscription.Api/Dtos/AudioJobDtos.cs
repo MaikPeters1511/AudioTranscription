@@ -14,7 +14,9 @@ public record AudioJobDto(
     string? Language,
     double? DurationSeconds,
     DateTime CreatedAtUtc,
-    DateTime? CompletedAtUtc
+    DateTime? CompletedAtUtc,
+    string Model,
+    string? RequestedLanguage
 );
 
 public record AudioJobListDto(
@@ -35,4 +37,11 @@ public record PaginatedResult<T>(
     int TotalCount,
     int Page,
     int PageSize
+);
+
+/// <summary>Choices for the upload form; "auto" (language detection) is always available in addition to <see cref="Languages"/>.</summary>
+public record TranscriptionOptionsDto(
+    IReadOnlyList<string> Models,
+    string DefaultModel,
+    IReadOnlyList<string> Languages
 );

@@ -10,6 +10,13 @@ public record TranscriptionResult(
 );
 
 /// <summary>
+/// Per-job transcription settings.
+/// </summary>
+/// <param name="Model">Whisper model name as listed in <see cref="WhisperOptions.AllowedModels"/>.</param>
+/// <param name="Language">ISO-639-1 code, or null to detect the language.</param>
+public record TranscriptionSettings(string Model, string? Language);
+
+/// <summary>
 /// Abstraction for the transcription engine.
 /// </summary>
 public interface ITranscriptionService
@@ -18,7 +25,8 @@ public interface ITranscriptionService
     /// Transcribes an audio file to text.
     /// </summary>
     /// <param name="audioFilePath">Path to the audio file.</param>
+    /// <param name="settings">Model and language to use.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Transcription result with text, detected language, and duration.</returns>
-    Task<TranscriptionResult> TranscribeAsync(string audioFilePath, CancellationToken cancellationToken = default);
+    Task<TranscriptionResult> TranscribeAsync(string audioFilePath, TranscriptionSettings settings, CancellationToken cancellationToken = default);
 }

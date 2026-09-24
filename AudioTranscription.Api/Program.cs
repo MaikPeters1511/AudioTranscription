@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +29,12 @@ builder.Services.AddSingleton<TranscriptionQueue>();
 builder.Services.AddSingleton<JobCancellationRegistry>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
+// Singleton: loaded Whisper models are kept and shared between jobs
+builder.Services.AddOptions<WhisperOptions>()
+    .Bind(builder.Configuration.GetSection(WhisperOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<WhisperOptions>, WhisperOptionsValidator>();
+builder.Services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
 builder.Services.AddHostedService<InitialUserSeeder>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
@@ -149,6 +155,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 
 // Map API endpoints
 app.MapAudioJobEndpoints();
+app.MapTranscriptionOptionsEndpoints();
 
 app.Run();
 public partial class Program { }

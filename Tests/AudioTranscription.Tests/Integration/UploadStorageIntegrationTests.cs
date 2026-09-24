@@ -25,7 +25,7 @@ public class UploadStorageIntegrationTests : IClassFixture<WebApplicationFactory
         var dbName = Guid.NewGuid().ToString();
         var transcription = new Mock<ITranscriptionService>();
         transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Hallo", "de", 1));
 
         _factory = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
