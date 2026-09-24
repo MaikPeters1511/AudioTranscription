@@ -65,6 +65,10 @@ describe('JobListComponent', () => {
   });
 
   it('offers compact job actions in each table row without opening the job', () => {
+    // jsdom has no <dialog> API; the delete button opens the confirmation dialog
+    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
     const fixture = render('en');
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigateByUrl');
