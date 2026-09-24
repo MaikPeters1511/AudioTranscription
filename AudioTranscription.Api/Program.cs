@@ -59,7 +59,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 var app = builder.Build();
 
-// Ensure database is created via master connection (to avoid SQL Server Error 18456 State 38) and initialize schema
+// Ensure database is created via master connection (to avoid SQL Server Error 18456 State 38) and apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -103,7 +103,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.MigrateWithBaselineAsync(logger);
 }
 
 app.UseCors();
