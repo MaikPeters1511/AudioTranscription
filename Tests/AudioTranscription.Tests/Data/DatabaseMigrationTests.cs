@@ -19,6 +19,7 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
         await db.Database.MigrateWithBaselineAsync(NullLogger.Instance);
 
         (await db.Database.GetAppliedMigrationsAsync()).Should().Equal(db.Database.GetMigrations());
+        (await db.Users.CountAsync()).Should().Be(0, "the Identity tables exist");
     }
 
     [Fact]
@@ -35,6 +36,7 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
         var job = await db.AudioJobs.SingleAsync(j => j.Id == jobId);
         job.RawTranscript.Should().Be("Alter Rohtext", "the old TranscriptText column is renamed, not dropped");
         job.ProcessedTranscript.Should().BeNull();
+        (await db.Users.CountAsync()).Should().Be(0, "the Identity tables are added to legacy databases too");
     }
 
     [Fact]
