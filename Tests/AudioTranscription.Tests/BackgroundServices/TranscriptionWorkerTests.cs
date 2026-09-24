@@ -21,19 +21,43 @@ public class TranscriptionWorkerTests : IDisposable
     private readonly TempDirectory _dir = new();
     private readonly Mock<ITranscriptionService> _transcription = new();
     private readonly Mock<ILogger<TranscriptionWorker>> _logger = new();
+    private readonly JobCancellationRegistry _registry = new();
     private readonly string _dbName = Guid.NewGuid().ToString();
     private ServiceProvider? _provider;
 
     [Fact]
-    public async Task ProcessJob_WhenTranscriptionFails_DeletesUpload()
+    public async Task ProcessJob_WhenTranscriptionFails_KeepsUploadForRetry()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         TranscriptionThrows(new InvalidOperationException("ffmpeg missing"));
 
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
-        File.Exists(file).Should().BeFalse();
+        File.Exists(file).Should().BeTrue();
         (await GetJobAsync(jobId)).Status.Should().Be(AudioJobStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenCancelledByUser_SetsCancelledAndKeepsUpload()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<string, CancellationToken>((_, ct) =>
+            {
+                _registry.Cancel(jobId).Should().BeTrue("the job is registered while it runs");
+                ct.ThrowIfCancellationRequested();
+                return Task.FromResult(new TranscriptionResult("unreachable", null, null));
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        var job = await GetJobAsync(jobId);
+        job.Status.Should().Be(AudioJobStatus.Cancelled);
+        job.ErrorMessage.Should().BeNull();
+        job.CompletedAtUtc.Should().NotBeNull();
+        File.Exists(file).Should().BeTrue("a cancelled job can be retried");
+        _registry.Cancel(jobId).Should().BeFalse("the job is unregistered once processing ended");
     }
 
     [Fact]
@@ -48,16 +72,11 @@ public class TranscriptionWorkerTests : IDisposable
         (await GetJobAsync(jobId)).Status.Should().Be(AudioJobStatus.Completed);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ProcessJob_WhenDeleteAfterTranscriptionDisabled_KeepsUpload(bool transcriptionFails)
+    [Fact]
+    public async Task ProcessJob_WhenDeleteAfterTranscriptionDisabled_KeepsUpload()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: false);
-        if (transcriptionFails)
-            TranscriptionThrows(new InvalidOperationException("boom"));
-        else
-            TranscriptionSucceeds();
+        TranscriptionSucceeds();
 
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
@@ -68,7 +87,7 @@ public class TranscriptionWorkerTests : IDisposable
     public async Task ProcessJob_WhenCleanupFails_LogsWarningAndKeepsJobStatus()
     {
         var store = new Mock<ITempFileStore>();
-        store.Setup(s => s.CleanupAfterProcessing(It.IsAny<string>()))
+        store.Setup(s => s.CleanupAfterProcessing(It.IsAny<string>(), It.IsAny<AudioJobStatus?>()))
             .Throws(new IOException("file locked"));
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, store: store.Object);
         TranscriptionSucceeds();
@@ -223,6 +242,7 @@ public class TranscriptionWorkerTests : IDisposable
         var worker = new TranscriptionWorker(
             new TranscriptionQueue(),
             _provider.GetRequiredService<IServiceScopeFactory>(),
+            _registry,
             _logger.Object);
 
         return (worker, jobId, file);

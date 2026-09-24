@@ -1,3 +1,5 @@
+using AudioTranscription.Domain.Enums;
+
 namespace AudioTranscription.Api.Storage;
 
 /// <summary>
@@ -18,9 +20,14 @@ public interface ITempFileStore
     string GetUploadPath(Guid jobId, string originalFileName);
 
     /// <summary>
-    /// Called once a job has finished processing (successfully or not).
-    /// Deletes the upload unless configuration says to keep it.
+    /// Called once the worker is done with a job. Deletes the upload after a successful
+    /// transcription (or when the job no longer exists) unless configuration keeps uploads.
+    /// Failed and cancelled jobs keep their upload so they can be retried (decision D2).
     /// Throws if the file exists but cannot be deleted; callers decide how to handle that.
     /// </summary>
-    void CleanupAfterProcessing(string filePath);
+    /// <param name="outcome">Final job status, or null if the job does not exist.</param>
+    void CleanupAfterProcessing(string filePath, AudioJobStatus? outcome);
+
+    /// <summary>Deletes an upload regardless of configuration, e.g. when its job is deleted.</summary>
+    void DeleteUpload(string filePath);
 }

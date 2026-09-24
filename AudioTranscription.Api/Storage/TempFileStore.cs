@@ -1,4 +1,5 @@
 using AudioTranscription.Api.Configuration;
+using AudioTranscription.Domain.Enums;
 using Microsoft.Extensions.Options;
 
 namespace AudioTranscription.Api.Storage;
@@ -13,9 +14,15 @@ public class TempFileStore(IOptions<UploadOptions> options) : ITempFileStore
     public string GetUploadPath(Guid jobId, string originalFileName) =>
         Path.Combine(StorageDirectory, $"{jobId}{Path.GetExtension(originalFileName)}");
 
-    public void CleanupAfterProcessing(string filePath)
+    // File.Delete does not throw for a missing file
+    public void DeleteUpload(string filePath) => File.Delete(filePath);
+
+    public void CleanupAfterProcessing(string filePath, AudioJobStatus? outcome)
     {
-        if (!_options.DeleteAfterTranscription)
+        // Failed/cancelled jobs keep their upload for a retry (D2); it is removed by
+        // DELETE, a successful retry or the orphan cleanup after OrphanedFileRetentionHours
+        var jobFinishedOrGone = outcome is null or AudioJobStatus.Completed;
+        if (!_options.DeleteAfterTranscription || !jobFinishedOrGone)
             return;
 
         // File.Delete does not throw for a missing file

@@ -1,5 +1,6 @@
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Storage;
+using AudioTranscription.Domain.Enums;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 
@@ -43,14 +44,28 @@ public class TempFileStoreTests : IDisposable
         path.Should().Be(Path.Combine(_dir.Path, $"{jobId}{expectedExtension}"));
     }
 
-    [Fact]
-    public void CleanupAfterProcessing_WhenDeleteEnabled_DeletesFile()
+    [Theory]
+    [InlineData(AudioJobStatus.Completed)]
+    [InlineData(null)] // job no longer exists
+    public void CleanupAfterProcessing_AfterSuccessOrWithoutJob_DeletesFile(AudioJobStatus? outcome)
     {
         var file = _dir.CreateFile($"{Guid.NewGuid()}.mp3");
 
-        CreateSut(deleteAfterTranscription: true).CleanupAfterProcessing(file);
+        CreateSut(deleteAfterTranscription: true).CleanupAfterProcessing(file, outcome);
 
         File.Exists(file).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(AudioJobStatus.Failed)]
+    [InlineData(AudioJobStatus.Cancelled)]
+    public void CleanupAfterProcessing_AfterFailureOrCancel_KeepsFileForRetry(AudioJobStatus outcome)
+    {
+        var file = _dir.CreateFile($"{Guid.NewGuid()}.mp3");
+
+        CreateSut(deleteAfterTranscription: true).CleanupAfterProcessing(file, outcome);
+
+        File.Exists(file).Should().BeTrue();
     }
 
     [Fact]
@@ -58,7 +73,7 @@ public class TempFileStoreTests : IDisposable
     {
         var file = _dir.CreateFile($"{Guid.NewGuid()}.mp3");
 
-        CreateSut(deleteAfterTranscription: false).CleanupAfterProcessing(file);
+        CreateSut(deleteAfterTranscription: false).CleanupAfterProcessing(file, AudioJobStatus.Completed);
 
         File.Exists(file).Should().BeTrue();
     }
@@ -68,9 +83,19 @@ public class TempFileStoreTests : IDisposable
     {
         var missing = Path.Combine(_dir.Path, "does-not-exist.mp3");
 
-        var act = () => CreateSut().CleanupAfterProcessing(missing);
+        var act = () => CreateSut().CleanupAfterProcessing(missing, AudioJobStatus.Completed);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void DeleteUpload_DeletesEvenWhenUploadsAreKept()
+    {
+        var file = _dir.CreateFile($"{Guid.NewGuid()}.mp3");
+
+        CreateSut(deleteAfterTranscription: false).DeleteUpload(file);
+
+        File.Exists(file).Should().BeFalse();
     }
 
     public void Dispose() => _dir.Dispose();

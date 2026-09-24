@@ -25,6 +25,7 @@ builder.Services.Configure<UploadOptions>(
 
 // Register transcription services
 builder.Services.AddSingleton<TranscriptionQueue>();
+builder.Services.AddSingleton<JobCancellationRegistry>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
