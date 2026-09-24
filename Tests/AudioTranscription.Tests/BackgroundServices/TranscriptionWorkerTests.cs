@@ -207,6 +207,43 @@ public class TranscriptionWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessJob_WhenTranscriptionSucceeds_StoresSegmentsInMilliseconds()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptionResult("Hallo Welt", "de", 2.5)
+            {
+                Segments =
+                [
+                    new SegmentResult(TimeSpan.Zero, TimeSpan.FromMilliseconds(1234.6), "Hallo"),
+                    new SegmentResult(TimeSpan.FromMilliseconds(1234.6), TimeSpan.FromSeconds(2.5), "Welt"),
+                ]
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        using var scope = _provider!.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var segments = await db.TranscriptSegments.Where(s => s.AudioJobId == jobId).OrderBy(s => s.Index).ToListAsync();
+        segments.Select(s => (s.Index, s.StartMs, s.EndMs, s.Text)).Should().Equal(
+            (0, 0L, 1235L, "Hallo"),
+            (1, 1235L, 2500L, "Welt"));
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenTranscriptionFails_StoresNoSegments()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        TranscriptionThrows(new InvalidOperationException("ffmpeg missing"));
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        using var scope = _provider!.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().TranscriptSegments.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task ProcessJob_WithoutPostProcessor_StoresOnlyRawTranscript()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);

@@ -1,3 +1,4 @@
+using AudioTranscription.Domain.Entities;
 using AudioTranscription.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,35 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
 
         exception.Should().BeNull();
         (await db.Database.GetAppliedMigrationsAsync()).Should().Equal(db.Database.GetMigrations());
+    }
+
+    [Fact]
+    public async Task DeletingAJob_DeletesItsSegments()
+    {
+        var connectionString = sqlServer.CreateConnectionString();
+        await using (var setup = CreateContext(connectionString))
+            await setup.Database.MigrateWithBaselineAsync(NullLogger.Instance);
+        var job = new AudioJob { FileName = "a.mp3", ContentType = "audio/mpeg", Model = "Base" };
+        var otherJob = new AudioJob { FileName = "b.mp3", ContentType = "audio/mpeg", Model = "Base" };
+        await using (var db = CreateContext(connectionString))
+        {
+            db.AudioJobs.AddRange(job, otherJob);
+            db.TranscriptSegments.AddRange(
+                new TranscriptSegment { AudioJobId = job.Id, Index = 0, StartMs = 0, EndMs = 1000, Text = "Eins" },
+                new TranscriptSegment { AudioJobId = job.Id, Index = 1, StartMs = 1000, EndMs = 2000, Text = "Zwei" },
+                new TranscriptSegment { AudioJobId = otherJob.Id, Index = 0, StartMs = 0, EndMs = 1000, Text = "Andere" });
+            await db.SaveChangesAsync();
+        }
+
+        // Deleted without loading the segments: the database cascades, not the change tracker
+        await using (var db = CreateContext(connectionString))
+        {
+            db.AudioJobs.Remove(await db.AudioJobs.SingleAsync(j => j.Id == job.Id));
+            await db.SaveChangesAsync();
+        }
+
+        await using var check = CreateContext(connectionString);
+        (await check.TranscriptSegments.Select(s => s.Text).ToListAsync()).Should().Equal("Andere");
     }
 
     /// <summary>

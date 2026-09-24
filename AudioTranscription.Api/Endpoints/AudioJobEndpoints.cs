@@ -136,7 +136,7 @@ public static class AudioJobEndpoints
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
     }
 
-    private static NotFound<ProblemDetails> JobNotFound(Guid id) =>
+    internal static NotFound<ProblemDetails> JobNotFound(Guid id) =>
         TypedResults.NotFound(new ProblemDetails
         {
             Title = "Job not found",
@@ -144,7 +144,7 @@ public static class AudioJobEndpoints
             Status = StatusCodes.Status404NotFound
         });
 
-    private static Conflict<ProblemDetails> JobConflict(string detail) =>
+    internal static Conflict<ProblemDetails> JobConflict(string detail) =>
         TypedResults.Conflict(new ProblemDetails
         {
             Title = "Invalid job status",

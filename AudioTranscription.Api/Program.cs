@@ -156,6 +156,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 // Map API endpoints
 app.MapAudioJobEndpoints();
 app.MapTranscriptionOptionsEndpoints();
+app.MapTranscriptOutputEndpoints();
 
 app.Run();
 public partial class Program { }

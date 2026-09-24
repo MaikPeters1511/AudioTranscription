@@ -7,7 +7,14 @@ public record TranscriptionResult(
     string Text,
     string? DetectedLanguage,
     double? DurationSeconds
-);
+)
+{
+    /// <summary>Timed segments of <see cref="Text"/>, in order.</summary>
+    public IReadOnlyList<SegmentResult> Segments { get; init; } = [];
+}
+
+/// <summary>A timed part of the transcript as reported by Whisper.</summary>
+public record SegmentResult(TimeSpan Start, TimeSpan End, string Text);
 
 /// <summary>
 /// Per-job transcription settings.

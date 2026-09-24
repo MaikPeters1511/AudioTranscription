@@ -45,3 +45,5 @@ public record TranscriptionOptionsDto(
     string DefaultModel,
     IReadOnlyList<string> Languages
 );
+
+public record TranscriptSegmentDto(int Index, long StartMs, long EndMs, string Text);

@@ -134,6 +134,15 @@ public class TranscriptionWorker : BackgroundService
             job.Language = result.DetectedLanguage;
             job.DurationSeconds = result.DurationSeconds;
             job.CompletedAtUtc = DateTime.UtcNow;
+            // Saved together with the Completed status, so only completed jobs have segments
+            dbContext.TranscriptSegments.AddRange(result.Segments.Select((segment, index) => new TranscriptSegment
+            {
+                AudioJobId = job.Id,
+                Index = index,
+                StartMs = (long)Math.Round(segment.Start.TotalMilliseconds),
+                EndMs = (long)Math.Round(segment.End.TotalMilliseconds),
+                Text = segment.Text
+            }));
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await NotifyStatusChanged(hubContext, job);

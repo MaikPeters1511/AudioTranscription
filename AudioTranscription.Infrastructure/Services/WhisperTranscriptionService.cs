@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NAudio.Wave;
@@ -49,28 +48,17 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
                 : builder.WithLanguage(settings.Language);
             using var processor = builder.Build();
 
-            var segments = new StringBuilder();
-            string? detectedLanguage = null;
-            double maxEndTime = 0;
-
+            var result = new TranscriptionResultBuilder();
             await using var fileStream = File.OpenRead(wavPath);
             await foreach (var segment in processor.ProcessAsync(fileStream, cancellationToken))
-            {
-                segments.Append(segment.Text);
-                detectedLanguage ??= segment.Language;
+                result.Add(segment.Start, segment.End, segment.Text, segment.Language);
 
-                var endSeconds = segment.End.TotalSeconds;
-                if (endSeconds > maxEndTime)
-                    maxEndTime = endSeconds;
-            }
-
-            var text = segments.ToString().Trim();
-            var language = detectedLanguage ?? settings.Language;
+            var transcription = result.Build(settings.Language);
             _logger.LogInformation(
-                "Transcription complete: {CharCount} chars, language={Language}, duration={Duration:F1}s",
-                text.Length, language, maxEndTime);
+                "Transcription complete: {CharCount} chars, {SegmentCount} segments, language={Language}, duration={Duration:F1}s",
+                transcription.Text.Length, transcription.Segments.Count, transcription.DetectedLanguage, transcription.DurationSeconds);
 
-            return new TranscriptionResult(text, language, maxEndTime > 0 ? maxEndTime : null);
+            return transcription;
         }
         finally
         {

@@ -8,6 +8,7 @@ namespace AudioTranscription.Infrastructure.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<IdentityUser>(options)
 {
     public DbSet<AudioJob> AudioJobs => Set<AudioJob>();
+    public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
