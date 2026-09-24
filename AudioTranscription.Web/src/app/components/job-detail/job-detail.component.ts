@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed, effect } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, signal, computed, effect, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AudioJobService } from '../../services/audio-job.service';
@@ -6,6 +6,8 @@ import { AudioJobStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
+
+type TranscriptVersion = 'processed' | 'raw';
 
 @Component({
   selector: 'app-job-detail',
@@ -98,7 +100,8 @@ import { PageTitleService } from '../../i18n/page-title.service';
         }
 
         <!-- Transcript -->
-        @if (job.status === AudioJobStatus.Completed && transcript(); as transcriptText) {
+        @if (job.status === AudioJobStatus.Completed && (job.rawTranscript || job.processedTranscript)) {
+          @let transcriptText = transcript();
           <div class="card bg-base-200 shadow-sm">
             <div class="card-body">
               <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -138,9 +141,37 @@ import { PageTitleService } from '../../i18n/page-title.service';
                   </button>
                 </div>
               </div>
-              <div class="bg-base-100 rounded-lg p-4 whitespace-pre-wrap leading-relaxed text-sm max-h-[500px] overflow-y-auto">
-                {{ transcriptText }}
-              </div>
+              @if (hasProcessedVersion()) {
+                <div
+                  role="tablist"
+                  class="tabs tabs-box tabs-sm mb-3 w-fit"
+                  [attr.aria-label]="'jobDetail.versions.label' | transloco"
+                  (keydown)="onVersionKeydown($event)"
+                >
+                  @for (version of transcriptVersions; track version) {
+                    <button
+                      type="button"
+                      role="tab"
+                      class="tab"
+                      [id]="'transcript-tab-' + version"
+                      [class.tab-active]="transcriptView() === version"
+                      [attr.aria-selected]="transcriptView() === version"
+                      aria-controls="transcript-panel"
+                      [tabIndex]="transcriptView() === version ? 0 : -1"
+                      (click)="transcriptView.set(version)"
+                    >
+                      {{ 'jobDetail.versions.' + version | transloco }}
+                    </button>
+                  }
+                </div>
+              }
+              <div
+                id="transcript-panel"
+                class="bg-base-100 rounded-lg p-4 whitespace-pre-wrap leading-relaxed text-sm max-h-[500px] overflow-y-auto"
+                [attr.role]="hasProcessedVersion() ? 'tabpanel' : null"
+                [attr.aria-labelledby]="hasProcessedVersion() ? 'transcript-tab-' + transcriptView() : null"
+                tabindex="0"
+              >{{ transcriptText }}</div>
             </div>
           </div>
         }
@@ -161,10 +192,26 @@ export class JobDetailComponent implements OnInit {
   AudioJobStatus = AudioJobStatus;
   copied = signal(false);
 
-  /** Post-processed version if available, otherwise the raw Whisper output (toggle: S04-T4). */
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  readonly transcriptVersions = ['processed', 'raw'] as const;
+
+  /** Whether an LLM post-processed version exists next to the raw Whisper output. */
+  hasProcessedVersion = computed(() => !!this.jobService.selectedJob()?.processedTranscript);
+
+  /** Selected version; starts on the edited one again whenever another job is opened. */
+  transcriptView = linkedSignal<string | undefined, TranscriptVersion>({
+    source: () => this.jobService.selectedJob()?.id,
+    computation: () => 'processed',
+  });
+
+  /** Displayed transcript; copy, download and counts always use this version. */
   transcript = computed(() => {
     const job = this.jobService.selectedJob();
-    return job?.processedTranscript ?? job?.rawTranscript ?? '';
+    if (this.hasProcessedVersion() && this.transcriptView() === 'processed') {
+      return job?.processedTranscript ?? '';
+    }
+    return job?.rawTranscript ?? '';
   });
 
   wordCount = computed(() => {
@@ -189,6 +236,25 @@ export class JobDetailComponent implements OnInit {
     if (id) {
       this.jobService.loadJob(id);
     }
+  }
+
+  /** WAI-ARIA tabs keyboard pattern: arrows (wrapping), Home and End select and focus a tab. */
+  onVersionKeydown(event: KeyboardEvent): void {
+    const versions = this.transcriptVersions;
+    const current = versions.indexOf(this.transcriptView());
+    const next = {
+      ArrowRight: (current + 1) % versions.length,
+      ArrowLeft: (current - 1 + versions.length) % versions.length,
+      Home: 0,
+      End: versions.length - 1,
+    }[event.key];
+    if (next === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    this.transcriptView.set(versions[next]);
+    this.host.nativeElement.querySelector<HTMLElement>(`#transcript-tab-${versions[next]}`)?.focus();
   }
 
   copyTranscript(text: string): void {

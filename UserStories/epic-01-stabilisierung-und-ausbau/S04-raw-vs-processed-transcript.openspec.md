@@ -34,16 +34,16 @@ Der `TranscriptionWorker` schreibt das Ergebnis der Ollama-Nachbearbeitung in `T
 ### S04-T4 Frontend: Umschalter „Original / Bearbeitet“ · frontend · S
 - In `job-detail.component.ts`: DaisyUI `tabs` bzw. `join`-Toggle mit `role="tablist"` und `aria-selected`, nur sichtbar, wenn `processedTranscript` vorhanden ist. Standardansicht ist „Bearbeitet“. Die Texte kommen aus i18n (EN-1).
 - **AC:**
-  - [ ] Per Tastatur umschaltbar (Pfeiltasten und Enter).
-  - [ ] Unit-Test für beide Zustände.
-  - [ ] Kopieren und Download nutzen die jeweils angezeigte Fassung.
+  - [x] Per Tastatur umschaltbar (Pfeiltasten und Enter).
+  - [x] Unit-Test für beide Zustände.
+  - [x] Kopieren und Download nutzen die jeweils angezeigte Fassung.
 
 ## 5. Umsetzungsnotizen (2026-09-24)
 - **Voraussetzung umgesetzt (Entscheidung Repo-Owner: Option 1 mit Baseline):** Die API ruft beim Start `MigrateWithBaselineAsync` statt `EnsureCreatedAsync` auf. Datenbanken, die per `EnsureCreated` angelegt wurden (Tabellen vorhanden, aber kein `__EFMigrationsHistory`), bekommen `InitialCreate` als angewendet eingetragen. Danach laufen die ausstehenden Migrationen. Tests laufen gegen einen echten SQL Server (Testcontainers, Docker erforderlich).
 - **T1:** Die Migration `SplitRawAndProcessedTranscript` nutzt `RenameColumn` (`TranscriptText` → `RawTranscript`) und `AddColumn` (`ProcessedTranscript`). Ein Test belegt, dass bestehende Transkripte dabei erhalten bleiben.
 - **T2:** `ProcessedTranscript` wird nur gesetzt, wenn der Post-Processor einen nicht-leeren, geänderten Text liefert.
 - **T3:** Das Frontend-Modell ist angepasst. Bis T4 zeigt die Detailansicht wie bisher die bearbeitete Fassung, falls vorhanden, sonst den Rohtext.
-- **T4 offen:** Der Umschalter braucht neue UI-Texte und damit das i18n-Grundgerüst (EN-1, #3). Für seine Unit-Tests fehlt außerdem die Frontend-Test-Infrastruktur (EN-2, #93).
+- **T4 (nach EN-1/EN-2):** Umschalter nach dem WAI-ARIA-Tabs-Muster (`tablist`/`tab`/`tabpanel`, `aria-selected`, `aria-controls`/`aria-labelledby`, Roving-`tabindex`). Pfeiltasten wechseln mit Umlauf, dazu Home/End, Enter und Leertaste nativ über `<button>`. Er ist nur sichtbar, wenn `processedTranscript` existiert. Standard ist „Bearbeitet“, beim Wechsel auf einen anderen Job wird zurückgesetzt. Kopieren, Download und Wort- und Zeichenzahl nutzen die angezeigte Fassung.
 
 ## 6. Acceptance Criteria (DoD)
 - [ ] Mit aktivem Ollama sind beide Fassungen abrufbar, ohne Ollama verhält sich die App wie bisher.

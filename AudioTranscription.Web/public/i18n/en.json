@@ -71,7 +71,12 @@
     "copy": "Copy",
     "copied": "Copied!",
     "copiedToast": "Transcript copied to clipboard",
-    "notFound": "Job not found."
+    "notFound": "Job not found.",
+    "versions": {
+      "label": "Transcript version",
+      "processed": "Edited",
+      "raw": "Original"
+    }
   },
   "upload": {
     "title": "Upload audio",
