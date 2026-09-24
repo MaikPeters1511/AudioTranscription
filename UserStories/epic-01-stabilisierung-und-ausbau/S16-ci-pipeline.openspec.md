@@ -43,7 +43,7 @@ Es gibt keine CI. CLAUDE.md verlangt aber, dass PRs nur mit grünen Tests gemerg
 - **Kein `-warnaserror`:** Der AppHost erzeugt die Warnung `ASPIRE010` (`AspireUseCliBundle=false`).
 - Die Integrationstests nutzen eine EF-Core-InMemory-DB, ein SQL-Server-Service-Container ist nicht nötig.
 - **Node 24:** Die Angular CLI 22 verlangt Node ≥ 22.22.3 oder ≥ 24.15.
-- **Frontend-Unit-Tests fehlen:** `angular.json` hat kein `test`-Target und es gibt keine `*.spec.ts`. `ng test` schlägt deshalb fehl. Die Einrichtung ist als Enabler EN-2 ausgelagert. Sobald sie steht, kommt der Schritt `npm test` in den Job `frontend`.
+- **Frontend-Unit-Tests:** Beim Einrichten der CI fehlten `test`-Target und Specs. Mit EN-2 (#93) sind Vitest und das Target ergänzt, der Job `frontend` führt jetzt `npm test -- --watch=false` aus.
 - **Kein Prettier-Check:** 12 bestehende Dateien sind nicht Prettier-konform. Ein Check würde sofort fehlschlagen. Er wird ergänzt, sobald die Dateien einmal formatiert wurden.
 
 ## 5. Acceptance Criteria (DoD)

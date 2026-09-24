@@ -49,7 +49,7 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 
 ## 3. Übergreifende Voraussetzungen (Enabler)
 - **EN-1 i18n-Grundgerüst im Frontend (#3):** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
-- **EN-2 Frontend-Unit-Test-Infrastruktur (#93):** Im Web-Projekt fehlt ein `test`-Target, `ng test` schlägt fehl (aufgefallen bei S16). Die Einrichtung ist Voraussetzung für alle Frontend-Tasks mit Unit-Tests. *Agent: frontend · Größe: S*
+- **EN-2 Frontend-Unit-Test-Infrastruktur (#93):** Im Web-Projekt fehlte ein `test`-Target, `ng test` schlug fehl (aufgefallen bei S16). ✅ Umgesetzt: `@angular/build:unit-test` mit Vitest 4 und jsdom, erste Specs, CI-Schritt. *Agent: frontend · Größe: S*
 
 ## 4. Offene Entscheidungen (vor Sprint-Start klären)
 | # | Frage | Betrifft | Empfehlung |

@@ -88,8 +88,15 @@ Läuft standardmäßig auf `http://localhost:4200` und erwartet die API über ei
 ## 🧪 Tests
 
 ```bash
+# Backend (xUnit). Die Datenbank-Tests starten SQL Server per Testcontainers, Docker muss laufen.
 dotnet test
+
+# Frontend-Unit-Tests (Vitest über den Angular-Builder, Node 22.22.3+ oder 24)
+cd AudioTranscription.Web
+npm test -- --watch=false
 ```
+
+Ablage der Tests: siehe [ADR 0001](docs/adr/0001-ablageort-von-tests.md).
 
 ## 📁 Konfiguration
 
@@ -101,7 +108,8 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
     "MaxFileSizeBytes": 10485760,
     "AllowedContentTypes": ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/ogg"],
     "TempStoragePath": "temp-uploads",
-    "DeleteAfterTranscription": true
+    "DeleteAfterTranscription": true,
+    "OrphanedFileRetentionHours": 24
   },
   "Features": { "OllamaPostProcessing": false }
 }

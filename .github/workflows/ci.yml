@@ -68,7 +68,7 @@ jobs:
           if-no-files-found: warn
 
   frontend:
-    name: Frontend build
+    name: Frontend build & test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -87,3 +87,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Unit tests
+        run: npm test -- --watch=false
