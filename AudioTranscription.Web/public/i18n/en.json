@@ -4,7 +4,8 @@
     "nav": {
       "upload": "Upload",
       "jobs": "Jobs",
-      "main": "Main navigation"
+      "main": "Main navigation",
+      "search": "Search"
     },
     "connection": {
       "live": "Live connected",
@@ -191,5 +192,15 @@
       "unsupported": "This browser cannot record audio. Try Chrome, Firefox or Safari, or upload a file instead.",
       "recordingFailed": "Recording failed unexpectedly. Please try again."
     }
+  },
+  "search": {
+    "pageTitle": "Search · Transcription",
+    "landmark": "Search transcripts",
+    "title": "Search",
+    "label": "Search all transcripts",
+    "hint": "Type a word to search across all your transcripts.",
+    "loading": "Searching…",
+    "empty": "No results for \"{{ query }}\".",
+    "resultCount": "{{ count }} result(s)"
   }
 }

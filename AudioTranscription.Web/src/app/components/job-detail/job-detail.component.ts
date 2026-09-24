@@ -272,7 +272,7 @@ import { languageName } from '../../i18n/language-names';
         }
 
         @if (job.status === AudioJobStatus.Completed) {
-          <app-transcript-player [jobId]="job.id" />
+          <app-transcript-player [jobId]="job.id" [initialSeekMs]="initialSeekMs" />
         }
       } @else {
         <div class="alert alert-warning">
@@ -293,6 +293,12 @@ export class JobDetailComponent implements OnInit {
   AudioJobStatus = AudioJobStatus;
   readonly subtitleFormats: readonly SubtitleFormat[] = ['srt', 'vtt'];
   copied = signal(false);
+  /** From a search result deep-link (S13): the segment time (ms) to jump to in the player. */
+  readonly initialSeekMs = (() => {
+    const raw = inject(ActivatedRoute).snapshot.queryParamMap.get('t');
+    const parsed = raw !== null ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : undefined;
+  })();
 
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
 

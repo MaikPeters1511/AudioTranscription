@@ -4,7 +4,8 @@
     "nav": {
       "upload": "Upload",
       "jobs": "Jobs",
-      "main": "Hauptnavigation"
+      "main": "Hauptnavigation",
+      "search": "Suche"
     },
     "connection": {
       "live": "Live verbunden",
@@ -191,5 +192,15 @@
       "unsupported": "Dieser Browser kann keine Audioaufnahmen erstellen. Nutze Chrome, Firefox oder Safari, oder lade stattdessen eine Datei hoch.",
       "recordingFailed": "Die Aufnahme ist unerwartet fehlgeschlagen. Bitte versuche es erneut."
     }
+  },
+  "search": {
+    "pageTitle": "Suche · Transkription",
+    "landmark": "Transkripte durchsuchen",
+    "title": "Suche",
+    "label": "Alle Transkripte durchsuchen",
+    "hint": "Gib ein Wort ein, um alle Transkripte zu durchsuchen.",
+    "loading": "Suche läuft…",
+    "empty": "Keine Treffer für „{{ query }}“.",
+    "resultCount": "{{ count }} Treffer"
   }
 }

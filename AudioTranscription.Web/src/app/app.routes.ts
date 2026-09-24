@@ -21,6 +21,12 @@ export const routes: Routes = [
       import('./components/job-list/job-list.component').then((m) => m.JobListComponent),
   },
   {
+    path: 'search',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/search/search.component').then((m) => m.SearchComponent),
+  },
+  {
     path: 'jobs/:id',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -18,6 +18,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - ⏱️ **Zeitstempel und Untertitel** — Export als `.srt`/`.vtt`, Audio-Player mit mitlaufendem Transkript (Klick auf einen Satz springt dorthin)
 - 🧠 **Nachbearbeitung mit Ollama** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
 - 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
+- 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
 ## 🔐 Datenschutz
@@ -110,6 +111,12 @@ Die Upload-Seite hat zwei Reiter: „Datei hochladen“ und „Aufnehmen“. Im 
 **Wichtig:** `getUserMedia` (Mikrofonzugriff) verlangt einen [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) — die Seite muss über **HTTPS** oder `http://localhost` aufgerufen werden, sonst bietet der Browser den Reiter zwar an, aber die Berechtigungsanfrage schlägt fehl. In der Produktion (docker-compose/nginx) ist daher ein gültiges TLS-Zertifikat nötig, genau wie schon für das Session-Cookie (siehe [Anmeldung](#-anmeldung)).
 
 Chrome und Firefox liefern die Aufnahme als `audio/webm;codecs=opus`, Safari als `audio/mp4` — beide werden vom Upload-Endpunkt akzeptiert. Manuell getestet wurde der volle Ablauf (Aufnehmen → Stoppen → Vorhören → Transkribieren) in Chromium; ein Test in echtem Firefox/Safari war in dieser Sandbox mangels installierter Browser nicht möglich (siehe Umsetzungsnotizen in der Story-Spezifikation).
+
+### Volltextsuche
+
+Die Suchseite (Reiter „Suche“) durchsucht Rohtranskripte, Segmente und erzeugte Fassungen (S10) per SQL Server Full-Text Search ([ADR 0005](docs/adr/0005-volltextsuche.md)) und springt bei einem Segment-Treffer direkt an die passende Stelle im Player.
+
+**Wichtig:** Das Standard-Image `mcr.microsoft.com/mssql/server` bringt Full-Text Search **nicht** mit — es ist ein separates Paket. Aspire und `docker-compose.yml` bauen deshalb ein eigenes Image aus [`docker/mssql-fts/Dockerfile`](docker/mssql-fts/Dockerfile), das dieses Paket nachinstalliert; das Bauen braucht (einmalig) Internetzugriff auf `packages.microsoft.com`. Ohne dieses Image legt die Migration den Suchindex nicht an (sie schlägt nicht fehl, ist aber ein No-Op) und `GET /api/search` liefert einen Serverfehler.
 
 ## 🐳 Alternative: docker-compose
 
@@ -218,6 +225,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
 | `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes Ollama |
 | `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |
+| `GET` | `/api/search?q=&page=&pageSize=` | Volltextsuche über Rohtranskripte, Segmente und Fassungen; Treffer mit Snippet, Hervorhebungs-Offsets und optional `segmentStartMs`; `400` ohne `q` |
 | `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `VariantCompleted`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack

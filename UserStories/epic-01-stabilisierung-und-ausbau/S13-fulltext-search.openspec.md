@@ -33,8 +33,9 @@ Nutzer sollen alle Transkripte nach Begriffen durchsuchen und direkt zur Fundste
 ### S13-T4 Frontend: Suchfeld und Trefferliste · frontend · M
 - `<search>`-Landmark und `input type="search"` mit Label, Debounce. Treffer verlinken auf das Job-Detail und springen, falls ein Segment vorhanden ist, an die Stelle im Player (S06).
 - **AC:**
-  - [ ] Unit-Tests für Debounce, Leerzustand und Treffer-Rendering.
-  - [ ] Hervorhebung per `<mark>`.
+  - [x] Unit-Tests für Debounce, Leerzustand und Treffer-Rendering (`search.component.spec.ts`, 8 Tests; `search.service.spec.ts`, 3 Tests; `TranscriptPlayerComponent`-Erweiterung, 2 Tests für den Deep-Link).
+  - [x] Hervorhebung per `<mark>`, aus den vom Backend gelieferten Offsets gebaut (kein HTML vom Server, siehe ADR 0005); ein Treffer ohne literalen Treffer (nur gebeugte Form) zeigt keinen `<mark>`.
+- Umsetzung: neue Route `/search` (`SearchComponent`) mit Debounce (300 ms), `SearchService`. Ein Treffer mit `segmentStartMs` verlinkt auf `/jobs/{id}?t={ms}`; `JobDetailComponent` liest den Query-Parameter `t` und reicht ihn als `initialSeekMs` an `TranscriptPlayerComponent` durch, der die Audiowiedergabe und die aktive Segment-Markierung entsprechend springen lässt, sobald Segmente und das `<audio>`-Element geladen sind. Manuell im Browser mit echtem `<audio>`-Element (kein Mock) verifiziert: Playwright mit einer generierten WAV-Datei bestätigte, dass `audio.currentTime` tatsächlich springt und das richtige Segment als aktiv markiert wird (ein erster Versuch scheiterte an einer statischen Test-Datei ohne `Accept-Ranges`-Header, was Chromiums Seek stillschweigend verwarf — kein Produktcode-Fehler, nach Korrektur der Testfixture bestätigt).
 
 ## 5. Acceptance Criteria (DoD)
 - [~] Die Suche nach einem Wort aus einer deutschen Aufnahme findet sie auch in gebeugter Form (Stemming), sofern die gewählte Technologie das unterstützt. `FREETEXT` mit `LANGUAGE 1031` (Deutsch) unterstützt das; ein `SearchIntegrationTests`-Test (`Search_SupportsGermanStemming`) prüft das explizit, konnte aber aus demselben Sandbox-Grund wie T2/T3 hier nicht ausgeführt werden.

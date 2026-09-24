@@ -180,6 +180,47 @@ describe('TranscriptPlayerComponent speaker diarization (S11)', () => {
   });
 });
 
+describe('TranscriptPlayerComponent search deep-link (S13)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [TranscriptPlayerComponent, translocoTesting('en')],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('jumps to the given segment once segments have loaded', () => {
+    const fixture = TestBed.createComponent(TranscriptPlayerComponent);
+    fixture.componentRef.setInput('jobId', 'job-1');
+    fixture.componentRef.setInput('initialSeekMs', 1_500);
+    fixture.detectChanges();
+    http.expectOne('/api/audio-jobs/job-1/segments').flush(segments);
+    http.expectOne('/api/audio-jobs/job-1/speakers').flush([]);
+    fixture.detectChanges();
+
+    const buttons = fixture.nativeElement.querySelectorAll('ol button');
+    expect(buttons[1].getAttribute('aria-current')).toBe('true');
+  });
+
+  it('does nothing when no seek time is given', () => {
+    const fixture = TestBed.createComponent(TranscriptPlayerComponent);
+    fixture.componentRef.setInput('jobId', 'job-1');
+    fixture.detectChanges();
+    http.expectOne('/api/audio-jobs/job-1/segments').flush(segments);
+    http.expectOne('/api/audio-jobs/job-1/speakers').flush([]);
+    fixture.detectChanges();
+
+    // Without a deep-link, playback position stays at 0 (the default), which is segment 0 itself
+    const buttons = fixture.nativeElement.querySelectorAll('ol button');
+    expect(buttons[0].getAttribute('aria-current')).toBe('true');
+    expect(buttons[1].getAttribute('aria-current')).toBeNull();
+  });
+});
+
 describe('TranscriptPlayerComponent semantics', () => {
   it('marks timestamps as machine-readable durations', () => {
     TestBed.configureTestingModule({

@@ -138,3 +138,17 @@ export interface JobSpeaker {
   index: number;
   displayName: string;
 }
+
+/**
+ * One full-text search hit (S13, GET /api/search). {@link highlightStart}/{@link highlightLength}
+ * are offsets into {@link snippet}, not HTML, so the caller renders its own &lt;mark&gt;.
+ */
+export interface SearchHit {
+  jobId: string;
+  fileName: string;
+  snippet: string;
+  highlightStart: number;
+  highlightLength: number;
+  /** Set when the hit came from a timed segment (S06); undefined for a job- or variant-level hit. */
+  segmentStartMs?: number;
+}

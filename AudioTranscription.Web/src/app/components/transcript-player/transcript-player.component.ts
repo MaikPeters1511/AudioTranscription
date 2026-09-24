@@ -121,8 +121,11 @@ import { speakerBadgeClass } from './speaker-color';
 })
 export class TranscriptPlayerComponent {
   readonly jobId = input.required<string>();
+  /** Jump straight to this time once segments (and the audio element) are ready (S13 search deep-link). */
+  readonly initialSeekMs = input<number | undefined>(undefined);
 
   private jobService = inject(AudioJobService);
+  private audioSeekApplied = false;
   private audio = viewChild<ElementRef<HTMLAudioElement>>('audio');
   private segmentList = viewChild<ElementRef<HTMLElement>>('segmentList');
   private segmentItems = viewChildren<ElementRef<HTMLElement>>('segmentItem');
@@ -181,9 +184,16 @@ export class TranscriptPlayerComponent {
         this.currentMs.set(0);
         this.speakers.set([]);
         this.editingSpeakerIndex.set(null);
+        this.audioSeekApplied = false;
       });
       const subscription = this.jobService.loadSegments(id).subscribe({
-        next: (segments) => this.segments.set(segments),
+        next: (segments) => {
+          this.segments.set(segments);
+          const seekMs = untracked(this.initialSeekMs);
+          if (seekMs != null) {
+            this.currentMs.set(seekMs);
+          }
+        },
         // Segments are optional extras; the transcript above stays usable
         error: () => this.segments.set([]),
       });
@@ -210,6 +220,16 @@ export class TranscriptPlayerComponent {
       if (top < list.scrollTop || bottom > list.scrollTop + list.clientHeight) {
         const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
         list.scrollTo?.({ top: Math.max(0, top - list.clientHeight / 3), behavior: reducedMotion ? 'auto' : 'smooth' });
+      }
+    });
+
+    // The <audio> element only exists once segments have loaded; apply the deep-linked time once it does
+    effect(() => {
+      const audio = this.audio()?.nativeElement;
+      const seekMs = this.initialSeekMs();
+      if (audio && seekMs != null && !this.audioSeekApplied) {
+        this.audioSeekApplied = true;
+        audio.currentTime = seekMs / 1000;
       }
     });
   }
