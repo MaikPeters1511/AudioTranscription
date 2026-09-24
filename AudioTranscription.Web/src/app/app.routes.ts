@@ -1,12 +1,30 @@
 import { Routes } from '@angular/router';
-import { UploadComponent } from './components/upload/upload.component';
-import { JobListComponent } from './components/job-list/job-list.component';
-import { JobDetailComponent } from './components/job-detail/job-detail.component';
+import { authGuard } from './auth/auth.guard';
 
+// Pages are lazy-loaded to keep the initial bundle small
 export const routes: Routes = [
+  {
+    path: 'login',
+    loadComponent: () => import('./auth/login.component').then((m) => m.LoginComponent),
+  },
   { path: '', redirectTo: 'upload', pathMatch: 'full' },
-  { path: 'upload', component: UploadComponent },
-  { path: 'jobs', component: JobListComponent },
-  { path: 'jobs/:id', component: JobDetailComponent },
+  {
+    path: 'upload',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/upload/upload.component').then((m) => m.UploadComponent),
+  },
+  {
+    path: 'jobs',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/job-list/job-list.component').then((m) => m.JobListComponent),
+  },
+  {
+    path: 'jobs/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/job-detail/job-detail.component').then((m) => m.JobDetailComponent),
+  },
   { path: '**', redirectTo: 'upload' },
 ];

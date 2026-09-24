@@ -95,5 +95,18 @@
   },
   "toast": {
     "close": "Close"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "pageTitle": "Sign in · Transcription",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "failed": "Sign-in failed. Please check your email and password."
+    },
+    "logout": "Sign out",
+    "signedInAs": "Signed in as {{ email }}"
   }
 }

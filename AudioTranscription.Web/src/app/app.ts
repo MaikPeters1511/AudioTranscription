@@ -1,10 +1,11 @@
-import { Component, signal, inject, OnInit } from '@angular/core';
+import { Component, signal, inject, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SignalRService } from './services/signalr.service';
 import { ToastComponent } from './components/toast/toast.component';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { LanguageService } from './i18n/language.service';
+import { AuthService } from './auth/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -47,6 +48,16 @@ import { LanguageService } from './i18n/language.service';
               [class.bg-error]="!signalR.connected()"
             ></div>
           </div>
+
+          <!-- Signed-in user -->
+          @if (auth.user(); as user) {
+            <span class="hidden md:inline text-sm text-base-content/70 max-w-[14rem] truncate">
+              {{ 'auth.signedInAs' | transloco: { email: user.email } }}
+            </span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">
+              {{ 'auth.logout' | transloco }}
+            </button>
+          }
 
           <!-- Language Switch -->
           <button
@@ -108,14 +119,30 @@ import { LanguageService } from './i18n/language.service';
 export class App implements OnInit {
   signalR = inject(SignalRService);
   language = inject(LanguageService);
+  auth = inject(AuthService);
+  private router = inject(Router);
   theme = signal<'light' | 'dark'>(
     (typeof localStorage !== 'undefined' && localStorage.getItem('theme') as 'light' | 'dark') || 'light'
   );
 
   ngOnInit(): void {
     document.documentElement.setAttribute('data-theme', this.theme());
-    // Connect SignalR to the API — the proxy will forward /api requests
-    this.signalR.start('');
+  }
+
+  constructor() {
+    // The hub requires a session: connect after sign-in, disconnect on sign-out
+    effect(() => {
+      if (this.auth.isLoggedIn()) {
+        this.signalR.start('');
+      } else {
+        this.signalR.stop();
+      }
+    });
+  }
+
+  async logout(): Promise<void> {
+    await this.auth.logout();
+    await this.router.navigate(['/login']);
   }
 
   toggleTheme(): void {

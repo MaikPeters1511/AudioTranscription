@@ -10,6 +10,11 @@ export class SignalRService {
   readonly connected = signal(false);
 
   start(baseUrl: string): void {
+    // Already connected or connecting (e.g. repeated sign-in state updates)
+    if (this.hubConnection && this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
+      return;
+    }
+
     // Construct hub URL from API base
     const hubUrl = `${baseUrl}/hubs/transcription`;
 

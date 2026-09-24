@@ -95,5 +95,18 @@
   },
   "toast": {
     "close": "Schließen"
+  },
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "pageTitle": "Anmelden · Transkription",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft...",
+      "failed": "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen."
+    },
+    "logout": "Abmelden",
+    "signedInAs": "Angemeldet als {{ email }}"
   }
 }
