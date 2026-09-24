@@ -68,8 +68,14 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             // Clean up temporary WAV file if we created one
             if (wavPath != audioFilePath && File.Exists(wavPath))
             {
-                try { File.Delete(wavPath); }
-                catch { /* best effort */ }
+                try
+                {
+                    File.Delete(wavPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning(ex, "Failed to delete intermediate WAV file {Path}", wavPath);
+                }
             }
         }
     }
