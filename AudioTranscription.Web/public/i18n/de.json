@@ -80,12 +80,23 @@
     "versions": {
       "label": "Transkript-Fassung",
       "processed": "Bearbeitet",
-      "raw": "Original"
+      "raw": "Original",
+      "summary": "Zusammenfassung",
+      "bulletPoints": "Stichpunkte",
+      "actionItems": "Aufgaben",
+      "translate": "Übersetzung ({{ language }})"
     },
     "cancelledInfo": "Die Transkription wurde abgebrochen.",
     "subtitles": {
       "srt": "Untertitel als SRT herunterladen",
       "vtt": "Untertitel als VTT herunterladen"
+    },
+    "variants": {
+      "title": "Weitere Fassungen",
+      "translate": "Übersetzen",
+      "translateLanguage": "Zielsprache",
+      "failed": "Erstellung fehlgeschlagen.",
+      "unknownError": "Unbekannter Fehler"
     }
   },
   "upload": {

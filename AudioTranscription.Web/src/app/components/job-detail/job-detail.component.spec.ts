@@ -37,16 +37,6 @@ describe('JobDetailComponent', () => {
     return fixture;
   }
 
-  it('shows the post-processed transcript when available', () => {
-    const fixture = render(
-      completedJob({ rawTranscript: 'aehm hallo welt', processedTranscript: 'Hallo Welt.' }),
-    );
-
-    expect(fixture.componentInstance.transcript()).toBe('Hallo Welt.');
-    expect(fixture.nativeElement.textContent).toContain('Hallo Welt.');
-    expect(fixture.nativeElement.textContent).not.toContain('aehm hallo welt');
-  });
-
   it('falls back to the raw transcript without post-processing', () => {
     const fixture = render(completedJob({ rawTranscript: 'hallo welt' }));
 

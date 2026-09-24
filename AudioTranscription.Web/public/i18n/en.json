@@ -80,12 +80,23 @@
     "versions": {
       "label": "Transcript version",
       "processed": "Edited",
-      "raw": "Original"
+      "raw": "Original",
+      "summary": "Summary",
+      "bulletPoints": "Bullet points",
+      "actionItems": "Action items",
+      "translate": "Translation ({{ language }})"
     },
     "cancelledInfo": "The transcription was cancelled.",
     "subtitles": {
       "srt": "Download subtitles as SRT",
       "vtt": "Download subtitles as VTT"
+    },
+    "variants": {
+      "title": "More versions",
+      "translate": "Translate",
+      "translateLanguage": "Target language",
+      "failed": "Generation failed.",
+      "unknownError": "Unknown error"
     }
   },
   "upload": {

@@ -6,12 +6,24 @@ import {
   AudioJobStatus,
   CreateAudioJobResponse,
   PaginatedResult,
+  PostProcessingMode,
   SubtitleFormat,
   TranscriptionOptions,
   TranscriptionSettings,
   TranscriptSegment,
+  TranscriptVariant,
 } from '../models/audio-job.model';
 import { Observable, Subject, tap, map, filter, firstValueFrom } from 'rxjs';
+
+function upsertVariant(variants: TranscriptVariant[], variant: TranscriptVariant): TranscriptVariant[] {
+  const index = variants.findIndex((v) => v.id === variant.id);
+  if (index >= 0) {
+    const updated = [...variants];
+    updated[index] = variant;
+    return updated;
+  }
+  return [...variants, variant];
+}
 
 @Injectable({ providedIn: 'root' })
 export class AudioJobService {
@@ -86,6 +98,32 @@ export class AudioJobService {
 
   loadSegments(id: string): Observable<TranscriptSegment[]> {
     return this.http.get<TranscriptSegment[]>(`${this.baseUrl}/${id}/segments`);
+  }
+
+  // --- transcript variants (S10) --------------------------------------------
+
+  /** Variants of the currently open job, keyed by id; empty until {@link loadVariants} resolves. */
+  readonly variants = signal<TranscriptVariant[]>([]);
+
+  loadVariants(jobId: string): void {
+    this.http.get<TranscriptVariant[]>(`${this.baseUrl}/${jobId}/variants`).subscribe({
+      next: (variants) => this.variants.set(variants),
+      error: () => this.variants.set([]),
+    });
+  }
+
+  /** Generates (or regenerates) a variant; the result arrives via loadVariants once "VariantCompleted" fires. */
+  generateVariant(jobId: string, mode: PostProcessingMode, targetLanguage?: string): Observable<TranscriptVariant> {
+    return this.http
+      .post<TranscriptVariant>(`${this.baseUrl}/${jobId}/variants`, { mode, targetLanguage })
+      .pipe(tap((variant) => this.variants.update((current) => upsertVariant(current, variant))));
+  }
+
+  /** Called when "VariantCompleted" arrives for the currently open job. */
+  refreshVariant(jobId: string): void {
+    if (this.selectedJob()?.id === jobId) {
+      this.loadVariants(jobId);
+    }
   }
 
   /** Same-origin URL: the browser sends the session cookie for downloads and the audio element. */

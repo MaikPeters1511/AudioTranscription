@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
-import { AudioJobListItem, AudioJobStatus, JobProgressEvent } from '../models/audio-job.model';
+import { AudioJobListItem, AudioJobStatus, JobProgressEvent, VariantCompletedEvent } from '../models/audio-job.model';
 import { AudioJobService } from './audio-job.service';
 
 @Injectable({ providedIn: 'root' })
@@ -52,6 +52,10 @@ export class SignalRService {
 
     this.hubConnection.on('JobProgress', (event: JobProgressEvent) => {
       this.audioJobService.setProgress(event.jobId, event.percent);
+    });
+
+    this.hubConnection.on('VariantCompleted', (event: VariantCompletedEvent) => {
+      this.audioJobService.refreshVariant(event.jobId);
     });
 
     this.hubConnection.on('JobDeleted', (id: string) => {

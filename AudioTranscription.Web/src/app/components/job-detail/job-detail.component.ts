@@ -6,13 +6,11 @@ import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { AudioJobService } from '../../services/audio-job.service';
-import { AudioJobStatus, SubtitleFormat } from '../../models/audio-job.model';
+import { AudioJobStatus, PostProcessingMode, SubtitleFormat, TranscriptionOptions, TranscriptVariant, VariantStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
 import { languageName } from '../../i18n/language-names';
-
-type TranscriptVersion = 'processed' | 'raw';
 
 @Component({
   selector: 'app-job-detail',
@@ -130,8 +128,65 @@ type TranscriptVersion = 'processed' | 'raw';
           </div>
         }
 
+        <!-- Transcript variants (S10) -->
+        @if (postProcessingEnabled() && job.status === AudioJobStatus.Completed) {
+          <div class="card bg-base-200 shadow-sm mb-6">
+            <div class="card-body gap-3">
+              <h2 class="card-title text-lg">{{ 'jobDetail.variants.title' | transloco }}</h2>
+              <div class="flex flex-wrap items-center gap-2">
+                @for (mode of generateModes; track mode) {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline gap-1"
+                    [attr.aria-busy]="isPending(mode) ? 'true' : null"
+                    [disabled]="isPending(mode)"
+                    (click)="requestVariant(mode)"
+                  >
+                    @if (isPending(mode)) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    {{ 'jobDetail.versions.' + modeKey(mode) | transloco }}
+                  </button>
+                }
+                <div class="flex items-center gap-1">
+                  <label for="translate-language" class="sr-only">{{ 'jobDetail.variants.translateLanguage' | transloco }}</label>
+                  <select
+                    id="translate-language"
+                    class="select select-sm"
+                    [value]="selectedTranslateLanguage()"
+                    (change)="selectedTranslateLanguage.set($any($event.target).value)"
+                  >
+                    @for (lang of translateLanguages(); track lang.code) {
+                      <option [value]="lang.code">{{ lang.name }}</option>
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline gap-1"
+                    [attr.aria-busy]="isPending(PostProcessingMode.Translate, selectedTranslateLanguage()) ? 'true' : null"
+                    [disabled]="!selectedTranslateLanguage() || isPending(PostProcessingMode.Translate, selectedTranslateLanguage())"
+                    (click)="requestVariant(PostProcessingMode.Translate, selectedTranslateLanguage())"
+                  >
+                    @if (isPending(PostProcessingMode.Translate, selectedTranslateLanguage())) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    {{ 'jobDetail.variants.translate' | transloco }}
+                  </button>
+                </div>
+              </div>
+              @if (failedVariants().length) {
+                <ul class="text-sm text-error">
+                  @for (v of failedVariants(); track v.id) {
+                    <li>{{ variantTabLabel(v) }}: {{ v.errorMessage || ('jobDetail.variants.unknownError' | transloco) }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Transcript -->
-        @if (job.status === AudioJobStatus.Completed && (job.rawTranscript || job.processedTranscript)) {
+        @if (job.status === AudioJobStatus.Completed && (job.rawTranscript || completedVariants().length > 0)) {
           @let transcriptText = transcript();
           <div class="card bg-base-200 shadow-sm">
             <div class="card-body">
@@ -181,26 +236,26 @@ type TranscriptVersion = 'processed' | 'raw';
                   </button>
                 </div>
               </div>
-              @if (hasProcessedVersion()) {
+              @if (hasVariantTabs()) {
                 <div
                   role="tablist"
                   class="tabs tabs-box tabs-sm mb-3 w-fit"
                   [attr.aria-label]="'jobDetail.versions.label' | transloco"
                   (keydown)="onVersionKeydown($event)"
                 >
-                  @for (version of transcriptVersions; track version) {
+                  @for (tab of variantTabs(); track tab.key) {
                     <button
                       type="button"
                       role="tab"
                       class="tab"
-                      [id]="'transcript-tab-' + version"
-                      [class.tab-active]="transcriptView() === version"
-                      [attr.aria-selected]="transcriptView() === version"
+                      [id]="'transcript-tab-' + tab.key"
+                      [class.tab-active]="transcriptView() === tab.key"
+                      [attr.aria-selected]="transcriptView() === tab.key"
                       aria-controls="transcript-panel"
-                      [tabIndex]="transcriptView() === version ? 0 : -1"
-                      (click)="transcriptView.set(version)"
+                      [tabIndex]="transcriptView() === tab.key ? 0 : -1"
+                      (click)="transcriptView.set(tab.key)"
                     >
-                      {{ 'jobDetail.versions.' + version | transloco }}
+                      {{ tab.label }}
                     </button>
                   }
                 </div>
@@ -208,8 +263,8 @@ type TranscriptVersion = 'processed' | 'raw';
               <div
                 id="transcript-panel"
                 class="bg-base-100 rounded-lg p-4 whitespace-pre-wrap leading-relaxed text-sm max-h-[500px] overflow-y-auto"
-                [attr.role]="hasProcessedVersion() ? 'tabpanel' : null"
-                [attr.aria-labelledby]="hasProcessedVersion() ? 'transcript-tab-' + transcriptView() : null"
+                [attr.role]="hasVariantTabs() ? 'tabpanel' : null"
+                [attr.aria-labelledby]="hasVariantTabs() ? 'transcript-tab-' + transcriptView() : null"
                 tabindex="0"
               >{{ transcriptText }}</div>
             </div>
@@ -241,24 +296,47 @@ export class JobDetailComponent implements OnInit {
 
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  readonly transcriptVersions = ['processed', 'raw'] as const;
+  readonly PostProcessingMode = PostProcessingMode;
+  readonly generateModes: readonly Exclude<PostProcessingMode, PostProcessingMode.Translate>[] = [
+    PostProcessingMode.Cleanup,
+    PostProcessingMode.Summary,
+    PostProcessingMode.BulletPoints,
+    PostProcessingMode.ActionItems,
+  ];
 
-  /** Whether an LLM post-processed version exists next to the raw Whisper output. */
-  hasProcessedVersion = computed(() => !!this.jobService.selectedJob()?.processedTranscript);
+  private transcriptionOptions = signal<TranscriptionOptions | null>(null);
+  postProcessingEnabled = computed(() => this.transcriptionOptions()?.postProcessingEnabled ?? false);
+  translateLanguages = computed(() => {
+    const uiLanguage = this.activeLang();
+    return (this.transcriptionOptions()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
+  });
+  selectedTranslateLanguage = signal('');
 
-  /** Selected version; starts on the edited one again whenever another job is opened. */
-  transcriptView = linkedSignal<string | undefined, TranscriptVersion>({
+  completedVariants = computed(() => this.jobService.variants().filter((v) => v.status === VariantStatus.Completed));
+  failedVariants = computed(() => this.jobService.variants().filter((v) => v.status === VariantStatus.Failed));
+
+  /** "Original" plus one tab per generated variant. */
+  variantTabs = computed(() => {
+    void this.activeLang(); // recompute labels on language change
+    return [
+      { key: 'raw', label: this.transloco.translate('jobDetail.versions.raw') },
+      ...this.completedVariants().map((v) => ({ key: v.id, label: this.variantTabLabel(v) })),
+    ];
+  });
+  hasVariantTabs = computed(() => this.completedVariants().length > 0);
+
+  /** Selected version; resets to "Original" whenever another job is opened. */
+  transcriptView = linkedSignal<string | undefined, string>({
     source: () => this.jobService.selectedJob()?.id,
-    computation: () => 'processed',
+    computation: () => 'raw',
   });
 
   /** Displayed transcript; copy, download and counts always use this version. */
   transcript = computed(() => {
     const job = this.jobService.selectedJob();
-    if (this.hasProcessedVersion() && this.transcriptView() === 'processed') {
-      return job?.processedTranscript ?? '';
-    }
-    return job?.rawTranscript ?? '';
+    const view = this.transcriptView();
+    const variant = view !== 'raw' ? this.completedVariants().find((v) => v.id === view) : undefined;
+    return variant?.text ?? job?.rawTranscript ?? '';
   });
 
   wordCount = computed(() => {
@@ -294,26 +372,83 @@ export class JobDetailComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.jobService.loadJob(id);
+      this.jobService.loadVariants(id);
     }
+    this.jobService.loadTranscriptionOptions().subscribe({
+      next: (options) => {
+        this.transcriptionOptions.set(options);
+        if (options.languages.length) {
+          this.selectedTranslateLanguage.set(options.languages[0]);
+        }
+      },
+      // Variant buttons stay hidden without options; the rest of the page still works
+      error: () => this.transcriptionOptions.set(null),
+    });
+  }
+
+  /**
+   * Translation-key suffix for a mode, shared by the generate buttons and the variant tabs.
+   * Translate is never passed in here (its tab and button use their own dedicated text), but the
+   * switch still needs to be exhaustive for TypeScript.
+   */
+  modeKey(mode: Exclude<PostProcessingMode, PostProcessingMode.Translate>): string {
+    switch (mode) {
+      case PostProcessingMode.Cleanup:
+        return 'processed';
+      case PostProcessingMode.Summary:
+        return 'summary';
+      case PostProcessingMode.BulletPoints:
+        return 'bulletPoints';
+      case PostProcessingMode.ActionItems:
+        return 'actionItems';
+    }
+  }
+
+  variantTabLabel(v: TranscriptVariant): string {
+    if (v.mode === PostProcessingMode.Translate) {
+      return this.transloco.translate('jobDetail.versions.translate', {
+        language: languageName(v.targetLanguage!, this.activeLang()),
+      });
+    }
+    return this.transloco.translate('jobDetail.versions.' + this.modeKey(v.mode as Exclude<PostProcessingMode, PostProcessingMode.Translate>));
+  }
+
+  isPending(mode: PostProcessingMode, targetLanguage?: string): boolean {
+    return this.jobService
+      .variants()
+      .some((v) => v.mode === mode && (v.targetLanguage ?? '') === (targetLanguage ?? '') && v.status === VariantStatus.Pending);
+  }
+
+  requestVariant(mode: PostProcessingMode, targetLanguage?: string): void {
+    const job = this.jobService.selectedJob();
+    if (!job) {
+      return;
+    }
+    this.jobService.generateVariant(job.id, mode, targetLanguage).subscribe({
+      error: (err) => {
+        const detail = err.error?.errors?.mode?.[0] ?? err.error?.errors?.targetLanguage?.[0] ?? err.error?.detail;
+        this.toastService.error(detail || this.transloco.translate('jobDetail.variants.failed'));
+      },
+    });
   }
 
   /** WAI-ARIA tabs keyboard pattern: arrows (wrapping), Home and End select and focus a tab. */
   onVersionKeydown(event: KeyboardEvent): void {
-    const versions = this.transcriptVersions;
-    const current = versions.indexOf(this.transcriptView());
+    const keys = this.variantTabs().map((tab) => tab.key);
+    const current = keys.indexOf(this.transcriptView());
     const next = {
-      ArrowRight: (current + 1) % versions.length,
-      ArrowLeft: (current - 1 + versions.length) % versions.length,
+      ArrowRight: (current + 1) % keys.length,
+      ArrowLeft: (current - 1 + keys.length) % keys.length,
       Home: 0,
-      End: versions.length - 1,
+      End: keys.length - 1,
     }[event.key];
     if (next === undefined) {
       return;
     }
 
     event.preventDefault();
-    this.transcriptView.set(versions[next]);
-    this.host.nativeElement.querySelector<HTMLElement>(`#transcript-tab-${versions[next]}`)?.focus();
+    this.transcriptView.set(keys[next]);
+    this.host.nativeElement.querySelector<HTMLElement>(`#transcript-tab-${keys[next]}`)?.focus();
   }
 
   copyTranscript(text: string): void {

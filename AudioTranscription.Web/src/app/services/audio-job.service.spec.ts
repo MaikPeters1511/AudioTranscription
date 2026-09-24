@@ -195,7 +195,7 @@ describe('AudioJobService transcription settings (S08)', () => {
     let result: unknown;
     service.loadTranscriptionOptions().subscribe((o) => (result = o));
 
-    const options = { models: ['Base', 'Small'], defaultModel: 'Base', languages: ['de', 'en'] };
+    const options = { models: ['Base', 'Small'], defaultModel: 'Base', languages: ['de', 'en'], postProcessingEnabled: false };
     http.expectOne('/api/transcription-options').flush(options);
 
     expect(result).toEqual(options);
@@ -238,5 +238,39 @@ describe('AudioJobService progress (S07)', () => {
     service.setProgress('a', 55);
 
     expect(service.progressOf('a')).toBe(60);
+  });
+});
+
+describe('AudioJobService transcript variants (S10)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  it('replaces an existing variant instead of duplicating it', () => {
+    service
+      .generateVariant('job-1', 0)
+      .subscribe();
+    http.expectOne('/api/audio-jobs/job-1/variants').flush({ id: 'v1', mode: 0, status: 0, createdAtUtc: 'now' });
+
+    service.generateVariant('job-1', 0).subscribe();
+    http.expectOne('/api/audio-jobs/job-1/variants').flush({ id: 'v1', mode: 0, status: 1, text: 'fertig', createdAtUtc: 'now' });
+
+    expect(service.variants()).toHaveLength(1);
+    expect(service.variants()[0].text).toBe('fertig');
+  });
+
+  it('refreshes variants only when the event is for the currently open job', () => {
+    service.selectedJob.set({ id: 'job-1' } as any);
+
+    service.refreshVariant('job-2');
+    http.expectNone('/api/audio-jobs/job-2/variants');
+
+    service.refreshVariant('job-1');
+    http.expectOne('/api/audio-jobs/job-1/variants').flush([]);
   });
 });

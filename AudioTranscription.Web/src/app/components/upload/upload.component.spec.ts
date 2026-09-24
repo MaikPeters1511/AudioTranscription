@@ -9,6 +9,7 @@ const transcriptionOptions = {
   models: ['Tiny', 'Base', 'Small'],
   defaultModel: 'Base',
   languages: ['de', 'en'],
+  postProcessingEnabled: false,
 };
 
 describe('UploadComponent', () => {

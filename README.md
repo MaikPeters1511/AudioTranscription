@@ -15,7 +15,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🌗 **Hell/Dunkel-Theme**, responsives UI (Desktop-Tabelle + Mobile-Karten)
 - 🎛️ **Modell und Sprache wählbar** — pro Upload ein freigegebenes Whisper-Modell und die Sprache der Aufnahme (oder automatische Erkennung)
 - ⏱️ **Zeitstempel und Untertitel** — Export als `.srt`/`.vtt`, Audio-Player mit mitlaufendem Transkript (Klick auf einen Satz springt dorthin)
-- 🧠 **Optionale Nachbearbeitung** über Ollama (z. B. Zusammenfassung, Rechtschreibkorrektur)
+- 🧠 **Nachbearbeitung mit Ollama** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
 ## 🔐 Datenschutz
@@ -83,6 +83,8 @@ In `AudioTranscription.Api/appsettings.json`:
 
 Beim nächsten `dotnet run` startet Aspire zusätzlich einen Ollama-Container inkl. `llama3.2`-Modell.
 
+In der Detailansicht eines abgeschlossenen Jobs erscheint dann eine Aktionsleiste „Weitere Fassungen“ mit einem Knopf je Modus (Bereinigen, Zusammenfassen, Stichpunkte, Aufgaben, Übersetzen). Ergebnisse erscheinen als zusätzliche Tabs neben „Original“; ein erneuter Klick auf denselben Modus ersetzt das Ergebnis. Lange Transkripte werden für Zusammenfassung und Aufgaben in Abschnitten verarbeitet und anschließend zusammengeführt (`PostProcessing:MaxChunkLength` in `appsettings.json`, Richtwert in Zeichen statt Tokens, da für das gewählte Ollama-Modell kein Tokenizer verfügbar ist).
+
 ## 🐳 Alternative: docker-compose
 
 Für einen produktionsnäheren Stack ohne Aspire:
@@ -137,6 +139,7 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
   },
   "Auth": { "AllowRegistration": false },
   "Cors": { "AllowedOrigins": [] },
+  "PostProcessing": { "MaxChunkLength": 6000 },
   "Features": { "OllamaPostProcessing": false }
 }
 ```
@@ -178,7 +181,9 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts (`409`, solange der Job nicht abgeschlossen ist) |
 | `GET` | `/api/audio-jobs/{id}/subtitles?format=srt\|vtt` | Untertitel-Download (`409` wie oben, `400` bei unbekanntem Format) |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
-| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `JobDeleted`) |
+| `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes Ollama |
+| `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |
+| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `VariantCompleted`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack
 
