@@ -45,6 +45,10 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
         builder.Property(x => x.RequestedLanguage)
             .HasMaxLength(10);
 
+        builder.Property(x => x.DiarizationRequested)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(x => x.DurationSeconds);
 
         builder.Property(x => x.CreatedAtUtc)

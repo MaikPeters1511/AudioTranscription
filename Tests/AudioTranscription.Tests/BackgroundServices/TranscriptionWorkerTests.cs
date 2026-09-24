@@ -3,6 +3,7 @@ using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
+using AudioTranscription.Domain.Diarization;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
@@ -292,6 +293,80 @@ public class TranscriptionWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessJob_WhenDiarizationRequestedAndConfigured_AssignsSpeakersAndStoresJobSpeakers()
+    {
+        var diarization = new Mock<IDiarizationService>();
+        diarization
+            .Setup(d => d.DiarizeAsync(It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<SpeakerInterval> { new(0, 1_500, 0), new(1_500, 3_000, 1) });
+        var (worker, jobId, file) = await ArrangeAsync(
+            deleteAfterTranscription: true, diarizationService: diarization.Object, diarizationRequested: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TranscriptionResult("Hallo Welt", "de", 3)
+            {
+                Segments =
+                [
+                    new SegmentResult(TimeSpan.Zero, TimeSpan.FromMilliseconds(1_000), "Hallo"),
+                    new SegmentResult(TimeSpan.FromMilliseconds(2_000), TimeSpan.FromMilliseconds(3_000), "Welt"),
+                ]
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        using var scope = _provider!.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var segments = await db.TranscriptSegments.Where(s => s.AudioJobId == jobId).OrderBy(s => s.Index).ToListAsync();
+        segments.Select(s => s.SpeakerIndex).Should().Equal(0, 1);
+        var speakers = await db.JobSpeakers.Where(s => s.AudioJobId == jobId).OrderBy(s => s.Index).ToListAsync();
+        speakers.Select(s => s.Index).Should().Equal(0, 1);
+        speakers.Should().OnlyContain(s => s.DisplayName == null);
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenDiarizationNotRequested_NeverCallsTheDiarizationService()
+    {
+        var diarization = new Mock<IDiarizationService>();
+        var (worker, jobId, file) = await ArrangeAsync(
+            deleteAfterTranscription: true, diarizationService: diarization.Object, diarizationRequested: false);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        diarization.Verify(d => d.DiarizeAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenDiarizationRequestedButNotConfigured_StillCompletesTheJob()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, diarizationRequested: true);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        (await GetJobAsync(jobId)).Status.Should().Be(AudioJobStatus.Completed);
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenDiarizationThrows_JobStillCompletesWithoutSpeakers()
+    {
+        var diarization = new Mock<IDiarizationService>();
+        diarization
+            .Setup(d => d.DiarizeAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Modelle fehlen"));
+        var (worker, jobId, file) = await ArrangeAsync(
+            deleteAfterTranscription: true, diarizationService: diarization.Object, diarizationRequested: true);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        var job = await GetJobAsync(jobId);
+        job.Status.Should().Be(AudioJobStatus.Completed);
+        using var scope = _provider!.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().JobSpeakers.CountAsync(s => s.AudioJobId == jobId)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task ProcessJob_WithoutVariantGenerator_CreatesNoAutomaticVariant()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
@@ -327,6 +402,8 @@ public class TranscriptionWorkerTests : IDisposable
         AudioJobStatus status = AudioJobStatus.Pending,
         IVariantGenerator? variantGenerator = null,
         VariantQueue? variantQueue = null,
+        IDiarizationService? diarizationService = null,
+        bool diarizationRequested = false,
         string model = "Base",
         string? requestedLanguage = null)
     {
@@ -351,6 +428,8 @@ public class TranscriptionWorkerTests : IDisposable
         services.AddSingleton(variantQueue ?? new VariantQueue());
         if (variantGenerator is not null)
             services.AddSingleton(variantGenerator);
+        if (diarizationService is not null)
+            services.AddSingleton(diarizationService);
         _provider = services.BuildServiceProvider();
 
         var jobId = Guid.NewGuid();
@@ -362,7 +441,7 @@ public class TranscriptionWorkerTests : IDisposable
             db.AudioJobs.Add(new AudioJob
             {
                 Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status,
-                Model = model, RequestedLanguage = requestedLanguage
+                Model = model, RequestedLanguage = requestedLanguage, DiarizationRequested = diarizationRequested
             });
             await db.SaveChangesAsync();
         }

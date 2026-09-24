@@ -144,6 +144,7 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
     [InlineData("GET", "/api/audio-jobs/00000000-0000-0000-0000-000000000001/segments")]
     [InlineData("GET", "/api/audio-jobs/00000000-0000-0000-0000-000000000001/subtitles?format=srt")]
     [InlineData("GET", "/api/audio-jobs/00000000-0000-0000-0000-000000000001/audio")]
+    [InlineData("GET", "/api/audio-jobs/00000000-0000-0000-0000-000000000001/speakers")]
     public async Task ProtectedEndpoints_WithoutLogin_Return401(string method, string url)
     {
         using var factory = CreateFactory();

@@ -14,11 +14,13 @@ public static class TranscriptionOptionsEndpoints
             .WithDescription("Models and languages that can be chosen for an upload; 'auto' (language detection) is always available");
     }
 
-    private static Ok<TranscriptionOptionsDto> GetTranscriptionOptions(IOptions<WhisperOptions> whisperOptions, IServiceProvider services)
+    private static Ok<TranscriptionOptionsDto> GetTranscriptionOptions(
+        IOptions<WhisperOptions> whisperOptions, IOptions<DiarizationOptions> diarizationOptions, IServiceProvider services)
     {
         var options = whisperOptions.Value;
         return TypedResults.Ok(new TranscriptionOptionsDto(
             options.AllowedModels, options.DefaultModel, options.SupportedLanguages,
-            services.GetService<AudioTranscription.Infrastructure.Services.IVariantGenerator>() is not null));
+            services.GetService<AudioTranscription.Infrastructure.Services.IVariantGenerator>() is not null,
+            diarizationOptions.Value.Enabled));
     }
 }

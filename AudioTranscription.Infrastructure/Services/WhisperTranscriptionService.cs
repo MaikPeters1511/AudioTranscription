@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NAudio.Wave;
 using Whisper.net;
 using Whisper.net.Ggml;
 
@@ -16,13 +14,16 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
 {
     private readonly ILogger<WhisperTranscriptionService> _logger;
     private readonly WhisperOptions _options;
+    private readonly Audio16kHzWavConverter _wavConverter;
     private readonly string _modelsDirectory;
     private readonly KeyedAsyncCache<GgmlType, WhisperFactory> _factories;
 
-    public WhisperTranscriptionService(IOptions<WhisperOptions> options, ILogger<WhisperTranscriptionService> logger)
+    public WhisperTranscriptionService(
+        IOptions<WhisperOptions> options, Audio16kHzWavConverter wavConverter, ILogger<WhisperTranscriptionService> logger)
     {
         _logger = logger;
         _options = options.Value;
+        _wavConverter = wavConverter;
         _modelsDirectory = Path.Combine(AppContext.BaseDirectory, _options.ModelsDirectory);
         _factories = new KeyedAsyncCache<GgmlType, WhisperFactory>(LoadFactoryAsync);
     }
@@ -35,7 +36,7 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             throw new InvalidOperationException($"Das Whisper-Modell '{settings.Model}' ist nicht freigegeben.");
 
         var factory = await _factories.GetAsync(modelType, cancellationToken);
-        var wavPath = await ConvertToWavAsync(audioFilePath, cancellationToken);
+        var wavPath = await _wavConverter.ConvertAsync(audioFilePath, cancellationToken);
 
         try
         {
@@ -107,88 +108,6 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
         }
 
         return WhisperFactory.FromPath(modelPath);
-    }
-
-    /// <summary>
-    /// Converts any supported audio format to 16kHz mono 16-bit PCM WAV as required by Whisper.
-    /// Delegates to the system ffmpeg binary, which handles every input codec/container
-    /// uniformly across Windows, Linux and macOS (NAudio's MediaFoundation classes are
-    /// Windows-only and cannot be used here).
-    /// </summary>
-    private async Task<string> ConvertToWavAsync(string inputPath, CancellationToken cancellationToken)
-    {
-        var extension = Path.GetExtension(inputPath).ToLowerInvariant();
-
-        // If already a WAV, check if it needs resampling
-        if (extension == ".wav")
-        {
-            using var reader = new WaveFileReader(inputPath);
-            if (reader.WaveFormat.SampleRate == 16000 &&
-                reader.WaveFormat.Channels == 1 &&
-                reader.WaveFormat.BitsPerSample == 16)
-            {
-                return inputPath; // Already in correct format
-            }
-        }
-
-        _logger.LogInformation("Converting audio to 16kHz WAV: {Path}", inputPath);
-
-        var outputPath = Path.Combine(
-            Path.GetDirectoryName(inputPath)!,
-            $"{Path.GetFileNameWithoutExtension(inputPath)}_16khz.wav");
-
-        await RunFfmpegAsync(inputPath, outputPath, cancellationToken);
-
-        _logger.LogInformation("Audio converted to 16kHz WAV: {Path}", outputPath);
-        return outputPath;
-    }
-
-    private async Task RunFfmpegAsync(string inputPath, string outputPath, CancellationToken cancellationToken)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "ffmpeg",
-            ArgumentList =
-            {
-                "-y",                 // overwrite output without prompting
-                "-i", inputPath,
-                "-ac", "1",           // mono
-                "-ar", "16000",       // 16 kHz
-                "-sample_fmt", "s16",
-                "-f", "wav",
-                outputPath,
-            },
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = startInfo };
-
-        try
-        {
-            process.Start();
-        }
-        catch (System.ComponentModel.Win32Exception ex)
-        {
-            throw new InvalidOperationException(
-                "ffmpeg wurde nicht gefunden. Bitte installiere ffmpeg und stelle sicher, dass es im PATH verfügbar ist " +
-                "(z.B. 'brew install ffmpeg' auf macOS oder 'apt install ffmpeg' auf Linux).", ex);
-        }
-
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-
-        await process.WaitForExitAsync(cancellationToken);
-        var stderr = await stderrTask;
-        await stdoutTask;
-
-        if (process.ExitCode != 0)
-        {
-            _logger.LogError("ffmpeg conversion failed (exit code {ExitCode}): {StdErr}", process.ExitCode, stderr);
-            throw new InvalidOperationException($"Audiokonvertierung fehlgeschlagen (ffmpeg exit code {process.ExitCode}).");
-        }
     }
 
     public async ValueTask DisposeAsync()

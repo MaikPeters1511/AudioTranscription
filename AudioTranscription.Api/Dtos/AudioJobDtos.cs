@@ -33,6 +33,7 @@ public record AudioJobDto(
     DateTime? CompletedAtUtc,
     string Model,
     string? RequestedLanguage,
+    bool DiarizationRequested,
     int? ProgressPercent = null
 );
 
@@ -63,10 +64,24 @@ public record TranscriptionOptionsDto(
     string DefaultModel,
     IReadOnlyList<string> Languages,
     /// <summary>Whether variant generation (S10) is available, i.e. an LLM (Ollama) is configured.</summary>
-    bool PostProcessingEnabled
+    bool PostProcessingEnabled,
+    /// <summary>Whether speaker diarization (S11) is available, i.e. the sherpa-onnx models are configured.</summary>
+    bool DiarizationEnabled
 );
 
-public record TranscriptSegmentDto(int Index, long StartMs, long EndMs, string Text);
+public record TranscriptSegmentDto(
+    int Index, long StartMs, long EndMs, string Text,
+    /// <summary>Set only for a diarized job (S11); null otherwise or when no speaker overlapped this segment.</summary>
+    int? SpeakerIndex = null,
+    /// <summary>Resolved display name for <see cref="SpeakerIndex"/> ("Sprecher N" until renamed); null when SpeakerIndex is null.</summary>
+    string? SpeakerName = null
+);
+
+/// <summary>One speaker detected by diarization (S11), with its resolved display name.</summary>
+public record JobSpeakerDto(int Index, string DisplayName);
+
+/// <summary>Body of PUT /api/audio-jobs/{id}/speakers/{index}.</summary>
+public record RenameSpeakerRequest(string DisplayName);
 
 /// <summary>SignalR event "JobProgress" while a job is being transcribed.</summary>
 public record JobProgressDto(Guid JobId, int Percent);

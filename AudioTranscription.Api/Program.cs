@@ -30,12 +30,23 @@ builder.Services.AddSingleton<JobCancellationRegistry>();
 builder.Services.AddSingleton<JobProgressStore>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<Audio16kHzWavConverter>();
 // Singleton: loaded Whisper models are kept and shared between jobs
 builder.Services.AddOptions<WhisperOptions>()
     .Bind(builder.Configuration.GetSection(WhisperOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<WhisperOptions>, WhisperOptionsValidator>();
 builder.Services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
+
+// Speaker diarization (S11, ADR 0004): optional, needs local ONNX models the operator supplies
+builder.Services.AddOptions<DiarizationOptions>()
+    .Bind(builder.Configuration.GetSection(DiarizationOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<DiarizationOptions>, DiarizationOptionsValidator>();
+if (builder.Configuration.GetValue<bool>($"{DiarizationOptions.SectionName}:Enabled"))
+{
+    builder.Services.AddSingleton<IDiarizationService, SherpaOnnxDiarizationService>();
+}
 builder.Services.AddHostedService<InitialUserSeeder>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
@@ -165,6 +176,7 @@ app.MapAudioJobEndpoints();
 app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
 app.MapVariantEndpoints();
+app.MapSpeakerEndpoints();
 
 app.Run();
 public partial class Program { }

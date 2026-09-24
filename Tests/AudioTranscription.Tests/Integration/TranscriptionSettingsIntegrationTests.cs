@@ -148,6 +148,7 @@ public class TranscriptionSettingsIntegrationTests : IClassFixture<WebApplicatio
         options!.DefaultModel.Should().Be("Base");
         options.Models.Should().Equal("Tiny", "Base", "Small", "Medium", "LargeV3");
         options.Languages.Should().Contain(["de", "en"]).And.NotContain("auto").And.OnlyHaveUniqueItems();
+        options.DiarizationEnabled.Should().BeFalse("no diarization models are configured in this test host");
     }
 
     [Fact]

@@ -12,4 +12,6 @@ public class TranscriptSegment
     public long StartMs { get; set; }
     public long EndMs { get; set; }
     public string Text { get; set; } = string.Empty;
+    /// <summary>Speaker this segment was assigned to (S11), by largest time overlap; null without diarization.</summary>
+    public int? SpeakerIndex { get; set; }
 }

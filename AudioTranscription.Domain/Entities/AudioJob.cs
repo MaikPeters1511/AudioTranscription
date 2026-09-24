@@ -18,6 +18,8 @@ public class AudioJob
     public string Model { get; set; } = string.Empty;
     /// <summary>Language chosen at upload (ISO-639-1); null means automatic detection.</summary>
     public string? RequestedLanguage { get; set; }
+    /// <summary>Whether speaker diarization (S11) was requested at upload.</summary>
+    public bool DiarizationRequested { get; set; }
     public double? DurationSeconds { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }

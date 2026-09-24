@@ -166,9 +166,11 @@ public static class AudioJobEndpoints
         TranscriptionQueue queue,
         IOptions<UploadOptions> uploadOptions,
         IOptions<WhisperOptions> whisperOptions,
+        IOptions<DiarizationOptions> diarizationOptions,
         IHubContext<TranscriptionHub> hubContext,
         ITempFileStore tempFileStore,
-        ILogger<AudioJob> logger)
+        ILogger<AudioJob> logger,
+        [FromForm] bool diarize = false)
     {
         var options = uploadOptions.Value;
 
@@ -178,6 +180,8 @@ public static class AudioJobEndpoints
             settingErrors["model"] = [$"Model '{model}' is not available. Allowed models: {string.Join(", ", whisperOptions.Value.AllowedModels)}."];
         if (!whisperOptions.Value.TryResolveLanguage(language, out var resolvedLanguage))
             settingErrors["language"] = [$"Language '{language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
+        if (diarize && !diarizationOptions.Value.Enabled)
+            settingErrors["diarize"] = ["Speaker diarization is not configured on this server."];
         if (settingErrors.Count > 0)
             return TypedResults.ValidationProblem(settingErrors);
 
@@ -241,6 +245,7 @@ public static class AudioJobEndpoints
             Status = AudioJobStatus.Pending,
             Model = resolvedModel,
             RequestedLanguage = resolvedLanguage,
+            DiarizationRequested = diarize,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -311,7 +316,7 @@ public static class AudioJobEndpoints
             job.Status, job.RawTranscript, job.ErrorMessage,
             job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc,
-            job.Model, job.RequestedLanguage,
+            job.Model, job.RequestedLanguage, job.DiarizationRequested,
             job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null));
     }
 }

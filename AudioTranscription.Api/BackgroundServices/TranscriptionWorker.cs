@@ -1,6 +1,7 @@
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
+using AudioTranscription.Domain.Diarization;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
@@ -128,15 +129,20 @@ public class TranscriptionWorker : BackgroundService
             job.Language = result.DetectedLanguage;
             job.DurationSeconds = result.DurationSeconds;
             job.CompletedAtUtc = DateTime.UtcNow;
-            // Saved together with the Completed status, so only completed jobs have segments
-            dbContext.TranscriptSegments.AddRange(result.Segments.Select((segment, index) => new TranscriptSegment
+            var segments = result.Segments.Select((segment, index) => new TranscriptSegment
             {
                 AudioJobId = job.Id,
                 Index = index,
                 StartMs = (long)Math.Round(segment.Start.TotalMilliseconds),
                 EndMs = (long)Math.Round(segment.End.TotalMilliseconds),
                 Text = segment.Text
-            }));
+            }).ToList();
+
+            if (job.DiarizationRequested)
+                await ApplyDiarizationAsync(services, request.FilePath, segments, dbContext, job.Id, cancellationToken);
+
+            // Saved together with the Completed status, so only completed jobs have segments
+            dbContext.TranscriptSegments.AddRange(segments);
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await NotifyStatusChanged(hubContext, job);
@@ -167,6 +173,40 @@ public class TranscriptionWorker : BackgroundService
             await dbContext.SaveChangesAsync(cancellationToken);
             await NotifyStatusChanged(hubContext, job);
             return AudioJobStatus.Failed;
+        }
+    }
+
+    /// <summary>
+    /// Diarizes the original upload and assigns each transcript segment its speaker by largest time
+    /// overlap (S11-T3). Never fails the job: without a configured <see cref="IDiarizationService"/>,
+    /// or if diarization itself throws, segments are simply kept without a speaker.
+    /// </summary>
+    private async Task ApplyDiarizationAsync(
+        IServiceProvider services, string audioFilePath, List<TranscriptSegment> segments,
+        AppDbContext dbContext, Guid jobId, CancellationToken cancellationToken)
+    {
+        var diarizationService = services.GetService<IDiarizationService>();
+        if (diarizationService is null)
+        {
+            _logger.LogWarning("Job {JobId} requested diarization, but it is not configured; skipping", jobId);
+            return;
+        }
+
+        try
+        {
+            var speakerIntervals = await diarizationService.DiarizeAsync(audioFilePath, expectedSpeakerCount: null, cancellationToken);
+            if (speakerIntervals.Count == 0)
+                return;
+
+            foreach (var segment in segments)
+                segment.SpeakerIndex = SpeakerOverlapAssigner.Assign(segment.StartMs, segment.EndMs, speakerIntervals);
+
+            foreach (var speakerIndex in speakerIntervals.Select(i => i.SpeakerIndex).Distinct().OrderBy(i => i))
+                dbContext.JobSpeakers.Add(new JobSpeaker { AudioJobId = jobId, Index = speakerIndex });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Speaker diarization failed for job {JobId}; segments are kept without a speaker", jobId);
         }
     }
 

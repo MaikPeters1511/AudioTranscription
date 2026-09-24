@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AudioTranscription.Api.Endpoints;
 
-/// <summary>Timed segments, subtitle downloads and the audio of a job (S06).</summary>
+/// <summary>Timed segments, subtitle downloads and the audio of a job (S06), with speaker names when diarized (S11).</summary>
 public static class TranscriptOutputEndpoints
 {
     private const int MaxDownloadNameLength = 100;
@@ -41,12 +41,17 @@ public static class TranscriptOutputEndpoints
         if (job.Status != AudioJobStatus.Completed)
             return NotCompleted(job.Status);
 
+        var speakerNames = await SpeakerNaming.LoadResolvedNamesAsync(dbContext, id);
         var segments = await dbContext.TranscriptSegments
             .Where(s => s.AudioJobId == id)
             .OrderBy(s => s.Index)
-            .Select(s => new TranscriptSegmentDto(s.Index, s.StartMs, s.EndMs, s.Text))
             .ToListAsync();
-        return TypedResults.Ok(segments);
+        return TypedResults.Ok(segments
+            .Select(s => new TranscriptSegmentDto(
+                s.Index, s.StartMs, s.EndMs, s.Text,
+                s.SpeakerIndex,
+                s.SpeakerIndex is { } speakerIndex ? speakerNames.GetValueOrDefault(speakerIndex, SpeakerNaming.DefaultName(speakerIndex)) : null))
+            .ToList());
     }
 
     private static async Task<Results<FileContentHttpResult, ValidationProblem, NotFound<ProblemDetails>, Conflict<ProblemDetails>>> GetSubtitles(
@@ -68,9 +73,10 @@ public static class TranscriptOutputEndpoints
             return NotCompleted(job.Status);
 
         var segments = await dbContext.TranscriptSegments.Where(s => s.AudioJobId == id).ToListAsync();
+        var speakerNames = await SpeakerNaming.LoadResolvedNamesAsync(dbContext, id);
         var (content, contentType, extension) = isSrt
-            ? (SubtitleFormatter.ToSrt(segments), "application/x-subrip; charset=utf-8", "srt")
-            : (SubtitleFormatter.ToVtt(segments), "text/vtt; charset=utf-8", "vtt");
+            ? (SubtitleFormatter.ToSrt(segments, speakerNames), "application/x-subrip; charset=utf-8", "srt")
+            : (SubtitleFormatter.ToVtt(segments, speakerNames), "text/vtt; charset=utf-8", "vtt");
 
         return TypedResults.File(Encoding.UTF8.GetBytes(content), contentType, DownloadName(job.FileName, extension));
     }
