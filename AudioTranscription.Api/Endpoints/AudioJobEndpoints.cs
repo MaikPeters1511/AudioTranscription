@@ -3,6 +3,7 @@ using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
+using AudioTranscription.Api.Uploads;
 using AudioTranscription.Api.Validation;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
@@ -159,9 +160,7 @@ public static class AudioJobEndpoints
             job.CreatedAtUtc, job.CompletedAtUtc);
 
     private static async Task<Results<Accepted<CreateAudioJobResponse>, ValidationProblem, ProblemHttpResult>> UploadAudioJob(
-        IFormFile file,
-        [FromForm] string? model,
-        [FromForm] string? language,
+        HttpRequest request,
         AppDbContext dbContext,
         TranscriptionQueue queue,
         IOptions<UploadOptions> uploadOptions,
@@ -170,23 +169,55 @@ public static class AudioJobEndpoints
         IHubContext<TranscriptionHub> hubContext,
         ITempFileStore tempFileStore,
         ILogger<AudioJob> logger,
-        [FromForm] bool diarize = false)
+        CancellationToken cancellationToken)
     {
         var options = uploadOptions.Value;
 
+        if (!request.HasFormContentType)
+        {
+            return TypedResults.Problem(
+                title: "Invalid request",
+                detail: "Expected a multipart/form-data request.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Streamed straight to disk (S14): a 400 MB upload must not be buffered whole in memory, unlike
+        // ASP.NET Core's IFormFile model binding (see LargeUploadMemoryTests for the measured difference)
+        var jobId = Guid.NewGuid();
+        var upload = await MultipartUploadParser.ParseAsync(request, jobId, tempFileStore, options.MaxFileSizeBytes, cancellationToken);
+        if (upload is null)
+        {
+            return TypedResults.Problem(
+                title: "Invalid request",
+                detail: "Missing multipart boundary.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (upload.FileTooLarge)
+        {
+            return TypedResults.Problem(
+                title: "File too large",
+                detail: $"File size exceeds the maximum allowed size ({options.MaxFileSizeBytes} bytes).",
+                statusCode: StatusCodes.Status413PayloadTooLarge);
+        }
+
         // Model and language must come from the allowlists (see GET /api/transcription-options)
         var settingErrors = new Dictionary<string, string[]>();
-        if (!whisperOptions.Value.TryResolveModel(model, out var resolvedModel))
-            settingErrors["model"] = [$"Model '{model}' is not available. Allowed models: {string.Join(", ", whisperOptions.Value.AllowedModels)}."];
-        if (!whisperOptions.Value.TryResolveLanguage(language, out var resolvedLanguage))
-            settingErrors["language"] = [$"Language '{language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
-        if (diarize && !diarizationOptions.Value.Enabled)
+        if (!whisperOptions.Value.TryResolveModel(upload.Model, out var resolvedModel))
+            settingErrors["model"] = [$"Model '{upload.Model}' is not available. Allowed models: {string.Join(", ", whisperOptions.Value.AllowedModels)}."];
+        if (!whisperOptions.Value.TryResolveLanguage(upload.Language, out var resolvedLanguage))
+            settingErrors["language"] = [$"Language '{upload.Language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
+        if (upload.Diarize && !diarizationOptions.Value.Enabled)
             settingErrors["diarize"] = ["Speaker diarization is not configured on this server."];
         if (settingErrors.Count > 0)
+        {
+            if (upload.FilePath is not null)
+                File.Delete(upload.FilePath);
             return TypedResults.ValidationProblem(settingErrors);
+        }
 
         // Validate file presence
-        if (file is null || file.Length == 0)
+        if (!upload.HasFile || upload.FileSizeBytes == 0)
         {
             return TypedResults.Problem(
                 title: "No file provided",
@@ -194,19 +225,11 @@ public static class AudioJobEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // Validate file size
-        if (file.Length > options.MaxFileSizeBytes)
-        {
-            return TypedResults.Problem(
-                title: "File too large",
-                detail: $"File size ({file.Length} bytes) exceeds the maximum allowed size ({options.MaxFileSizeBytes} bytes).",
-                statusCode: StatusCodes.Status413PayloadTooLarge);
-        }
-
         // Validate content type; compared without parameters, e.g. browsers send "audio/webm;codecs=opus" (S12)
-        var contentType = file.ContentType.ToLowerInvariant().Split(';')[0].Trim();
+        var contentType = (upload.FileContentType ?? "").ToLowerInvariant().Split(';')[0].Trim();
         if (!options.AllowedContentTypes.Contains(contentType))
         {
+            File.Delete(upload.FilePath!);
             return TypedResults.Problem(
                 title: "Invalid file type",
                 detail: $"Content type '{contentType}' is not allowed. Allowed types: {string.Join(", ", options.AllowedContentTypes)}.",
@@ -214,38 +237,27 @@ public static class AudioJobEndpoints
         }
 
         // Validate magic bytes
-        using var stream = file.OpenReadStream();
-        if (!MagicBytesValidator.IsValid(contentType, stream))
+        using var headerStream = new MemoryStream(upload.HeaderBytes.ToArray());
+        if (!MagicBytesValidator.IsValid(contentType, headerStream))
         {
+            File.Delete(upload.FilePath!);
             return TypedResults.Problem(
                 title: "Invalid file content",
                 detail: "The file content does not match the declared content type. The file may be corrupted or mislabeled.",
                 statusCode: StatusCodes.Status422UnprocessableEntity);
         }
 
-        // Save file to temp storage
-        Directory.CreateDirectory(tempFileStore.StorageDirectory);
-
-        var jobId = Guid.NewGuid();
-        var filePath = tempFileStore.GetUploadPath(jobId, file.FileName);
-
-        stream.Position = 0;
-        await using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await stream.CopyToAsync(fileStream);
-        }
-
         // Create database record
         var audioJob = new AudioJob
         {
             Id = jobId,
-            FileName = file.FileName,
-            FileSizeBytes = file.Length,
+            FileName = upload.FileName!,
+            FileSizeBytes = upload.FileSizeBytes,
             ContentType = contentType,
             Status = AudioJobStatus.Pending,
             Model = resolvedModel,
             RequestedLanguage = resolvedLanguage,
-            DiarizationRequested = diarize,
+            DiarizationRequested = upload.Diarize,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -253,7 +265,7 @@ public static class AudioJobEndpoints
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation("Audio job {JobId} created for file '{FileName}' ({FileSize} bytes)",
-            jobId, file.FileName, file.Length);
+            jobId, upload.FileName, upload.FileSizeBytes);
 
         // Notify connected clients about new job
         await hubContext.Clients.All.SendAsync("JobCreated", new AudioJobListDto(
@@ -262,7 +274,7 @@ public static class AudioJobEndpoints
             audioJob.CreatedAtUtc, audioJob.CompletedAtUtc));
 
         // Enqueue the job for background processing
-        await queue.EnqueueAsync(new TranscriptionJobRequest(jobId, filePath));
+        await queue.EnqueueAsync(new TranscriptionJobRequest(jobId, upload.FilePath!));
 
         return TypedResults.Accepted($"/api/audio-jobs/{jobId}", new CreateAudioJobResponse(jobId));
     }

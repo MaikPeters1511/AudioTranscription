@@ -25,6 +25,8 @@ services:
       # First login (ADR 0003); set in a local, git-ignored .env file
       - Auth__InitialUser__Email=${INITIAL_USER_EMAIL:-}
       - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
+      # S14: single source of truth for the upload size limit, also used by the web service below
+      - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
     ports:
       - "8080:8080"
     volumes:
@@ -37,6 +39,9 @@ services:
     container_name: audio-transcription-web
     depends_on:
       - api
+    environment:
+      # S14: derived from the same UPLOAD_MAX_FILE_SIZE_MB value as the api service above
+      - NGINX_CLIENT_MAX_BODY_SIZE=${UPLOAD_MAX_FILE_SIZE_MB:-500}M
     ports:
       - "80:80"
 

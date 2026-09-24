@@ -4,6 +4,11 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # S14: matches the .NET API's Upload:MaxFileSizeBytes, both derived from
+    # the docker-compose UPLOAD_MAX_FILE_SIZE_MB value - otherwise nginx's own
+    # default (1 MB) would reject large uploads before they reach the API.
+    client_max_body_size ${NGINX_CLIENT_MAX_BODY_SIZE};
+
     location / {
         try_files $uri $uri/ /index.html;
     }

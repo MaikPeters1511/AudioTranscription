@@ -48,6 +48,7 @@ public class Audio16kHzWavConverter(ILogger<Audio16kHzWavConverter> logger)
             {
                 "-y",                 // overwrite output without prompting
                 "-i", inputPath,
+                "-vn",                // ignore any video stream (S14): only the audio track is transcribed
                 "-ac", "1",           // mono
                 "-ar", "16000",       // 16 kHz
                 "-sample_fmt", "s16",

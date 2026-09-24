@@ -107,10 +107,21 @@ builder.Services.AddOptions<CorsOptions>().Configure<IConfiguration>((options, c
         .AllowCredentials());
 });
 
-// Configure max request body size for file uploads
+// Upload:MaxFileSizeBytes (UploadOptions) is the single source for the request size limit (S14): Kestrel
+// and the multipart form parser are both derived from it here, with a fixed margin for the multipart
+// boundaries and the other form fields (model/language/diarize).
+const long UploadRequestOverheadBytes = 1_048_576; // 1 MiB
+var maxUploadFileSizeBytes = builder.Configuration.GetValue(
+    $"{UploadOptions.SectionName}:{nameof(UploadOptions.MaxFileSizeBytes)}", 500_000_000L);
+var maxUploadRequestBodySize = maxUploadFileSizeBytes + UploadRequestOverheadBytes;
+
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 15_000_000; // ~15MB to allow overhead
+    options.Limits.MaxRequestBodySize = maxUploadRequestBodySize;
+});
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxUploadRequestBodySize;
 });
 
 var app = builder.Build();

@@ -83,6 +83,93 @@ public class UploadStorageIntegrationTests : IClassFixture<WebApplicationFactory
         job!.ContentType.Should().Be("audio/webm");
     }
 
+    [Fact]
+    public async Task Upload_WithAShortMp4Video_IsAccepted()
+    {
+        // S14: only the audio track is used (ffmpeg "-vn"); an ftyp box is enough to pass validation here
+        using var content = new MultipartFormDataContent();
+        var ftypBox = new byte[] { 0x00, 0x00, 0x00, 0x18, (byte)'f', (byte)'t', (byte)'y', (byte)'p', (byte)'i', (byte)'s', (byte)'o', (byte)'m', 0, 0, 0, 0 };
+        var file = new ByteArrayContent(ftypBox);
+        file.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(file, "file", "clip.mp4");
+
+        var response = await _factory.CreateClient().PostAsync("/api/audio-jobs", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var created = await response.Content.ReadFromJsonAsync<CreateAudioJobResponse>();
+        using var scope = _factory.Services.CreateScope();
+        var job = await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.FindAsync(created!.Id);
+        job!.ContentType.Should().Be("video/mp4");
+    }
+
+    public void Dispose()
+    {
+        _factory.Dispose();
+        _dir.Dispose();
+    }
+}
+
+/// <summary>S14-T1: the configured size limit is enforced exactly at the boundary.</summary>
+public class UploadSizeLimitIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+{
+    private const int LimitBytes = 1_000;
+    private readonly TempDirectory _dir = new();
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public UploadSizeLimitIntegrationTests(WebApplicationFactory<Program> factory)
+    {
+        var dbName = Guid.NewGuid().ToString();
+        _factory = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            var dbDescriptors = services.Where(d =>
+                d.ServiceType == typeof(AppDbContext) ||
+                d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
+                (d.ServiceType.IsGenericType && d.ServiceType.GetGenericArguments().Contains(typeof(AppDbContext))))
+                .ToList();
+            foreach (var d in dbDescriptors)
+                services.Remove(d);
+            services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
+
+            services.AddTestAuthentication();
+            services.Configure<UploadOptions>(o =>
+            {
+                o.TempStoragePath = _dir.Path;
+                o.MaxFileSizeBytes = LimitBytes;
+            });
+        }));
+    }
+
+    private static MultipartFormDataContent Mp3Content(int fileSizeBytes)
+    {
+        var bytes = new byte[fileSizeBytes];
+        "ID3"u8.ToArray().CopyTo(bytes, 0);
+        var content = new MultipartFormDataContent();
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = new MediaTypeHeaderValue("audio/mpeg");
+        content.Add(file, "file", "big.mp3");
+        return content;
+    }
+
+    [Fact]
+    public async Task Upload_JustUnderTheLimit_IsAccepted()
+    {
+        using var content = Mp3Content(LimitBytes);
+
+        var response = await _factory.CreateClient().PostAsync("/api/audio-jobs", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Upload_JustOverTheLimit_Returns413()
+    {
+        using var content = Mp3Content(LimitBytes + 1);
+
+        var response = await _factory.CreateClient().PostAsync("/api/audio-jobs", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
+    }
+
     public void Dispose()
     {
         _factory.Dispose();

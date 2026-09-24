@@ -13,8 +13,10 @@ FROM nginx:alpine AS final
 # Copy compiled angular app to nginx html dir
 COPY --from=build /app/dist/AudioTranscription.Web/browser /usr/share/nginx/html
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Custom nginx config template; the base image's entrypoint runs envsubst on
+# every *.template file here and writes the result to /etc/nginx/conf.d (S14)
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV NGINX_CLIENT_MAX_BODY_SIZE=500M
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
