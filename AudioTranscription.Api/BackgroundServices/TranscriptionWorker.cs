@@ -20,17 +20,20 @@ public class TranscriptionWorker : BackgroundService
     private readonly TranscriptionQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly JobCancellationRegistry _cancellations;
+    private readonly JobProgressStore _progressStore;
     private readonly ILogger<TranscriptionWorker> _logger;
 
     public TranscriptionWorker(
         TranscriptionQueue queue,
         IServiceScopeFactory scopeFactory,
         JobCancellationRegistry cancellations,
+        JobProgressStore progressStore,
         ILogger<TranscriptionWorker> logger)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
         _cancellations = cancellations;
+        _progressStore = progressStore;
         _logger = logger;
     }
 
@@ -76,6 +79,7 @@ public class TranscriptionWorker : BackgroundService
         finally
         {
             _cancellations.Unregister(request.JobId);
+            _progressStore.Remove(request.JobId);
 
             // On shutdown the upload is kept so the job can be recovered after a restart
             if (!stoppingToken.IsCancellationRequested)
@@ -116,7 +120,8 @@ public class TranscriptionWorker : BackgroundService
         {
             // Run transcription with the settings chosen at upload (also after a restart or retry)
             var settings = new TranscriptionSettings(job.Model, job.RequestedLanguage);
-            var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, cancellationToken);
+            var progress = CreateProgress(services, hubContext, job.Id);
+            var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, progress, cancellationToken);
 
             // Optional post-processing; stored separately so the original is never lost
             string? processedTranscript = null;
@@ -190,6 +195,23 @@ public class TranscriptionWorker : BackgroundService
 
         await NotifyStatusChanged(hubContext, job);
         return AudioJobStatus.Cancelled;
+    }
+
+    /// <summary>
+    /// Keeps the latest value for clients that load the job later and pushes throttled "JobProgress" events.
+    /// Called on Whisper's thread, so sending is not awaited.
+    /// </summary>
+    private ThrottledProgress CreateProgress(IServiceProvider services, IHubContext<TranscriptionHub> hubContext, Guid jobId)
+    {
+        var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
+        return new ThrottledProgress(timeProvider, percent =>
+        {
+            _progressStore.Set(jobId, percent);
+            hubContext.Clients.All.SendAsync("JobProgress", new JobProgressDto(jobId, percent))
+                .ContinueWith(
+                    t => _logger.LogWarning(t.Exception, "Failed to push progress of job {JobId}", jobId),
+                    CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        });
     }
 
     private void CleanupUpload(ITempFileStore tempFileStore, string filePath, AudioJobStatus? outcome)

@@ -28,7 +28,7 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
     }
 
     public async Task<TranscriptionResult> TranscribeAsync(
-        string audioFilePath, TranscriptionSettings settings, CancellationToken cancellationToken = default)
+        string audioFilePath, TranscriptionSettings settings, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
     {
         // Also guards jobs stored before an operator removed their model from the allowlist
         if (!_options.TryResolveModel(settings.Model, out var model) || !WhisperOptions.TryParseModelType(model, out var modelType))
@@ -46,6 +46,8 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             builder = settings.Language is null
                 ? builder.WithLanguageDetection()
                 : builder.WithLanguage(settings.Language);
+            if (progress is not null)
+                builder = builder.WithProgressHandler(WhisperProgress.Handler(progress));
             using var processor = builder.Build();
 
             var result = new TranscriptionResultBuilder();
@@ -53,6 +55,8 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             await foreach (var segment in processor.ProcessAsync(fileStream, cancellationToken))
                 result.Add(segment.Start, segment.End, segment.Text, segment.Language);
 
+            // Whisper does not always report the last percent
+            progress?.Report(100);
             var transcription = result.Build(settings.Language);
             _logger.LogInformation(
                 "Transcription complete: {CharCount} chars, {SegmentCount} segments, language={Language}, duration={Duration:F1}s",

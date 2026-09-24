@@ -263,6 +263,7 @@ public static class AudioJobEndpoints
 
     private static async Task<Ok<PaginatedResult<AudioJobListDto>>> GetAudioJobs(
         AppDbContext dbContext,
+        JobProgressStore progressStore,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -281,12 +282,16 @@ public static class AudioJobEndpoints
                 j.CreatedAtUtc, j.CompletedAtUtc))
             .ToListAsync();
 
+        // Progress lives in memory, not in the database
+        items = items.Select(j => j.Status == AudioJobStatus.Processing ? j with { ProgressPercent = progressStore.Get(j.Id) } : j).ToList();
+
         return TypedResults.Ok(new PaginatedResult<AudioJobListDto>(items, totalCount, page, pageSize));
     }
 
     private static async Task<Results<Ok<AudioJobDto>, NotFound<ProblemDetails>>> GetAudioJob(
         Guid id,
-        AppDbContext dbContext)
+        AppDbContext dbContext,
+        JobProgressStore progressStore)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
 
@@ -305,6 +310,7 @@ public static class AudioJobEndpoints
             job.Status, job.RawTranscript, job.ProcessedTranscript, job.ErrorMessage,
             job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc,
-            job.Model, job.RequestedLanguage));
+            job.Model, job.RequestedLanguage,
+            job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null));
     }
 }

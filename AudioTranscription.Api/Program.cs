@@ -27,6 +27,7 @@ builder.Services.Configure<UploadOptions>(
 // Register transcription services
 builder.Services.AddSingleton<TranscriptionQueue>();
 builder.Services.AddSingleton<JobCancellationRegistry>();
+builder.Services.AddSingleton<JobProgressStore>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 // Singleton: loaded Whisper models are kept and shared between jobs

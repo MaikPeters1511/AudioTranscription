@@ -33,8 +33,8 @@ public class TranscriptionSettingsIntegrationTests : IClassFixture<WebApplicatio
         var transcription = new Mock<ITranscriptionService>();
         // Never completes: the job stays Pending, so the stored settings can be inspected
         transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
-            .Returns<string, TranscriptionSettings, CancellationToken>((_, _, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, _, ct) =>
                 Task.Delay(Timeout.Infinite, ct).ContinueWith(_ => new TranscriptionResult("", null, null), ct));
 
         _factory = CreateFactory(factory, services => services.AddSingleton(transcription.Object));

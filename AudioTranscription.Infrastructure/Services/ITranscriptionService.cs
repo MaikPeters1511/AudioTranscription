@@ -33,7 +33,8 @@ public interface ITranscriptionService
     /// </summary>
     /// <param name="audioFilePath">Path to the audio file.</param>
     /// <param name="settings">Model and language to use.</param>
+    /// <param name="progress">Receives the progress in percent (0–100), if given.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Transcription result with text, detected language, and duration.</returns>
-    Task<TranscriptionResult> TranscribeAsync(string audioFilePath, TranscriptionSettings settings, CancellationToken cancellationToken = default);
+    Task<TranscriptionResult> TranscribeAsync(string audioFilePath, TranscriptionSettings settings, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
 }

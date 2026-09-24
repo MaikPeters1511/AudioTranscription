@@ -1,5 +1,6 @@
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
+using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Entities;
@@ -22,6 +23,8 @@ public class TranscriptionWorkerTests : IDisposable
     private readonly Mock<ITranscriptionService> _transcription = new();
     private readonly Mock<ILogger<TranscriptionWorker>> _logger = new();
     private readonly JobCancellationRegistry _registry = new();
+    private readonly JobProgressStore _progressStore = new();
+    private readonly Mock<IClientProxy> _clientProxy = new();
     private readonly string _dbName = Guid.NewGuid().ToString();
     private ServiceProvider? _provider;
 
@@ -42,8 +45,8 @@ public class TranscriptionWorkerTests : IDisposable
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
-            .Returns<string, TranscriptionSettings, CancellationToken>((_, _, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, _, ct) =>
             {
                 _registry.Cancel(jobId).Should().BeTrue("the job is registered while it runs");
                 ct.ThrowIfCancellationRequested();
@@ -88,8 +91,8 @@ public class TranscriptionWorkerTests : IDisposable
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
-            .Returns<string, TranscriptionSettings, CancellationToken>(async (_, _, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>(async (_, _, _, ct) =>
             {
                 // What DELETE does: cancel the running job, then remove it
                 _registry.Cancel(jobId);
@@ -138,8 +141,8 @@ public class TranscriptionWorkerTests : IDisposable
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         using var shutdown = new CancellationTokenSource();
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
-            .Returns<string, TranscriptionSettings, CancellationToken>((_, _, ct) =>
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, _, ct) =>
             {
                 shutdown.Cancel();
                 ct.ThrowIfCancellationRequested();
@@ -161,7 +164,7 @@ public class TranscriptionWorkerTests : IDisposable
 
         File.Exists(file).Should().BeFalse();
         _transcription.Verify(
-            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Theory]
@@ -176,7 +179,7 @@ public class TranscriptionWorkerTests : IDisposable
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
         _transcription.Verify(
-            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()), Times.Never);
+            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Never);
         (await GetJobAsync(jobId)).Status.Should().Be(status);
     }
 
@@ -190,7 +193,7 @@ public class TranscriptionWorkerTests : IDisposable
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
         _transcription.Verify(t => t.TranscribeAsync(
-            file, new TranscriptionSettings("Small", "de"), It.IsAny<CancellationToken>()), Times.Once);
+            file, new TranscriptionSettings("Small", "de"), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -202,7 +205,7 @@ public class TranscriptionWorkerTests : IDisposable
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
         _transcription.Verify(t => t.TranscribeAsync(
-            file, new TranscriptionSettings("Base", null), It.IsAny<CancellationToken>()), Times.Once);
+            file, new TranscriptionSettings("Base", null), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
         (await GetJobAsync(jobId)).Language.Should().Be("de", "the detected language is stored");
     }
 
@@ -211,7 +214,7 @@ public class TranscriptionWorkerTests : IDisposable
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Hallo Welt", "de", 2.5)
             {
                 Segments =
@@ -241,6 +244,51 @@ public class TranscriptionWorkerTests : IDisposable
 
         using var scope = _provider!.CreateScope();
         (await scope.ServiceProvider.GetRequiredService<AppDbContext>().TranscriptSegments.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessJob_PushesProgressAndKeepsTheLatestValueWhileRunning()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        int? storedWhileRunning = null;
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, progress, _) =>
+            {
+                progress!.Report(42);
+                storedWhileRunning = _progressStore.Get(jobId);
+                progress.Report(100);
+                return Task.FromResult(new TranscriptionResult("Hallo", "de", 1));
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        storedWhileRunning.Should().Be(42, "clients that connect later can be given the current value");
+        _progressStore.Get(jobId).Should().BeNull("the value is dropped once the job has ended");
+        foreach (var percent in new[] { 42, 100 })
+        {
+            _clientProxy.Verify(c => c.SendCoreAsync(
+                "JobProgress",
+                It.Is<object?[]>(args => args.Length == 1 && args[0]!.Equals(new JobProgressDto(jobId, percent))),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenTranscriptionFails_DropsTheProgressValue()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, progress, _) =>
+            {
+                progress!.Report(30);
+                throw new InvalidOperationException("ffmpeg missing");
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _progressStore.Get(jobId).Should().BeNull();
     }
 
     [Fact]
@@ -304,9 +352,8 @@ public class TranscriptionWorkerTests : IDisposable
             DeleteAfterTranscription = deleteAfterTranscription
         });
 
-        var clientProxy = new Mock<IClientProxy>();
         var hubClients = new Mock<IHubClients>();
-        hubClients.Setup(c => c.All).Returns(clientProxy.Object);
+        hubClients.Setup(c => c.All).Returns(_clientProxy.Object);
         var hubContext = new Mock<IHubContext<TranscriptionHub>>();
         hubContext.Setup(h => h.Clients).Returns(hubClients.Object);
 
@@ -339,6 +386,7 @@ public class TranscriptionWorkerTests : IDisposable
             new TranscriptionQueue(),
             _provider.GetRequiredService<IServiceScopeFactory>(),
             _registry,
+            _progressStore,
             _logger.Object);
 
         return (worker, jobId, file);
@@ -346,12 +394,12 @@ public class TranscriptionWorkerTests : IDisposable
 
     private void TranscriptionSucceeds() =>
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Hallo Welt", "de", 1.5));
 
     private void TranscriptionThrows(Exception exception) =>
         _transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
 
     private async Task<AudioJob> GetJobAsync(Guid jobId)

@@ -16,7 +16,8 @@ public record AudioJobDto(
     DateTime CreatedAtUtc,
     DateTime? CompletedAtUtc,
     string Model,
-    string? RequestedLanguage
+    string? RequestedLanguage,
+    int? ProgressPercent = null
 );
 
 public record AudioJobListDto(
@@ -27,7 +28,8 @@ public record AudioJobListDto(
     string? Language,
     double? DurationSeconds,
     DateTime CreatedAtUtc,
-    DateTime? CompletedAtUtc
+    DateTime? CompletedAtUtc,
+    int? ProgressPercent = null
 );
 
 public record CreateAudioJobResponse(Guid Id);
@@ -47,3 +49,6 @@ public record TranscriptionOptionsDto(
 );
 
 public record TranscriptSegmentDto(int Index, long StartMs, long EndMs, string Text);
+
+/// <summary>SignalR event "JobProgress" while a job is being transcribed.</summary>
+public record JobProgressDto(Guid JobId, int Percent);

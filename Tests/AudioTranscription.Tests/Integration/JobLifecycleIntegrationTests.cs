@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Json;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
+using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Entities;
@@ -30,7 +32,7 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
         var dbName = Guid.NewGuid().ToString();
         var transcription = new Mock<ITranscriptionService>();
         transcription
-            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Zweiter Versuch", "de", 1));
         var hubClients = new Mock<IHubClients>();
         hubClients.Setup(c => c.All).Returns(_allClients.Object);
@@ -137,6 +139,25 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
         running.IsCancellationRequested.Should().BeTrue();
         (await GetAsync(job.Id)).Should().BeNull();
         Registry.Unregister(job.Id);
+    }
+
+    // --- progress (S07) -------------------------------------------------------
+
+    [Fact]
+    public async Task RunningJob_IncludesItsLatestProgressInListAndDetail()
+    {
+        var job = await SeedAsync(AudioJobStatus.Processing);
+        var other = await SeedAsync(AudioJobStatus.Completed);
+        var store = _factory.Services.GetRequiredService<JobProgressStore>();
+        store.Set(job.Id, 42);
+        store.Set(other.Id, 99); // stale value of a job that has just finished
+
+        var detail = await _client.GetFromJsonAsync<AudioJobDto>($"/api/audio-jobs/{job.Id}");
+        var list = await _client.GetFromJsonAsync<PaginatedResult<AudioJobListDto>>("/api/audio-jobs");
+
+        detail!.ProgressPercent.Should().Be(42);
+        list!.Items.Single(j => j.Id == job.Id).ProgressPercent.Should().Be(42);
+        list.Items.Single(j => j.Id == other.Id).ProgressPercent.Should().BeNull();
     }
 
     // --- retry ----------------------------------------------------------------
