@@ -85,3 +85,17 @@ public record RenameSpeakerRequest(string DisplayName);
 
 /// <summary>SignalR event "JobProgress" while a job is being transcribed.</summary>
 public record JobProgressDto(Guid JobId, int Percent);
+
+/// <summary>
+/// One full-text search hit (S13): a snippet of the matched text, with the match's position inside
+/// the snippet as offsets (not HTML, see ADR 0005), so the frontend can render its own &lt;mark&gt;.
+/// </summary>
+public record SearchHitDto(
+    Guid JobId,
+    string FileName,
+    string Snippet,
+    int HighlightStart,
+    int HighlightLength,
+    /// <summary>Set when the hit came from a timed segment (S06); null for a job- or variant-level hit.</summary>
+    long? SegmentStartMs
+);

@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    build:
+      context: ./docker/mssql-fts
     container_name: audio-transcription-sql
     environment:
       - ACCEPT_EULA=Y

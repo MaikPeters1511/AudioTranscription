@@ -177,6 +177,7 @@ app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
 app.MapVariantEndpoints();
 app.MapSpeakerEndpoints();
+app.MapSearchEndpoints();
 
 app.Run();
 public partial class Program { }

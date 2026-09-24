@@ -1,7 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// MSSQL Server with persistent volume
+// MSSQL Server with persistent volume; built from docker/mssql-fts to include Full-Text Search (S13, ADR 0005),
+// which the stock mssql/server image does not ship.
 var sql = builder.AddSqlServer("sql")
+    .WithDockerfile("../docker/mssql-fts")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume("audio-transcription-sqldata");
 
