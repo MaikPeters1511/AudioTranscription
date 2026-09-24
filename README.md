@@ -21,6 +21,21 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - Hochgeladene Dateien werden nur lokal im Ordner `temp-uploads/` der API gespeichert (`Upload:TempStoragePath`) und standardmäßig nach erfolgreicher Transkription gelöscht (`Upload:DeleteAfterTranscription`).
 - `temp-uploads/`, Audiodateien und die Whisper-Modelle sind per `.gitignore` ausgeschlossen. Der Job `Repo hygiene` im CI-Workflow lässt jeden PR fehlschlagen, der solche Dateien enthält.
 
+## 🔑 Anmeldung
+
+Die App ist nur nach Login nutzbar. Sie verwendet lokale Konten (ASP.NET Core Identity, [ADR 0003](docs/adr/0003-authentifizierung.md)), alle angemeldeten Benutzer sehen dieselben Jobs. Eine Selbst-Registrierung ist standardmäßig **aus**. Der erste Benutzer wird beim Start aus der Konfiguration angelegt, sofern noch keiner existiert:
+
+| Umgebung | So setzt du den ersten Benutzer |
+|---|---|
+| Aspire | `dotnet user-secrets set "Parameters:initial-user-email" "du@example.com" --project AudioTranscription.AppHost` und ebenso `Parameters:initial-user-password`. Fehlen die Werte, fragt das Aspire-Dashboard nach. |
+| docker compose | `.env.example` nach `.env` kopieren (wird nicht committet) und `INITIAL_USER_EMAIL`/`INITIAL_USER_PASSWORD` setzen |
+| API direkt | Umgebungsvariablen `Auth__InitialUser__Email` und `Auth__InitialUser__Password` oder User-Secrets des API-Projekts |
+
+- **Passwortregeln:** Es gelten die Standardregeln von Identity (mindestens 6 Zeichen, Groß- und Kleinbuchstabe, Ziffer, Sonderzeichen). Erfüllt das Passwort sie nicht, wird kein Konto angelegt, und das Log nennt den Grund.
+- **Weitere Konten:** Über `Auth:AllowRegistration=true` lässt sich `POST /api/auth/register` vorübergehend freischalten.
+- **Session-Cookie:** Es ist `HttpOnly`, `Secure` und `SameSite=Strict`. Außerhalb von `localhost` muss die App deshalb über **HTTPS** erreichbar sein.
+- **CORS:** Frontend und API laufen same-origin (Dev-Proxy bzw. nginx), CORS ist deshalb standardmäßig zu. Andere Origins lassen sich über `Cors:AllowedOrigins` freigeben.
+
 ## 🏗️ Architektur
 
 ```
@@ -111,14 +126,21 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
     "DeleteAfterTranscription": true,
     "OrphanedFileRetentionHours": 24
   },
+  "Auth": { "AllowRegistration": false },
+  "Cors": { "AllowedOrigins": [] },
   "Features": { "OllamaPostProcessing": false }
 }
 ```
 
 ## 📡 API-Übersicht
 
+Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `401`.
+
 | Methode | Endpunkt | Beschreibung |
 |---|---|---|
+| `POST` | `/api/auth/login?useCookies=true` | Anmelden (`{ email, password }`), setzt das Session-Cookie |
+| `POST` | `/api/auth/logout` | Abmelden |
+| `GET` | `/api/auth/me` | Angemeldeter Benutzer (`{ email }`) |
 | `POST` | `/api/audio-jobs` | Audiodatei hochladen, Transkriptions-Job anlegen |
 | `GET` | `/api/audio-jobs` | Paginierte Liste aller Jobs |
 | `GET` | `/api/audio-jobs/{id}` | Details & Transkript eines Jobs |

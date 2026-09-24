@@ -73,6 +73,12 @@ Alle API-Endpoints und der SignalR-Hub sind anonym. Mit den Aktionen aus S09 (L�
   - [ ] README beschreibt die Einrichtung (User-Secrets bzw. Umgebungsvariablen für den ersten Benutzer, Registrierung, CORS).
   - [ ] Swagger bzw. OpenAPI ist aktuell.
 
-## 6. Acceptance Criteria (DoD)
+## 6. Umsetzungsnotizen (2026-09-24)
+- **Anonyme Endpoints:** Nur die login-bezogenen Identity-Endpoints (`/login`, `/register`, `/refresh`, `/confirmEmail`, `/resendConfirmationEmail`, `/forgotPassword`, `/resetPassword`) sind anonym. `/manage/*` bleibt geschützt, das deckt ein Test ab.
+- **Frontend:** Die Seiten werden lazy geladen, das Initial-Bundle sank dabei von 508 auf 333 kB. Nach dem Login wird `returnUrl` per `safeReturnUrl` geprüft, damit sie nicht als Open Redirect missbraucht werden kann.
+- **Swagger/OpenAPI:** Die API bindet kein OpenAPI ein, dieser Punkt entfällt. Die Endpoints sind in der README beschrieben.
+- **E2E (manuell, Chromium):** Getestet gegen echte API, SQL Server 2022 und Angular-Dev-Proxy. Migrationen und Seed laufen, der Guard leitet mit `returnUrl` um, falsches Passwort zeigt einen Alert, das Cookie ist `HttpOnly`/`Secure`/`Strict` und nicht per `document.cookie` lesbar. SignalR verbindet sich erst nach dem Login, Logout entfernt das Cookie, danach liefert die API `401`.
+
+## 7. Acceptance Criteria (DoD)
 - [ ] Ohne Login ist über die API kein Job sichtbar und keine Aktion möglich, mit Login funktioniert die App wie bisher.
 - [ ] Kein Secret im Repository. Der Security-Check von `sec-agent` ist durchgeführt.
