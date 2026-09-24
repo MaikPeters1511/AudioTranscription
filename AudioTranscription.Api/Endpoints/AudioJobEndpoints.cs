@@ -85,13 +85,10 @@ public static class AudioJobEndpoints
         }
 
         // Save file to temp storage
-        var tempPath = tempFileStore.StorageDirectory;
-        Directory.CreateDirectory(tempPath);
+        Directory.CreateDirectory(tempFileStore.StorageDirectory);
 
         var jobId = Guid.NewGuid();
-        var fileExtension = Path.GetExtension(file.FileName);
-        var tempFileName = $"{jobId}{fileExtension}";
-        var filePath = Path.Combine(tempPath, tempFileName);
+        var filePath = tempFileStore.GetUploadPath(jobId, file.FileName);
 
         stream.Position = 0;
         await using (var fileStream = new FileStream(filePath, FileMode.Create))

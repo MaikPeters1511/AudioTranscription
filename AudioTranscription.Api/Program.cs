@@ -25,6 +25,7 @@ builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
+builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
 
 // Optional: Register Ollama post-processor if connection string is present

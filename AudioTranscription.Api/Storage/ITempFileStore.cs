@@ -12,6 +12,12 @@ public interface ITempFileStore
     string StorageDirectory { get; }
 
     /// <summary>
+    /// Path an upload is stored under: "{jobId}{extension of the original file name}".
+    /// The path is derived, not persisted, so it can be rebuilt from the job at any time.
+    /// </summary>
+    string GetUploadPath(Guid jobId, string originalFileName);
+
+    /// <summary>
     /// Called once a job has finished processing (successfully or not).
     /// Deletes the upload unless configuration says to keep it.
     /// Throws if the file exists but cannot be deleted; callers decide how to handle that.

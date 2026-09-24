@@ -89,6 +89,13 @@ public class TranscriptionWorker : BackgroundService
             return;
         }
 
+        // A job can be enqueued twice (e.g. by startup recovery and a concurrent upload)
+        if (job.Status != AudioJobStatus.Pending)
+        {
+            _logger.LogInformation("Job {JobId} is {Status}, not Pending; skipping", request.JobId, job.Status);
+            return;
+        }
+
         // Update status to Processing
         job.Status = AudioJobStatus.Processing;
         await dbContext.SaveChangesAsync(cancellationToken);

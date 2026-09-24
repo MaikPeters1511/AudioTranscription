@@ -20,6 +20,12 @@ public class TranscriptionQueue
         await _channel.Writer.WriteAsync(request, cancellationToken);
     }
 
+    /// <summary>
+    /// Non-blocking read, used by tests to inspect the queue.
+    /// </summary>
+    internal bool TryRead([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TranscriptionJobRequest request) =>
+        _channel.Reader.TryRead(out request);
+
     public IAsyncEnumerable<TranscriptionJobRequest> ReadAllAsync(CancellationToken cancellationToken = default)
     {
         return _channel.Reader.ReadAllAsync(cancellationToken);

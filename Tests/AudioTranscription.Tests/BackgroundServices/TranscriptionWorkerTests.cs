@@ -118,8 +118,24 @@ public class TranscriptionWorkerTests : IDisposable
             t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Theory]
+    [InlineData(AudioJobStatus.Processing)]
+    [InlineData(AudioJobStatus.Completed)]
+    [InlineData(AudioJobStatus.Failed)]
+    public async Task ProcessJob_WhenJobIsNoLongerPending_SkipsTranscription(AudioJobStatus status)
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, status: status);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _transcription.Verify(
+            t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        (await GetJobAsync(jobId)).Status.Should().Be(status);
+    }
+
     private async Task<(TranscriptionWorker Worker, Guid JobId, string File)> ArrangeAsync(
-        bool deleteAfterTranscription, ITempFileStore? store = null)
+        bool deleteAfterTranscription, ITempFileStore? store = null, AudioJobStatus status = AudioJobStatus.Pending)
     {
         var options = Options.Create(new UploadOptions
         {
@@ -148,7 +164,7 @@ public class TranscriptionWorkerTests : IDisposable
         using (var scope = _provider.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.AudioJobs.Add(new AudioJob { Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg" });
+            db.AudioJobs.Add(new AudioJob { Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status });
             await db.SaveChangesAsync();
         }
 

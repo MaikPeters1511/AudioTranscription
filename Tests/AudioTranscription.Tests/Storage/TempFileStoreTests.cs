@@ -30,6 +30,19 @@ public class TempFileStoreTests : IDisposable
         sut.StorageDirectory.Should().Be(Path.Combine(Directory.GetCurrentDirectory(), "temp-uploads"));
     }
 
+    [Theory]
+    [InlineData("meeting.mp3", ".mp3")]
+    [InlineData("Interview.Final.OGG", ".OGG")]
+    [InlineData("no-extension", "")]
+    public void GetUploadPath_CombinesJobIdAndOriginalExtension(string originalFileName, string expectedExtension)
+    {
+        var jobId = Guid.NewGuid();
+
+        var path = CreateSut().GetUploadPath(jobId, originalFileName);
+
+        path.Should().Be(Path.Combine(_dir.Path, $"{jobId}{expectedExtension}"));
+    }
+
     [Fact]
     public void CleanupAfterProcessing_WhenDeleteEnabled_DeletesFile()
     {
