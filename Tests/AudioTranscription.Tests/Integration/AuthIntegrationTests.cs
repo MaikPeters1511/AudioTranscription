@@ -16,7 +16,7 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
     : IClassFixture<WebApplicationFactory<Program>>
 {
     private const string Email = "alice@example.com";
-    private const string Password = "Sup3r-Secret!";
+    private readonly string _password = TestCredentials.NewPassword();
     private const string AllowedOrigin = "https://transcription.example.com";
 
     private WebApplicationFactory<Program> CreateFactory(bool allowRegistration = false)
@@ -43,11 +43,11 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
         });
     }
 
-    private static async Task SeedUserAsync(WebApplicationFactory<Program> factory)
+    private async Task SeedUserAsync(WebApplicationFactory<Program> factory)
     {
         using var scope = factory.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-        var result = await users.CreateAsync(new IdentityUser { UserName = Email, Email = Email }, Password);
+        var result = await users.CreateAsync(new IdentityUser { UserName = Email, Email = Email }, _password);
         result.Succeeded.Should().BeTrue(string.Join(", ", result.Errors.Select(e => e.Description)));
     }
 
@@ -55,8 +55,8 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
     private static HttpClient CreateClient(WebApplicationFactory<Program> factory) =>
         factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
 
-    private static Task<HttpResponseMessage> LoginAsync(HttpClient client, string password = Password) =>
-        client.PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = Email, password });
+    private Task<HttpResponseMessage> LoginAsync(HttpClient client, string? password = null) =>
+        client.PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = Email, password = password ?? _password });
 
     [Fact]
     public async Task Login_WithValidCredentials_SetsHardenedSessionCookie()
@@ -79,7 +79,7 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
         using var factory = CreateFactory();
         await SeedUserAsync(factory);
 
-        var response = await LoginAsync(CreateClient(factory), "wrong-password");
+        var response = await LoginAsync(CreateClient(factory), TestCredentials.NewPassword());
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -117,7 +117,7 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
     {
         using var factory = CreateFactory();
 
-        var response = await CreateClient(factory).PostAsJsonAsync("/api/auth/register", new { email = "mallory@example.com", password = Password });
+        var response = await CreateClient(factory).PostAsJsonAsync("/api/auth/register", new { email = "mallory@example.com", password = _password });
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         using var scope = factory.Services.CreateScope();
@@ -129,7 +129,7 @@ public class AuthIntegrationTests(WebApplicationFactory<Program> baseFactory)
     {
         using var factory = CreateFactory(allowRegistration: true);
 
-        var response = await CreateClient(factory).PostAsJsonAsync("/api/auth/register", new { email = "bob@example.com", password = Password });
+        var response = await CreateClient(factory).PostAsJsonAsync("/api/auth/register", new { email = "bob@example.com", password = _password });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

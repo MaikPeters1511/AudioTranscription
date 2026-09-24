@@ -14,6 +14,7 @@ public class InitialUserSeederTests : IDisposable
 {
     private readonly ServiceProvider _provider;
     private readonly Mock<ILogger<InitialUserSeeder>> _logger = new();
+    private readonly string _password = TestCredentials.NewPassword();
 
     public InitialUserSeederTests()
     {
@@ -39,7 +40,7 @@ public class InitialUserSeederTests : IDisposable
     [Fact]
     public async Task CreatesConfiguredUser_WhenNoUserExists()
     {
-        await CreateSut("admin@example.com", "Sup3r-Secret!").StartAsync(CancellationToken.None);
+        await CreateSut("admin@example.com", _password).StartAsync(CancellationToken.None);
 
         var user = (await UsersAsync()).Should().ContainSingle().Subject;
         user.Email.Should().Be("admin@example.com");
@@ -47,26 +48,27 @@ public class InitialUserSeederTests : IDisposable
 
         using var scope = _provider.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-        (await users.CheckPasswordAsync(user, "Sup3r-Secret!")).Should().BeTrue();
+        (await users.CheckPasswordAsync(user, _password)).Should().BeTrue();
     }
 
     [Fact]
     public async Task DoesNothing_WhenAUserAlreadyExists()
     {
-        await CreateSut("first@example.com", "Sup3r-Secret!").StartAsync(CancellationToken.None);
+        await CreateSut("first@example.com", _password).StartAsync(CancellationToken.None);
 
-        await CreateSut("second@example.com", "An0ther-Secret!").StartAsync(CancellationToken.None);
+        await CreateSut("second@example.com", TestCredentials.NewPassword()).StartAsync(CancellationToken.None);
 
         (await UsersAsync()).Select(u => u.Email).Should().Equal("first@example.com");
     }
 
     [Theory]
-    [InlineData(null, null)]
-    [InlineData("admin@example.com", null)]
-    [InlineData(null, "Sup3r-Secret!")]
-    public async Task LogsWarningAndCreatesNoUser_WhenNotConfigured(string? email, string? password)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task LogsWarningAndCreatesNoUser_WhenNotConfigured(bool hasEmail, bool hasPassword)
     {
-        await CreateSut(email, password).StartAsync(CancellationToken.None);
+        await CreateSut(hasEmail ? "admin@example.com" : null, hasPassword ? _password : null)
+            .StartAsync(CancellationToken.None);
 
         (await UsersAsync()).Should().BeEmpty();
         VerifyLogged(LogLevel.Warning);
