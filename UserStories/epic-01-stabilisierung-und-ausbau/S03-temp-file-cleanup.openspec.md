@@ -14,19 +14,24 @@ In `TranscriptionWorker.ProcessJobAsync` wird die hochgeladene Datei nur im Erfo
 - Aufräumen in einen `ITempFileStore` (o. ä.) kapseln und im `finally` von `ProcessJobAsync` aufrufen, gesteuert über `UploadOptions.DeleteAfterTranscription`.
 - Hinweis: Wenn später Retry (S09) oder Player (S06) die Datei behalten sollen, greift die Aufbewahrungsregel aus D2. Die Löschentscheidung liegt deshalb zentral an einer Stelle.
 - **AC (TDD, zuerst rot):**
-  - [ ] Test: Transkription wirft eine Exception, danach existiert die Datei nicht mehr.
-  - [ ] Test: Mit `DeleteAfterTranscription=false` bleibt die Datei in beiden Fällen erhalten.
-  - [ ] Test: Ein Fehler beim Löschen wird als Warning geloggt und ändert den Job-Status nicht.
+  - [x] Test: Transkription wirft eine Exception, danach existiert die Datei nicht mehr.
+  - [x] Test: Mit `DeleteAfterTranscription=false` bleibt die Datei in beiden Fällen erhalten.
+  - [x] Test: Ein Fehler beim Löschen wird als Warning geloggt und ändert den Job-Status nicht.
 
 ### S03-T2 Leeres `catch` in `WhisperTranscriptionService` ersetzen · backend · XS
 - Beim Löschen der `_16khz.wav` wird die Exception als Warning geloggt, statt sie still zu verschlucken.
 - **AC:**
-  - [ ] Kein leerer `catch`-Block mehr in `AudioTranscription.Infrastructure`.
+  - [x] Kein leerer `catch`-Block mehr in `AudioTranscription.Infrastructure`.
 
 ### S03-T3 Verwaiste Dateien beim Start aufräumen · backend · S
 - Beim Start werden Dateien in `temp-uploads/` gelöscht, zu denen kein offener Job existiert und die älter als N Stunden sind (konfigurierbar). Das hängt mit S02 zusammen und sollte nach S02-T2 umgesetzt werden.
 - **AC:**
-  - [ ] Test: Eine verwaiste Datei wird gelöscht, die Datei eines `Pending`-Jobs bleibt erhalten.
+  - [x] Test: Eine verwaiste Datei wird gelöscht, die Datei eines `Pending`-Jobs bleibt erhalten.
 
-## 4. Acceptance Criteria (DoD)
+## 4. Umsetzungsnotizen (2026-09-24)
+- `ITempFileStore`/`TempFileStore` (`AudioTranscription.Api/Storage/`) ist die zentrale Stelle für das Speicherverzeichnis und die Löschentscheidung (`DeleteAfterTranscription`). Auch der Upload-Endpoint bezieht sein Verzeichnis darüber.
+- Der Worker räumt im `finally` auf, auch wenn der Job in der DB nicht gefunden wird. **Ausnahme Shutdown:** Wird die Verarbeitung durch das Stoppen des Hosts abgebrochen, bleibt die Datei erhalten, damit S02 den Job nach dem Neustart wieder aufnehmen kann.
+- **T3 vorgezogen:** Die Job-ID ergibt sich aus dem Dateinamen (`{jobId}{ext}`), S02-T1 ist dafür nicht nötig. `OrphanedUploadCleanupService` läuft einmal beim Start. Es löscht Dateien, die älter als `Upload:OrphanedFileRetentionHours` (Standard 24) sind und zu keinem offenen Job gehören. Bei `DeleteAfterTranscription=false` bleiben die Dateien aller bekannten Jobs erhalten.
+
+## 5. Acceptance Criteria (DoD)
 - [ ] Nach einem fehlgeschlagenen Job ist `temp-uploads/` leer (bei Standard-Konfiguration).

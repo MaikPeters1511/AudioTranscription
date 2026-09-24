@@ -2,6 +2,7 @@ using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Endpoints;
 using AudioTranscription.Api.Hubs;
+using AudioTranscription.Api.Storage;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,10 @@ builder.Services.Configure<UploadOptions>(
 
 // Register transcription services
 builder.Services.AddSingleton<TranscriptionQueue>();
+builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
+builder.Services.AddHostedService<OrphanedUploadCleanupService>();
 builder.Services.AddHostedService<TranscriptionWorker>();
 
 // Optional: Register Ollama post-processor if connection string is present

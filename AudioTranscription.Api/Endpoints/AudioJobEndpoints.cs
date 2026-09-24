@@ -2,6 +2,7 @@ using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
+using AudioTranscription.Api.Storage;
 using AudioTranscription.Api.Validation;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
@@ -40,6 +41,7 @@ public static class AudioJobEndpoints
         TranscriptionQueue queue,
         IOptions<UploadOptions> uploadOptions,
         IHubContext<TranscriptionHub> hubContext,
+        ITempFileStore tempFileStore,
         ILogger<AudioJob> logger)
     {
         var options = uploadOptions.Value;
@@ -83,7 +85,7 @@ public static class AudioJobEndpoints
         }
 
         // Save file to temp storage
-        var tempPath = Path.Combine(Directory.GetCurrentDirectory(), options.TempStoragePath);
+        var tempPath = tempFileStore.StorageDirectory;
         Directory.CreateDirectory(tempPath);
 
         var jobId = Guid.NewGuid();

@@ -16,4 +16,5 @@ public class UploadOptions
     ];
     public string TempStoragePath { get; set; } = "temp-uploads";
     public bool DeleteAfterTranscription { get; set; } = true;
+    public int OrphanedFileRetentionHours { get; set; } = 24;
 }

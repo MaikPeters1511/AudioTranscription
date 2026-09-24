@@ -1,12 +1,11 @@
-using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
+using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace AudioTranscription.Api.BackgroundServices;
 
@@ -55,17 +54,33 @@ public class TranscriptionWorker : BackgroundService
         _logger.LogInformation("TranscriptionWorker stopped");
     }
 
-    private async Task ProcessJobAsync(TranscriptionJobRequest request, CancellationToken cancellationToken)
+    internal async Task ProcessJobAsync(TranscriptionJobRequest request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Processing transcription job {JobId} from file {FilePath}",
             request.JobId, request.FilePath);
 
         using var scope = _scopeFactory.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var transcriptionService = scope.ServiceProvider.GetRequiredService<ITranscriptionService>();
-        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<TranscriptionHub>>();
-        var uploadOptions = scope.ServiceProvider.GetRequiredService<IOptions<UploadOptions>>();
-        var postProcessor = scope.ServiceProvider.GetService<ITranscriptPostProcessor>();
+        var tempFileStore = scope.ServiceProvider.GetRequiredService<ITempFileStore>();
+
+        try
+        {
+            await TranscribeJobAsync(scope.ServiceProvider, request, cancellationToken);
+        }
+        finally
+        {
+            // On shutdown the upload is kept so the job can be recovered after a restart
+            if (!cancellationToken.IsCancellationRequested)
+                CleanupUpload(tempFileStore, request.FilePath);
+        }
+    }
+
+    private async Task TranscribeJobAsync(
+        IServiceProvider services, TranscriptionJobRequest request, CancellationToken cancellationToken)
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        var transcriptionService = services.GetRequiredService<ITranscriptionService>();
+        var hubContext = services.GetRequiredService<IHubContext<TranscriptionHub>>();
+        var postProcessor = services.GetService<ITranscriptPostProcessor>();
 
         var job = await dbContext.AudioJobs.FindAsync([request.JobId], cancellationToken);
         if (job is null)
@@ -104,20 +119,6 @@ public class TranscriptionWorker : BackgroundService
             _logger.LogInformation(
                 "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
                 request.JobId, finalTranscript.Length, result.DetectedLanguage, result.DurationSeconds);
-
-            // Delete temp file if configured
-            if (uploadOptions.Value.DeleteAfterTranscription && File.Exists(request.FilePath))
-            {
-                try
-                {
-                    File.Delete(request.FilePath);
-                    _logger.LogDebug("Deleted temp file {FilePath}", request.FilePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete temp file {FilePath}", request.FilePath);
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -129,6 +130,18 @@ public class TranscriptionWorker : BackgroundService
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await NotifyStatusChanged(hubContext, job);
+        }
+    }
+
+    private void CleanupUpload(ITempFileStore tempFileStore, string filePath)
+    {
+        try
+        {
+            tempFileStore.CleanupAfterProcessing(filePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Failed to delete temp file {FilePath}", filePath);
         }
     }
 
