@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
+import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { AudioJobService } from '../../services/audio-job.service';
-import { AudioJobStatus } from '../../models/audio-job.model';
+import { AudioJobStatus, SubtitleFormat } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
@@ -15,7 +16,7 @@ type TranscriptVersion = 'processed' | 'raw';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, TranscriptPlayerComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -134,7 +135,16 @@ type TranscriptVersion = 'processed' | 'raw';
                     {{ 'jobDetail.stats' | transloco: { words: wordCount(), chars: transcriptText.length } }}
                   </span>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
+                  @for (format of subtitleFormats; track format) {
+                    <a
+                      class="btn btn-sm btn-outline"
+                      [attr.data-subtitles]="format"
+                      [href]="jobService.subtitleUrl(job.id, format)"
+                      download
+                      [attr.aria-label]="'jobDetail.subtitles.' + format | transloco"
+                    >{{ format.toUpperCase() }}</a>
+                  }
                   <button
                     class="btn btn-sm btn-outline gap-1"
                     (click)="downloadTranscript(transcriptText, job.fileName)"
@@ -198,6 +208,10 @@ type TranscriptVersion = 'processed' | 'raw';
             </div>
           </div>
         }
+
+        @if (job.status === AudioJobStatus.Completed) {
+          <app-transcript-player [jobId]="job.id" />
+        }
       } @else {
         <div class="alert alert-warning">
           <span>{{ 'jobDetail.notFound' | transloco }}</span>
@@ -215,6 +229,7 @@ export class JobDetailComponent implements OnInit {
   private transloco = inject(TranslocoService);
   private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
   AudioJobStatus = AudioJobStatus;
+  readonly subtitleFormats: readonly SubtitleFormat[] = ['srt', 'vtt'];
   copied = signal(false);
 
   private host = inject<ElementRef<HTMLElement>>(ElementRef);

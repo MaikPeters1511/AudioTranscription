@@ -82,7 +82,11 @@
       "processed": "Edited",
       "raw": "Original"
     },
-    "cancelledInfo": "The transcription was cancelled."
+    "cancelledInfo": "The transcription was cancelled.",
+    "subtitles": {
+      "srt": "Download subtitles as SRT",
+      "vtt": "Download subtitles as VTT"
+    }
   },
   "upload": {
     "title": "Upload audio",
@@ -137,5 +141,13 @@
     "confirmText": "“{{ fileName }}” will be permanently deleted along with its transcript and audio file.",
     "confirmDelete": "Delete permanently",
     "confirmAbort": "Keep"
+  },
+  "player": {
+    "title": "Audio and timestamps",
+    "audio": "Audio playback",
+    "segments": "Transcript with timestamps, click to jump there",
+    "loading": "Loading timestamps",
+    "noAudio": "The audio file is no longer available; by default it is deleted after a successful transcription. The timestamps are kept.",
+    "noSegments": "No timestamps are available for this transcript."
   }
 }

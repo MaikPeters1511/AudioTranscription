@@ -82,7 +82,11 @@
       "processed": "Bearbeitet",
       "raw": "Original"
     },
-    "cancelledInfo": "Die Transkription wurde abgebrochen."
+    "cancelledInfo": "Die Transkription wurde abgebrochen.",
+    "subtitles": {
+      "srt": "Untertitel als SRT herunterladen",
+      "vtt": "Untertitel als VTT herunterladen"
+    }
   },
   "upload": {
     "title": "Audio hochladen",
@@ -137,5 +141,13 @@
     "confirmText": "„{{ fileName }}“ wird samt Transkript und Audiodatei endgültig gelöscht.",
     "confirmDelete": "Endgültig löschen",
     "confirmAbort": "Behalten"
+  },
+  "player": {
+    "title": "Audio und Zeitstempel",
+    "audio": "Audiowiedergabe",
+    "segments": "Transkript mit Zeitstempeln, Klick springt zur Stelle",
+    "loading": "Zeitstempel werden geladen",
+    "noAudio": "Die Audiodatei ist nicht mehr vorhanden, sie wird nach erfolgreicher Transkription standardmäßig gelöscht. Die Zeitstempel bleiben erhalten.",
+    "noSegments": "Für dieses Transkript sind keine Zeitstempel vorhanden."
   }
 }

@@ -6,8 +6,10 @@ import {
   AudioJobStatus,
   CreateAudioJobResponse,
   PaginatedResult,
+  SubtitleFormat,
   TranscriptionOptions,
   TranscriptionSettings,
+  TranscriptSegment,
 } from '../models/audio-job.model';
 import { Observable, Subject, tap, map, filter, firstValueFrom } from 'rxjs';
 
@@ -75,6 +77,19 @@ export class AudioJobService {
       durationSeconds: job.durationSeconds,
       completedAtUtc: job.completedAtUtc,
     });
+  }
+
+  loadSegments(id: string): Observable<TranscriptSegment[]> {
+    return this.http.get<TranscriptSegment[]>(`${this.baseUrl}/${id}/segments`);
+  }
+
+  /** Same-origin URL: the browser sends the session cookie for downloads and the audio element. */
+  subtitleUrl(id: string, format: SubtitleFormat): string {
+    return `${this.baseUrl}/${id}/subtitles?format=${format}`;
+  }
+
+  audioUrl(id: string): string {
+    return `${this.baseUrl}/${id}/audio`;
   }
 
   loadTranscriptionOptions(): Observable<TranscriptionOptions> {

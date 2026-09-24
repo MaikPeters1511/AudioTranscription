@@ -92,6 +92,26 @@ describe('JobDetailComponent', () => {
     expect(text).toContain('Automatisch erkannt');
   });
 
+  it('offers subtitle downloads for completed jobs', () => {
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    const fixture = render(completedJob({ rawTranscript: 'hallo' }));
+    TestBed.inject(HttpTestingController).expectOne('/api/audio-jobs/job-1/segments').flush([]);
+
+    const srt = fixture.nativeElement.querySelector('a[data-subtitles="srt"]') as HTMLAnchorElement;
+    const vtt = fixture.nativeElement.querySelector('a[data-subtitles="vtt"]') as HTMLAnchorElement;
+    expect(srt.getAttribute('href')).toBe('/api/audio-jobs/job-1/subtitles?format=srt');
+    expect(srt.hasAttribute('download')).toBe(true);
+    expect(srt.getAttribute('aria-label')).toBe('Download subtitles as SRT');
+    expect(vtt.getAttribute('href')).toBe('/api/audio-jobs/job-1/subtitles?format=vtt');
+  });
+
+  it('offers no subtitles or player for unfinished jobs', () => {
+    const fixture = render(completedJob({ status: AudioJobStatus.Failed }));
+
+    expect(fixture.nativeElement.querySelector('a[data-subtitles]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-transcript-player')).toBeNull();
+  });
+
   it('offers the job actions and explains a cancelled job', () => {
     const fixture = render(completedJob({ status: AudioJobStatus.Cancelled }));
 

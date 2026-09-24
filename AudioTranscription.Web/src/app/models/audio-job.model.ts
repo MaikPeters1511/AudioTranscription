@@ -66,3 +66,13 @@ export interface TranscriptionSettings {
   /** ISO-639-1 code or {@link AUTO_LANGUAGE}. */
   language?: string;
 }
+
+/** Timed part of the raw transcript (GET /api/audio-jobs/{id}/segments). */
+export interface TranscriptSegment {
+  index: number;
+  startMs: number;
+  endMs: number;
+  text: string;
+}
+
+export type SubtitleFormat = 'srt' | 'vtt';
