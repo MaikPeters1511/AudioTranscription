@@ -1,6 +1,6 @@
 # Story S03: Temp-Dateien auch nach Fehlern löschen
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 · Agent: backend-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #7 · Phase 1 · Agent: backend-agent
 
 ## 1. Description
 In `TranscriptionWorker.ProcessJobAsync` wird die hochgeladene Datei nur im Erfolgszweig gelöscht. Schlägt die Transkription fehl (z. B. ffmpeg fehlt, Datei defekt), bleibt die Audiodatei dauerhaft in `temp-uploads/` liegen. Das ist ein Datenschutz- und Speicherproblem. Zusätzlich enthält `WhisperTranscriptionService` beim Löschen der Zwischen-WAV ein leeres `catch`, das laut CLAUDE.md untersagt ist.

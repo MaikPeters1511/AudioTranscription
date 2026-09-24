@@ -1,6 +1,6 @@
 # Story S13: Volltextsuche über alle Transkripte
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 3 · Agenten: architect-agent, backend-agent, frontend-agent · Voraussetzung: D1 (Datenbank)
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #17 · Phase 3 · Agenten: architect-agent, backend-agent, frontend-agent · Voraussetzung: D1 (Datenbank)
 
 ## 1. Description
 Nutzer sollen alle Transkripte nach Begriffen durchsuchen und direkt zur Fundstelle springen können. Mit den Segmenten aus S06 ist das bis auf den Zeitstempel genau möglich.

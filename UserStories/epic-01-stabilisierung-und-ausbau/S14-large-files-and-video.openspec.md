@@ -1,6 +1,6 @@
 # Story S14: Große Dateien und Video-Upload
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 3 · Agenten: backend-agent, devops-agent, frontend-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #15 · Phase 3 · Agenten: backend-agent, devops-agent, frontend-agent
 
 ## 1. Description
 Das Limit liegt bei 10 MB (`UploadOptions.MaxFileSizeBytes`), Kestrel erlaubt 15 MB (`Program.cs`). Das reicht nur für wenige Minuten MP3. Lange Meetings und Videos (MP4/MKV/WebM) sollen möglich werden. ffmpeg ist bereits im Einsatz und kann die Tonspur direkt extrahieren.

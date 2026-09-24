@@ -1,6 +1,6 @@
 # Story S06: Zeitstempel-Segmente, Untertitel-Export (SRT/VTT) und synchroner Player
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 2 · Agenten: backend-agent, frontend-agent, ux-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #13 · Phase 2 · Agenten: backend-agent, frontend-agent, ux-agent
 
 ## 1. Description
 Whisper liefert jedes Segment mit `Start`/`End`. `WhisperTranscriptionService` hängt aber nur `segment.Text` an und verwirft die Zeitstempel. Wenn wir die Segmente speichern, sind möglich:

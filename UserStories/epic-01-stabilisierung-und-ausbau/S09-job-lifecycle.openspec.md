@@ -1,6 +1,6 @@
 # Story S09: Jobs löschen, abbrechen und neu starten
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 2 · Agenten: backend-agent, frontend-agent, sec-agent, ux-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #10 · Phase 2 · Agenten: backend-agent, frontend-agent, sec-agent, ux-agent
 
 ## 1. Description
 Die API bietet nur `POST /api/audio-jobs` und `GET`. Nutzer können Transkripte nicht löschen, was wegen DSGVO (Recht auf Löschung) und Privatsphäre nötig ist. Hängende oder fehlerhafte Jobs lassen sich weder abbrechen noch neu starten.

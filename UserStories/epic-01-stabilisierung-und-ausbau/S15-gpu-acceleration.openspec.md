@@ -1,6 +1,6 @@
 # Story S15: GPU-Beschleunigung
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 3 · Agenten: devops-agent, backend-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #18 · Phase 3 · Agenten: devops-agent, backend-agent
 
 ## 1. Description
 Whisper läuft aktuell auf der CPU. Whisper.net bietet Runtimes für CUDA (`Whisper.net.Runtime.Cuda`), CoreML (`Whisper.net.Runtime.CoreML`) und Vulkan. Das verkürzt die Laufzeit vor allem bei den Modellen `medium` und `large-v3` (S08) deutlich.

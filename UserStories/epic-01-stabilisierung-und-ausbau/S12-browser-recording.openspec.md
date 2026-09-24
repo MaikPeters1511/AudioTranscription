@@ -1,6 +1,6 @@
 # Story S12: Direkt im Browser aufnehmen
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 3 · Agenten: frontend-agent, backend-agent, ux-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #16 · Phase 3 · Agenten: frontend-agent, backend-agent, ux-agent
 
 ## 1. Description
 Nutzer sollen per Mikrofon direkt im Browser aufnehmen (MediaRecorder-API), ohne vorher eine Datei zu speichern. Die Aufnahme wird wie ein normaler Upload verarbeitet.

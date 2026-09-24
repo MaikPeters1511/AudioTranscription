@@ -1,6 +1,6 @@
 # Story S05: Platzhalter-Test entfernen
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 · Agenten: backend-agent, qa-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #6 · Phase 1 · Agenten: backend-agent, qa-agent
 
 ## 1. Description
 `AudioTranscription.Tests/UnitTest1.cs` enthält einen leeren `[Fact]`, der immer grün ist und die Testabdeckung verfälscht.

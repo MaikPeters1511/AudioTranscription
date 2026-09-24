@@ -1,6 +1,6 @@
 # Story S10: Mehrere Nachbearbeitungs-Modi mit Ollama
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 2 · Agenten: ai-agent, backend-agent, frontend-agent · Voraussetzung: S04
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #14 · Phase 2 · Agenten: ai-agent, backend-agent, frontend-agent · Voraussetzung: S04
 
 ## 1. Description
 `OllamaPostProcessor` hat einen fest eingebauten „Aufräumen“-Prompt. Aus demselben Transkript lassen sich weitere nützliche Ergebnisse erzeugen: eine Zusammenfassung, Stichpunkte, Aufgaben aus einem Meeting oder eine Übersetzung. Die Ergebnisse werden als eigene Varianten gespeichert und überschreiben weder den Rohtext noch einander.

@@ -1,6 +1,6 @@
 # Story S01: Repo-Hygiene – keine Nutzerdaten und Build-Artefakte im Repository
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 · Agenten: devops-agent, sec-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #4 · Phase 1 · Agenten: devops-agent, sec-agent
 
 ## 1. Description
 Unter `AudioTranscription.Api/temp-uploads/` sind zwei hochgeladene Audiodateien (`.mp3`, `.ogg`) eingecheckt. Für ein Produkt, das mit „privat & offline“ wirbt, ist das ein Datenschutzrisiko. Im Root fehlt eine `.gitignore`, es gibt nur `AudioTranscription.Web/.gitignore`. Dadurch landen `bin/`, `obj/`, `node_modules/` und die Whisper-Modelle (`whisper-models/`, mehrere hundert MB) schnell im Repo.

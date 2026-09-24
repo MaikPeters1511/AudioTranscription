@@ -1,6 +1,6 @@
 # Story S08: Whisper-Modell und Sprache wählbar
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 2 · Agenten: backend-agent, frontend-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #11 · Phase 2 · Agenten: backend-agent, frontend-agent
 
 ## 1. Description
 `WhisperTranscriptionService` verwendet fest `GgmlType.Base` und `.WithLanguageDetection()`. Bei deutschen Aufnahmen verbessert ein größeres Modell oder eine vorgegebene Sprache die Qualität deutlich.

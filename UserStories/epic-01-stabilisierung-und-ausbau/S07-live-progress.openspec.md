@@ -1,6 +1,6 @@
 # Story S07: Live-Fortschritt in Prozent
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 2 · Agenten: backend-agent, frontend-agent, ux-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #12 · Phase 2 · Agenten: backend-agent, frontend-agent, ux-agent
 
 ## 1. Description
 Während der Transkription zeigt das Frontend nur „Processing“. Whisper.net bietet `WithProgressHandler(Action<int>)`. Den Fortschritt übertragen wir per SignalR und zeigen ihn als Fortschrittsbalken an.

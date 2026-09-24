@@ -1,6 +1,6 @@
 # Story S16: CI mit GitHub Actions
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 (vorgezogen) · Agent: devops-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #5 · Phase 1 (vorgezogen) · Agent: devops-agent
 
 ## 1. Description
 Es gibt keine CI. CLAUDE.md verlangt aber, dass PRs nur mit grünen Tests gemergt werden. Die Pipeline wird vorgezogen, damit alle weiteren Stories dieses Epics automatisch geprüft werden.

@@ -1,6 +1,6 @@
 # Story S04: Roh- und nachbearbeitetes Transkript getrennt speichern
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 · Agenten: backend-agent, frontend-agent, ai-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #9 · Phase 1 · Agenten: backend-agent, frontend-agent, ai-agent
 
 ## 1. Description
 Der `TranscriptionWorker` schreibt das Ergebnis der Ollama-Nachbearbeitung in `TranscriptText` und verwirft den Whisper-Rohtext. Verfälscht das LLM Inhalte, lässt sich das Original nicht wiederherstellen. Künftig werden beide Fassungen gespeichert. Diese Story ist außerdem die Grundlage für S10 (mehrere Modi).

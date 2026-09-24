@@ -1,5 +1,7 @@
 # Epic E-01: Stabilisierung & Ausbau der Audio-Transkription
 
+> GitHub: Epic #2, Stories #4–#19, Tasks #20–#92 (als Sub-Issues verknüpft)
+
 ## 1. Description
 AudioTranscription wirbt mit „privat & offline“. Die Analyse des aktuellen Stands (Commit `9b0a5d9`) zeigt Lücken bei Datenschutz, Robustheit und Nutzwert:
 
@@ -16,37 +18,37 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 ## 2. Stories
 
 ### Phase 1: Aufräumen & Absichern (Sprint 1)
-| ID | Story | Agent(s) | Größe |
-|----|-------|----------|-------|
-| [S01](./S01-repo-hygiene.openspec.md) | Repo-Hygiene: `.gitignore` anlegen, Audiodateien entfernen | devops, sec | S |
-| [S16](./S16-ci-pipeline.openspec.md) | CI mit GitHub Actions (vorgezogen als Sicherheitsnetz) | devops | S |
-| [S05](./S05-test-cleanup.openspec.md) | Platzhalter-Test entfernen | backend, qa | XS |
-| [S03](./S03-temp-file-cleanup.openspec.md) | Temp-Dateien auch nach Fehlern löschen | backend | S |
-| [S02](./S02-job-recovery.openspec.md) | Offene Jobs beim Start wiederherstellen | backend | M |
-| [S04](./S04-raw-vs-processed-transcript.openspec.md) | Roh- und nachbearbeitetes Transkript getrennt speichern | backend, frontend | M |
+| ID | Issue | Story | Agent(s) | Größe |
+|----|-------|-------|----------|-------|
+| [S01](./S01-repo-hygiene.openspec.md) | #4 | Repo-Hygiene: `.gitignore` anlegen, Audiodateien entfernen | devops, sec | S |
+| [S16](./S16-ci-pipeline.openspec.md) | #5 | CI mit GitHub Actions (vorgezogen als Sicherheitsnetz) | devops | S |
+| [S05](./S05-test-cleanup.openspec.md) | #6 | Platzhalter-Test entfernen | backend, qa | XS |
+| [S03](./S03-temp-file-cleanup.openspec.md) | #7 | Temp-Dateien auch nach Fehlern löschen | backend | S |
+| [S02](./S02-job-recovery.openspec.md) | #8 | Offene Jobs beim Start wiederherstellen | backend | M |
+| [S04](./S04-raw-vs-processed-transcript.openspec.md) | #9 | Roh- und nachbearbeitetes Transkript getrennt speichern | backend, frontend | M |
 
 ### Phase 2: Features mit viel Wirkung (Sprint 2–3)
-| ID | Story | Agent(s) | Größe |
-|----|-------|----------|-------|
-| [S09](./S09-job-lifecycle.openspec.md) | Jobs löschen, abbrechen, neu starten | backend, frontend, sec | L |
-| [S08](./S08-model-and-language.openspec.md) | Modell und Sprache wählbar | backend, frontend | M |
-| [S07](./S07-live-progress.openspec.md) | Live-Fortschritt in Prozent | backend, frontend | S |
-| [S06](./S06-subtitles-and-player.openspec.md) | Segmente speichern, SRT/VTT-Export, synchroner Player | backend, frontend, ux | L |
-| [S10](./S10-postprocessing-modes.openspec.md) | Mehrere Nachbearbeitungs-Modi mit Ollama | ai, backend, frontend | M |
+| ID | Issue | Story | Agent(s) | Größe |
+|----|-------|-------|----------|-------|
+| [S09](./S09-job-lifecycle.openspec.md) | #10 | Jobs löschen, abbrechen, neu starten | backend, frontend, sec | L |
+| [S08](./S08-model-and-language.openspec.md) | #11 | Modell und Sprache wählbar | backend, frontend | M |
+| [S07](./S07-live-progress.openspec.md) | #12 | Live-Fortschritt in Prozent | backend, frontend | S |
+| [S06](./S06-subtitles-and-player.openspec.md) | #13 | Segmente speichern, SRT/VTT-Export, synchroner Player | backend, frontend, ux | L |
+| [S10](./S10-postprocessing-modes.openspec.md) | #14 | Mehrere Nachbearbeitungs-Modi mit Ollama | ai, backend, frontend | M |
 
 ### Phase 3: Größere Ausbaustufen (ab Sprint 4, Spike/ADR zuerst)
-| ID | Story | Agent(s) | Größe |
-|----|-------|----------|-------|
-| [S14](./S14-large-files-and-video.openspec.md) | Große Dateien & Video-Upload | backend, devops, frontend | L |
-| [S12](./S12-browser-recording.openspec.md) | Direkt im Browser aufnehmen | frontend, backend, ux | M |
-| [S13](./S13-fulltext-search.openspec.md) | Volltextsuche über alle Transkripte | architect, backend, frontend | M |
-| [S15](./S15-gpu-acceleration.openspec.md) | GPU-Beschleunigung (CUDA/CoreML) | devops, backend | M |
-| [S11](./S11-speaker-diarization.openspec.md) | Sprechererkennung | architect, ai, backend, frontend | XL |
+| ID | Issue | Story | Agent(s) | Größe |
+|----|-------|-------|----------|-------|
+| [S14](./S14-large-files-and-video.openspec.md) | #15 | Große Dateien & Video-Upload | backend, devops, frontend | L |
+| [S12](./S12-browser-recording.openspec.md) | #16 | Direkt im Browser aufnehmen | frontend, backend, ux | M |
+| [S13](./S13-fulltext-search.openspec.md) | #17 | Volltextsuche über alle Transkripte | architect, backend, frontend | M |
+| [S15](./S15-gpu-acceleration.openspec.md) | #18 | GPU-Beschleunigung (CUDA/CoreML) | devops, backend | M |
+| [S11](./S11-speaker-diarization.openspec.md) | #19 | Sprechererkennung | architect, ai, backend, frontend | XL |
 
 **Reihenfolge:** CI (S16) wird vorgezogen, damit jede folgende Änderung automatisch geprüft wird. S04 und S06 ändern beide das Datenmodell und sollten deshalb nacheinander umgesetzt werden, nicht parallel.
 
 ## 3. Übergreifende Voraussetzungen (Enabler)
-- **EN-1 i18n-Grundgerüst im Frontend:** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
+- **EN-1 i18n-Grundgerüst im Frontend (#3):** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
 
 ## 4. Offene Entscheidungen (vor Sprint-Start klären)
 | # | Frage | Betrifft | Empfehlung |

@@ -1,6 +1,6 @@
 # Story S02: Offene Jobs beim Neustart wiederherstellen
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 1 · Agent: backend-agent
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #8 · Phase 1 · Agent: backend-agent
 
 ## 1. Description
 `TranscriptionQueue` ist ein unbegrenzter In-Memory-`Channel`. Stürzt die API ab oder wird sie neu gestartet, gehen alle eingereihten Jobs verloren. In der Datenbank bleiben sie für immer auf `Pending` oder `Processing` hängen. Die Datenbank ist die Quelle der Wahrheit: Beim Start werden offene Jobs erneut eingereiht.

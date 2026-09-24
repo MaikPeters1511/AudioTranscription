@@ -1,6 +1,6 @@
 # Story S11: Sprechererkennung („Wer spricht wann?“)
 
-> Epic: [E-01](./00-epic.openspec.md) · Phase 3 · Agenten: architect-agent, ai-agent, backend-agent, frontend-agent · Voraussetzung: S06 (Segmente)
+> Epic: [E-01](./00-epic.openspec.md) · GitHub: #19 · Phase 3 · Agenten: architect-agent, ai-agent, backend-agent, frontend-agent · Voraussetzung: S06 (Segmente)
 
 ## 1. Description
 Bei Meetings und Interviews ist entscheidend, wer etwas gesagt hat. Sprecher-Diarisierung ordnet Zeitabschnitte anonymen Sprechern zu („Sprecher 1“, „Sprecher 2“), die Nutzer anschließend umbenennen können. Die Verarbeitung muss vollständig lokal und offline laufen, z. B. mit ONNX-Modellen (pyannote-Segmentierung plus Speaker-Embeddings, etwa über sherpa-onnx).
