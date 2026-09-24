@@ -28,7 +28,8 @@
     "pending": "Pending",
     "processing": "Processing",
     "completed": "Completed",
-    "failed": "Failed"
+    "failed": "Failed",
+    "cancelled": "Cancelled"
   },
   "jobList": {
     "title": "Transcriptions",
@@ -44,7 +45,8 @@
       "status": "Status",
       "language": "Language",
       "duration": "Duration",
-      "created": "Created"
+      "created": "Created",
+      "actions": "Actions"
     },
     "pagination": {
       "previous": "Previous page",
@@ -76,7 +78,8 @@
       "label": "Transcript version",
       "processed": "Edited",
       "raw": "Original"
-    }
+    },
+    "cancelledInfo": "The transcription was cancelled."
   },
   "upload": {
     "title": "Upload audio",
@@ -108,5 +111,22 @@
     },
     "logout": "Sign out",
     "signedInAs": "Signed in as {{ email }}"
+  },
+  "jobActions": {
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "delete": "Delete",
+    "cancelFor": "Cancel: {{ fileName }}",
+    "retryFor": "Retry: {{ fileName }}",
+    "deleteFor": "Delete: {{ fileName }}",
+    "cancelRequested": "Cancellation requested",
+    "retried": "Job restarted",
+    "deleted": "Job deleted",
+    "retryGone": "The uploaded file is no longer available. Please upload it again.",
+    "failed": "Action failed. Please try again.",
+    "confirmTitle": "Delete job?",
+    "confirmText": "“{{ fileName }}” will be permanently deleted along with its transcript and audio file.",
+    "confirmDelete": "Delete permanently",
+    "confirmAbort": "Keep"
   }
 }

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Title } from '@angular/platform-browser';
 import { JobListComponent } from './job-list.component';
@@ -62,5 +62,18 @@ describe('JobListComponent', () => {
       render('en').nativeElement.querySelector('button[aria-label]');
 
     expect(button.getAttribute('aria-label')).toBe('Refresh');
+  });
+
+  it('offers compact job actions in each table row without opening the job', () => {
+    const fixture = render('en');
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+
+    const deleteButton: HTMLButtonElement = fixture.nativeElement.querySelector('table app-job-actions [data-action="delete"]');
+    expect(deleteButton.getAttribute('aria-label')).toBe('Delete: meeting.mp3');
+
+    deleteButton.click();
+
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

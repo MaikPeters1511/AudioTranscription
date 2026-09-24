@@ -1,6 +1,8 @@
 import { Component, ElementRef, inject, OnInit, signal, computed, effect, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
@@ -12,7 +14,7 @@ type TranscriptVersion = 'processed' | 'raw';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -39,13 +41,22 @@ type TranscriptVersion = 'processed' | 'raw';
               {{ job.createdAtUtc | date: ('format.dateTimeSeconds' | transloco) }}
             </p>
           </div>
-          <span class="badge badge-lg" [ngClass]="jobService.getStatusBadgeClass(job.status)">
-            @if (job.status === AudioJobStatus.Processing) {
-              <span class="loading loading-spinner loading-xs mr-1"></span>
-            }
-            {{ jobService.getStatusLabelKey(job.status) | transloco }}
-          </span>
+          <div class="flex flex-col items-end gap-2">
+            <span class="badge badge-lg" [ngClass]="jobService.getStatusBadgeClass(job.status)">
+              @if (job.status === AudioJobStatus.Processing) {
+                <span class="loading loading-spinner loading-xs mr-1"></span>
+              }
+              {{ jobService.getStatusLabelKey(job.status) | transloco }}
+            </span>
+            <app-job-actions [job]="job" />
+          </div>
         </div>
+
+        @if (job.status === AudioJobStatus.Cancelled) {
+          <div class="alert alert-info mb-6" role="status">
+            <span>{{ 'jobDetail.cancelledInfo' | transloco }}</span>
+          </div>
+        }
 
         <!-- Metadata Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -186,6 +197,7 @@ type TranscriptVersion = 'processed' | 'raw';
 export class JobDetailComponent implements OnInit {
   jobService = inject(AudioJobService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private toastService = inject(ToastService);
   private pageTitle = inject(PageTitleService);
   private transloco = inject(TranslocoService);
@@ -220,6 +232,13 @@ export class JobDetailComponent implements OnInit {
   });
 
   constructor() {
+    // Leave the page when the open job is deleted, here or by another client (SignalR)
+    this.jobService.jobDeleted$.pipe(takeUntilDestroyed()).subscribe((id) => {
+      if (id === this.jobService.selectedJob()?.id) {
+        this.router.navigate(['/jobs']);
+      }
+    });
+
     // Keep the browser tab title in sync with the currently viewed file.
     effect(() => {
       const job = this.jobService.selectedJob();

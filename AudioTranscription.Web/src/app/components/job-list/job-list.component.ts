@@ -4,13 +4,14 @@ import { RouterLink } from '@angular/router';
 import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus } from '../../models/audio-job.model';
+import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
 
 @Component({
   selector: 'app-job-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent],
   animations: [
     trigger('listAnimation', [
       transition('* <=> *', [
@@ -81,6 +82,7 @@ import { PageTitleService } from '../../i18n/page-title.service';
                 <th>{{ 'jobList.columns.language' | transloco }}</th>
                 <th>{{ 'jobList.columns.duration' | transloco }}</th>
                 <th>{{ 'jobList.columns.created' | transloco }}</th>
+                <th><span class="sr-only">{{ 'jobList.columns.actions' | transloco }}</span></th>
                 <th></th>
               </tr>
             </thead>
@@ -100,6 +102,10 @@ import { PageTitleService } from '../../i18n/page-title.service';
                   <td class="text-sm">{{ job.language || '-' }}</td>
                   <td class="text-sm">{{ jobService.formatDuration(job.durationSeconds) }}</td>
                   <td class="text-sm text-base-content/70">{{ job.createdAtUtc | date: ('format.dateTime' | transloco) }}</td>
+                  <!-- Actions must not open the job (the row itself is a link) -->
+                  <td (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                    <app-job-actions [job]="job" [compact]="true" />
+                  </td>
                   <td>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

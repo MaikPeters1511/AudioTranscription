@@ -50,6 +50,10 @@ export class SignalRService {
       this.audioJobService.updateJobInList(job);
     });
 
+    this.hubConnection.on('JobDeleted', (id: string) => {
+      this.audioJobService.removeJobFromList(id);
+    });
+
     this.hubConnection
       .start()
       .then(() => {

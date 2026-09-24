@@ -28,7 +28,8 @@
     "pending": "Ausstehend",
     "processing": "Verarbeitung",
     "completed": "Abgeschlossen",
-    "failed": "Fehlgeschlagen"
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen"
   },
   "jobList": {
     "title": "Transkriptionen",
@@ -44,7 +45,8 @@
       "status": "Status",
       "language": "Sprache",
       "duration": "Dauer",
-      "created": "Erstellt"
+      "created": "Erstellt",
+      "actions": "Aktionen"
     },
     "pagination": {
       "previous": "Vorherige Seite",
@@ -76,7 +78,8 @@
       "label": "Transkript-Fassung",
       "processed": "Bearbeitet",
       "raw": "Original"
-    }
+    },
+    "cancelledInfo": "Die Transkription wurde abgebrochen."
   },
   "upload": {
     "title": "Audio hochladen",
@@ -108,5 +111,22 @@
     },
     "logout": "Abmelden",
     "signedInAs": "Angemeldet als {{ email }}"
+  },
+  "jobActions": {
+    "cancel": "Abbrechen",
+    "retry": "Neu starten",
+    "delete": "Löschen",
+    "cancelFor": "Abbrechen: {{ fileName }}",
+    "retryFor": "Neu starten: {{ fileName }}",
+    "deleteFor": "Löschen: {{ fileName }}",
+    "cancelRequested": "Abbruch angefordert",
+    "retried": "Job neu gestartet",
+    "deleted": "Job gelöscht",
+    "retryGone": "Die hochgeladene Datei ist nicht mehr vorhanden. Bitte erneut hochladen.",
+    "failed": "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+    "confirmTitle": "Job löschen?",
+    "confirmText": "„{{ fileName }}“ wird samt Transkript und Audiodatei endgültig gelöscht.",
+    "confirmDelete": "Endgültig löschen",
+    "confirmAbort": "Behalten"
   }
 }

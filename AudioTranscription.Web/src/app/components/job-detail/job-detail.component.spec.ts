@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter, Router } from '@angular/router';
 import { JobDetailComponent } from './job-detail.component';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJob, AudioJobStatus } from '../../models/audio-job.model';
@@ -72,5 +72,43 @@ describe('JobDetailComponent', () => {
     expect(text).toContain('2 words · 11 characters');
     expect(text).toContain('Completed');
     expect(text).not.toContain('Zurück zur Liste');
+  });
+
+  it('offers the job actions and explains a cancelled job', () => {
+    const fixture = render(completedJob({ status: AudioJobStatus.Cancelled }));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Die Transkription wurde abgebrochen.');
+    expect(fixture.nativeElement.querySelector('app-job-actions [data-action="retry"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-job-actions [data-action="delete"]')).not.toBeNull();
+  });
+
+  it('returns to the list after deleting the job via its actions', async () => {
+    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    };
+    const fixture = render(completedJob({ rawTranscript: 'x' }));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const el: HTMLElement = fixture.nativeElement;
+
+    el.querySelector<HTMLButtonElement>('[data-action="delete"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('[data-confirm="delete"]')!.click();
+    TestBed.inject(HttpTestingController).expectOne('/api/audio-jobs/job-1').flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith(['/jobs']);
+  });
+
+  it('returns to the list when another client deletes the open job', () => {
+    render(completedJob({ rawTranscript: 'x' }));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    jobService.removeJobFromList('job-1'); // what the SignalR JobDeleted handler does
+
+    expect(navigate).toHaveBeenCalledWith(['/jobs']);
   });
 });

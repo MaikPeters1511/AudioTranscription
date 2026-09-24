@@ -86,3 +86,76 @@ describe('AudioJobService', () => {
     ]);
   });
 });
+
+describe('AudioJobService job actions (S09)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('deletes a job and removes it from the list', async () => {
+    service.jobs.set([listItem('a'), listItem('b')]);
+    service.totalCount.set(2);
+
+    const result = service.deleteJob('a');
+    const req = http.expectOne('/api/audio-jobs/a');
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await result;
+
+    expect(service.jobs().map((j) => j.id)).toEqual(['b']);
+    expect(service.totalCount()).toBe(1);
+  });
+
+  it.each([
+    ['cancel', AudioJobStatus.Cancelled],
+    ['retry', AudioJobStatus.Pending],
+  ] as const)('%s refreshes its state without waiting for SignalR', async (action, newStatus) => {
+    service.jobs.set([listItem('a', AudioJobStatus.Processing)]);
+    service.selectedJob.set({ id: 'a', status: AudioJobStatus.Processing } as AudioJob);
+
+    const result = action === 'cancel' ? service.cancelJob('a') : service.retryJob('a');
+    const req = http.expectOne(`/api/audio-jobs/a/${action}`);
+    expect(req.request.method).toBe('POST');
+    req.flush(null, { status: 202, statusText: 'Accepted' });
+    await Promise.resolve();
+    http.expectOne('/api/audio-jobs/a').flush({ ...listItem('a', newStatus), contentType: 'audio/mpeg' });
+    await result;
+
+    expect(service.jobs()[0].status).toBe(newStatus);
+    expect(service.selectedJob()?.status).toBe(newStatus);
+  });
+
+  it('propagates API errors to the caller', async () => {
+    const retry = service.retryJob('a');
+    http.expectOne('/api/audio-jobs/a/retry').flush(null, { status: 410, statusText: 'Gone' });
+
+    await expect(retry).rejects.toMatchObject({ status: 410 });
+  });
+
+  it('clears the open job when it is removed', () => {
+    service.selectedJob.set({ id: 'a' } as AudioJob);
+    service.jobs.set([listItem('a')]);
+
+    service.removeJobFromList('a');
+
+    expect(service.selectedJob()).toBeNull();
+    expect(service.jobs()).toEqual([]);
+  });
+
+  it('ignores removal of unknown jobs', () => {
+    service.jobs.set([listItem('a')]);
+    service.totalCount.set(1);
+
+    service.removeJobFromList('zzz');
+
+    expect(service.jobs()).toHaveLength(1);
+    expect(service.totalCount()).toBe(1);
+  });
+});
