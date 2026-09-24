@@ -49,13 +49,14 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 
 ## 3. Übergreifende Voraussetzungen (Enabler)
 - **EN-1 i18n-Grundgerüst im Frontend (#3):** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
+- **EN-2 Frontend-Unit-Test-Infrastruktur (#93):** Im Web-Projekt fehlt ein `test`-Target, `ng test` schlägt fehl (aufgefallen bei S16). Die Einrichtung ist Voraussetzung für alle Frontend-Tasks mit Unit-Tests. *Agent: frontend · Größe: S*
 
 ## 4. Offene Entscheidungen (vor Sprint-Start klären)
 | # | Frage | Betrifft | Empfehlung |
 |---|-------|----------|------------|
 | D1 | **Datenbank:** Der Code nutzt SQL Server (`AddSqlServer`, `UseSqlServer`), CLAUDE.md nennt PostgreSQL. Welche gilt? | S13 (Volltextsuche), alle Migrationen | Per ADR festhalten. Die Volltextsuche hängt direkt davon ab. |
 | D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | Konfigurierbare Aufbewahrung, Standard „löschen“. Player und Retry werden nur angeboten, wenn die Datei noch vorhanden ist. |
-| D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | Entscheidung des Repo-Owners (siehe S01-T3) |
+| D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | ✅ Entschieden (2026-09-24): **nicht bereinigen**, siehe S01-T3 |
 | D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | Eigene Security-Story über `sec-agent` vor oder parallel zu S09 |
 | D5 | **Test-Ablage:** CLAUDE.md schreibt `Tests/` vor, Backend-Tests liegen in `AudioTranscription.Tests/`, E2E-Tests in `AudioTranscription.Web/tests/`. | alle | Ist-Zustand per ADR legitimieren oder migrieren |
 

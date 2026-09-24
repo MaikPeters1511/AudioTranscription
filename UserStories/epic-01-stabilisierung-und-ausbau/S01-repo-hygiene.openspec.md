@@ -25,8 +25,9 @@ Unter `AudioTranscription.Api/temp-uploads/` sind zwei hochgeladene Audiodateien
 ### S01-T3 Git-History bereinigen (Entscheidung D3) · devops + Repo-Owner · S
 - Nur nach ausdrücklicher Freigabe durch den Owner: `git filter-repo --path AudioTranscription.Api/temp-uploads --invert-paths`, danach Force-Push und Hinweis an alle Klone.
 - **AC:**
-  - [ ] Entscheidung ist dokumentiert (ADR oder Kommentar in dieser Story).
-  - [ ] Falls umgesetzt: `git log --all -- AudioTranscription.Api/temp-uploads` ist leer.
+  - [x] Entscheidung ist dokumentiert (ADR oder Kommentar in dieser Story).
+  - ~~Falls umgesetzt: `git log --all -- AudioTranscription.Api/temp-uploads` ist leer.~~
+- **Entscheidung (2026-09-24, Repo-Owner):** Die History wird **nicht** bereinigt. Die zwei Dateien bleiben im Git-Verlauf, sind aber aus dem aktuellen Stand entfernt. Neue Uploads verhindern `.gitignore` und der CI-Check.
 
 ### S01-T4 Pre-Commit-Schutz gegen Audiodateien (optional) · devops · XS
 - CI-Check (siehe S16), der fehlschlägt, wenn Audio- oder Modell-Dateien getrackt sind.
@@ -34,5 +35,5 @@ Unter `AudioTranscription.Api/temp-uploads/` sind zwei hochgeladene Audiodateien
   - [ ] Ein PR mit einer `.mp3`-Datei wird von der CI abgelehnt.
 
 ## 4. Acceptance Criteria (DoD)
-- [ ] T1 und T2 sind gemergt, T3 ist entschieden.
+- [ ] T1 und T2 sind gemergt, T3 ist entschieden (erledigt: nicht bereinigen).
 - [ ] README weist darauf hin, dass Uploads nur lokal gespeichert werden.
