@@ -33,5 +33,7 @@ In `TranscriptionWorker.ProcessJobAsync` wird die hochgeladene Datei nur im Erfo
 - Der Worker räumt im `finally` auf, auch wenn der Job in der DB nicht gefunden wird. **Ausnahme Shutdown:** Wird die Verarbeitung durch das Stoppen des Hosts abgebrochen, bleibt die Datei erhalten, damit S02 den Job nach dem Neustart wieder aufnehmen kann.
 - **T3 vorgezogen:** Die Job-ID ergibt sich aus dem Dateinamen (`{jobId}{ext}`), S02-T1 ist dafür nicht nötig. `OrphanedUploadCleanupService` läuft einmal beim Start. Es löscht Dateien, die älter als `Upload:OrphanedFileRetentionHours` (Standard 24) sind und zu keinem offenen Job gehören. Bei `DeleteAfterTranscription=false` bleiben die Dateien aller bekannten Jobs erhalten.
 
+> **Hinweis (2026-09-24):** Mit D2 (S09) wird die Upload-Datei nach einem **Fehler** nicht mehr gelöscht, sondern für einen Neustart behalten. Siehe S09, Abschnitt 5.
+
 ## 5. Acceptance Criteria (DoD)
 - [ ] Nach einem fehlgeschlagenen Job ist `temp-uploads/` leer (bei Standard-Konfiguration).

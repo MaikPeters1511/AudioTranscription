@@ -26,7 +26,13 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    // baseURL: 'http://localhost:3000',
+    /* Running app (e.g. `npm start` with the API behind the dev proxy) */
+    baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:4200',
+
+    /* Optional: use a preinstalled browser instead of `npx playwright install` */
+    launchOptions: process.env['E2E_CHROMIUM_PATH']
+      ? { executablePath: process.env['E2E_CHROMIUM_PATH'] }
+      : {},
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

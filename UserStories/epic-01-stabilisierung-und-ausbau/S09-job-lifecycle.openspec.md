@@ -11,7 +11,7 @@ Die API bietet nur `POST /api/audio-jobs` und `GET`. Nutzer können Transkripte 
 - Als Nutzer möchte ich einen fehlgeschlagenen Job neu starten, damit ich die Datei nicht erneut hochladen muss.
 
 ## 3. API & Backend Requirements
-- **Auth (D4):** Solange keine Authentifizierung existiert, kann jeder alle Jobs löschen. Vor dem Release muss `sec-agent` das bewerten.
+- **Auth (D4):** Erledigt durch S17 (#94). Alle Endpoints verlangen eine Anmeldung, die Jobs sind gemeinsam für alle Angemeldeten.
 - **Endpoints:**
   - `DELETE /api/audio-jobs/{id}` → `204`; `404`, wenn der Job unbekannt ist.
   - `POST /api/audio-jobs/{id}/cancel` → `202`; `409`, wenn der Job nicht `Pending` oder `Processing` ist.
@@ -54,6 +54,18 @@ Die API bietet nur `POST /api/audio-jobs` und `GET`. Nutzer können Transkripte 
 - **AC:**
   - [ ] Test ist grün (lokal, später in S16-T5).
 
-## 5. Acceptance Criteria (DoD)
+## 5. Umsetzungsnotizen (2026-09-24)
+- **D2 (Repo-Owner):** Die Upload-Datei wird nur nach **erfolgreicher** Transkription gelöscht, oder wenn der Job nicht mehr existiert. Bei `Failed` und `Cancelled` bleibt sie für einen Neustart liegen. Entfernt wird sie durch `DELETE`, einen erfolgreichen Retry oder das Aufräumen verwaister Dateien nach `OrphanedFileRetentionHours`. Das ersetzt die Löschregel aus S03-T1.
+- **T1 abweichend von der ursprünglichen AC:** Bei Abbruch wird die Datei wegen D2 **behalten**, nicht gelöscht.
+- **Abbruch von `Processing`:** Läuft der Job gerade im Worker, wird er über `JobCancellationRegistry` abgebrochen. Ein veralteter `Processing`-Job ohne laufenden Worker wird direkt auf `Cancelled` gesetzt.
+- **Löschen eines laufenden Jobs:** Der Worker bemerkt die Löschung (`DbUpdateConcurrencyException`) und endet ohne Fehler.
+- **Frontend:**
+  - `JobActionsComponent` mit nativem `<dialog>` (Fokus-Falle, `Esc`, Rückkehr des Fokus).
+  - Kompakte Icon-Buttons mit ARIA-Label inklusive Dateiname in der Desktop-Tabelle. Die mobilen Karten sind Links, dort gibt es die Aktionen in der Detailansicht.
+  - Nach Abbrechen oder Neu starten lädt der Service den Job neu, unabhängig von SignalR.
+  - Löschungen meldet der Service über `jobDeleted$`, die Detailansicht wechselt dann zur Liste. Das gilt auch, wenn ein anderer Client löscht.
+- **T6:** `AudioTranscription.Web/tests/job-lifecycle.spec.ts` läuft gegen den echten Stack, Zugangsdaten per `E2E_EMAIL`/`E2E_PASSWORD`. Getestet werden Upload, `Failed`, Neu starten, der Löschen-Dialog mit `Esc` und die Bestätigung. Der Abbruch eines laufenden Jobs lässt sich ohne Whisper-Modell nicht deterministisch E2E testen, er ist per Integrations- und Unit-Tests abgedeckt.
+
+## 6. Acceptance Criteria (DoD)
 - [ ] Alle drei Aktionen funktionieren über UI und API, Swagger ist aktualisiert.
 - [ ] Auth-Risiko (D4) ist von `sec-agent` bewertet.
