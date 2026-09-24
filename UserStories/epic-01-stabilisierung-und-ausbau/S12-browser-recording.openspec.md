@@ -19,7 +19,7 @@ Nutzer sollen per Mikrofon direkt im Browser aufnehmen (MediaRecorder-API), ohne
 ### S12-T2 `AudioRecorderService` · frontend · S
 - Kapselt `getUserMedia` und `MediaRecorder`, wählt das Format per `MediaRecorder.isTypeSupported`. Zustände als Signals: `idle`, `recording`, `stopped`, `error`. Behandelt verweigerte Berechtigung.
 - **AC:**
-  - [ ] Unit-Tests mit gemocktem `MediaRecorder`, auch für den Fall „Berechtigung verweigert“.
+  - [x] Unit-Tests mit gemocktem `MediaRecorder`, auch für den Fall „Berechtigung verweigert“ (`audio-recorder.service.spec.ts`, 9 Tests: Formatwahl inkl. Fallback, `permission-denied`, `unsupported` ohne `MediaRecorder`, `recording-failed`, Stop räumt die Mikrofon-Tracks auf, Reset).
 
 ### S12-T3 Recorder-Komponente · frontend · M
 - Start/Stopp-Button (`aria-pressed`), Laufzeitanzeige, optional ein Pegel-Meter (`AnalyserNode`), Vorhören per `<audio>`, danach „Transkribieren“ oder „Verwerfen“. Die Auswahl aus S08 wird mitgesendet, falls vorhanden. Ein Maximaldauer-Hinweis orientiert sich am Upload-Limit.
