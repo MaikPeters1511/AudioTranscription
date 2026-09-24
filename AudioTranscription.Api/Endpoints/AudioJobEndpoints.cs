@@ -166,7 +166,7 @@ public static class AudioJobEndpoints
 
         return TypedResults.Ok(new AudioJobDto(
             job.Id, job.FileName, job.FileSizeBytes, job.ContentType,
-            job.Status, job.TranscriptText, job.ErrorMessage,
+            job.Status, job.RawTranscript, job.ProcessedTranscript, job.ErrorMessage,
             job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc));
     }

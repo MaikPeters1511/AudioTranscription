@@ -17,18 +17,18 @@ Der `TranscriptionWorker` schreibt das Ergebnis der Ollama-Nachbearbeitung in `T
 
 ### S04-T1 Domain-Modell und Migration · backend · S
 - **AC:**
-  - [ ] Die neue Migration benennt die Spalte um, bestehende Transkripte landen in `RawTranscript`.
-  - [ ] Test: Migration lässt sich auf eine leere DB anwenden.
+  - [x] Die neue Migration benennt die Spalte um, bestehende Transkripte landen in `RawTranscript`.
+  - [x] Test: Migration lässt sich auf eine leere DB anwenden.
 
 ### S04-T2 Worker speichert beide Fassungen · backend · XS
 - `RawTranscript = result.Text`; `ProcessedTranscript = postProcessor?.ProcessAsync(...)`, nur gesetzt, wenn das Ergebnis vom Rohtext abweicht.
 - **AC (TDD):**
-  - [ ] Test ohne Post-Processor: `ProcessedTranscript` ist `null`.
-  - [ ] Test mit Post-Processor: Beide Felder sind gesetzt, `RawTranscript` ist unverändert.
+  - [x] Test ohne Post-Processor: `ProcessedTranscript` ist `null`.
+  - [x] Test mit Post-Processor: Beide Felder sind gesetzt, `RawTranscript` ist unverändert.
 
 ### S04-T3 DTO und API anpassen · backend · XS
 - **AC:**
-  - [ ] Integrationstest für `GET /api/audio-jobs/{id}` prüft beide Felder.
+  - [x] Integrationstest für `GET /api/audio-jobs/{id}` prüft beide Felder.
   - [ ] Swagger ist aktuell.
 
 ### S04-T4 Frontend: Umschalter „Original / Bearbeitet“ · frontend · S
@@ -38,5 +38,12 @@ Der `TranscriptionWorker` schreibt das Ergebnis der Ollama-Nachbearbeitung in `T
   - [ ] Unit-Test für beide Zustände.
   - [ ] Kopieren und Download nutzen die jeweils angezeigte Fassung.
 
-## 5. Acceptance Criteria (DoD)
+## 5. Umsetzungsnotizen (2026-09-24)
+- **Voraussetzung umgesetzt (Entscheidung Repo-Owner: Option 1 mit Baseline):** Die API ruft beim Start `MigrateWithBaselineAsync` statt `EnsureCreatedAsync` auf. Datenbanken, die per `EnsureCreated` angelegt wurden (Tabellen vorhanden, aber kein `__EFMigrationsHistory`), bekommen `InitialCreate` als angewendet eingetragen. Danach laufen die ausstehenden Migrationen. Tests laufen gegen einen echten SQL Server (Testcontainers, Docker erforderlich).
+- **T1:** Die Migration `SplitRawAndProcessedTranscript` nutzt `RenameColumn` (`TranscriptText` → `RawTranscript`) und `AddColumn` (`ProcessedTranscript`). Ein Test belegt, dass bestehende Transkripte dabei erhalten bleiben.
+- **T2:** `ProcessedTranscript` wird nur gesetzt, wenn der Post-Processor einen nicht-leeren, geänderten Text liefert.
+- **T3:** Das Frontend-Modell ist angepasst. Bis T4 zeigt die Detailansicht wie bisher die bearbeitete Fassung, falls vorhanden, sonst den Rohtext.
+- **T4 offen:** Der Umschalter braucht neue UI-Texte und damit das i18n-Grundgerüst (EN-1, #3). Für seine Unit-Tests fehlt außerdem die Frontend-Test-Infrastruktur (EN-2, #93).
+
+## 6. Acceptance Criteria (DoD)
 - [ ] Mit aktivem Ollama sind beide Fassungen abrufbar, ohne Ollama verhält sich die App wie bisher.

@@ -73,7 +73,7 @@ public class RestartRecoveryIntegrationTests : IClassFixture<WebApplicationFacto
 
         // Assert
         var finished = await WaitForStatusAsync(job.Id, AudioJobStatus.Completed, TimeSpan.FromSeconds(10));
-        finished.TranscriptText.Should().Be("Nach dem Neustart fertig");
+        finished.RawTranscript.Should().Be("Nach dem Neustart fertig");
         File.Exists(upload).Should().BeFalse("the upload is deleted after successful processing");
     }
 

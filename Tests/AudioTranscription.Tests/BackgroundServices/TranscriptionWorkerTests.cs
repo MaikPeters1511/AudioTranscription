@@ -134,8 +134,58 @@ public class TranscriptionWorkerTests : IDisposable
         (await GetJobAsync(jobId)).Status.Should().Be(status);
     }
 
+    [Fact]
+    public async Task ProcessJob_WithoutPostProcessor_StoresOnlyRawTranscript()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        var job = await GetJobAsync(jobId);
+        job.RawTranscript.Should().Be("Hallo Welt");
+        job.ProcessedTranscript.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ProcessJob_WithPostProcessor_StoresRawAndProcessedTranscript()
+    {
+        var postProcessor = new Mock<ITranscriptPostProcessor>();
+        postProcessor
+            .Setup(p => p.ProcessAsync("Hallo Welt", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Hallo, Welt!");
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, postProcessor: postProcessor.Object);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        var job = await GetJobAsync(jobId);
+        job.RawTranscript.Should().Be("Hallo Welt", "post-processing must never overwrite the original");
+        job.ProcessedTranscript.Should().Be("Hallo, Welt!");
+    }
+
+    [Fact]
+    public async Task ProcessJob_WhenPostProcessorChangesNothing_LeavesProcessedTranscriptEmpty()
+    {
+        var postProcessor = new Mock<ITranscriptPostProcessor>();
+        postProcessor
+            .Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string raw, CancellationToken _) => raw);
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, postProcessor: postProcessor.Object);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        var job = await GetJobAsync(jobId);
+        job.RawTranscript.Should().Be("Hallo Welt");
+        job.ProcessedTranscript.Should().BeNull();
+    }
+
     private async Task<(TranscriptionWorker Worker, Guid JobId, string File)> ArrangeAsync(
-        bool deleteAfterTranscription, ITempFileStore? store = null, AudioJobStatus status = AudioJobStatus.Pending)
+        bool deleteAfterTranscription,
+        ITempFileStore? store = null,
+        AudioJobStatus status = AudioJobStatus.Pending,
+        ITranscriptPostProcessor? postProcessor = null)
     {
         var options = Options.Create(new UploadOptions
         {
@@ -156,6 +206,8 @@ public class TranscriptionWorkerTests : IDisposable
         services.AddSingleton(store ?? new TempFileStore(options));
         services.AddSingleton(_transcription.Object);
         services.AddSingleton(hubContext.Object);
+        if (postProcessor is not null)
+            services.AddSingleton(postProcessor);
         _provider = services.BuildServiceProvider();
 
         var jobId = Guid.NewGuid();

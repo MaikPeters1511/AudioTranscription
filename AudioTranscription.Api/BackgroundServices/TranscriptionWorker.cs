@@ -106,16 +106,19 @@ public class TranscriptionWorker : BackgroundService
             // Run transcription
             var result = await transcriptionService.TranscribeAsync(request.FilePath, cancellationToken);
 
-            // Optional post-processing
-            var finalTranscript = result.Text;
+            // Optional post-processing; stored separately so the original is never lost
+            string? processedTranscript = null;
             if (postProcessor is not null)
             {
-                finalTranscript = await postProcessor.ProcessAsync(result.Text, cancellationToken);
+                var processed = await postProcessor.ProcessAsync(result.Text, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(processed) && processed != result.Text)
+                    processedTranscript = processed;
             }
 
             // Update job with results
             job.Status = AudioJobStatus.Completed;
-            job.TranscriptText = finalTranscript;
+            job.RawTranscript = result.Text;
+            job.ProcessedTranscript = processedTranscript;
             job.Language = result.DetectedLanguage;
             job.DurationSeconds = result.DurationSeconds;
             job.CompletedAtUtc = DateTime.UtcNow;
@@ -124,8 +127,8 @@ public class TranscriptionWorker : BackgroundService
             await NotifyStatusChanged(hubContext, job);
 
             _logger.LogInformation(
-                "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
-                request.JobId, finalTranscript.Length, result.DetectedLanguage, result.DurationSeconds);
+                "Job {JobId} completed: {CharCount} chars, post-processed={PostProcessed}, language={Language}, duration={Duration:F1}s",
+                request.JobId, result.Text.Length, processedTranscript is not null, result.DetectedLanguage, result.DurationSeconds);
         }
         catch (Exception ex)
         {

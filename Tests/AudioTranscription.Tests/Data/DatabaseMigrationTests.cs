@@ -32,7 +32,9 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
         await db.Database.MigrateWithBaselineAsync(NullLogger.Instance);
 
         (await db.Database.GetAppliedMigrationsAsync()).Should().Equal(db.Database.GetMigrations());
-        (await db.AudioJobs.CountAsync(j => j.Id == jobId)).Should().Be(1);
+        var job = await db.AudioJobs.SingleAsync(j => j.Id == jobId);
+        job.RawTranscript.Should().Be("Alter Rohtext", "the old TranscriptText column is renamed, not dropped");
+        job.ProcessedTranscript.Should().BeNull();
     }
 
     [Fact]
