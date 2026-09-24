@@ -22,7 +22,9 @@ public static class MagicBytesValidator
         ["audio/mp4"] = [[0x00, 0x00, 0x00]],              // ftyp box (variable offset)
         ["audio/x-m4a"] = [[0x00, 0x00, 0x00]],
         // OGG: OggS
-        ["audio/ogg"] = [[0x4F, 0x67, 0x67, 0x53]]         // OggS
+        ["audio/ogg"] = [[0x4F, 0x67, 0x67, 0x53]],        // OggS
+        // WebM (MediaRecorder default in Chrome/Firefox, S12): EBML header
+        ["audio/webm"] = [[0x1A, 0x45, 0xDF, 0xA3]]
     };
 
     /// <summary>

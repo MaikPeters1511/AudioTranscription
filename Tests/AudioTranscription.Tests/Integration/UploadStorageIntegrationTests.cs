@@ -65,6 +65,24 @@ public class UploadStorageIntegrationTests : IClassFixture<WebApplicationFactory
         File.Exists(store.GetUploadPath(created!.Id, "Meeting.MP3")).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Upload_WithWebmCodecsParameter_IsAccepted()
+    {
+        // MediaRecorder in Chrome/Firefox sends "audio/webm;codecs=opus" (S12)
+        using var content = new MultipartFormDataContent();
+        var file = new ByteArrayContent([0x1A, 0x45, 0xDF, 0xA3, 0, 0, 0, 0]);
+        file.Headers.ContentType = new MediaTypeHeaderValue("audio/webm") { Parameters = { new NameValueHeaderValue("codecs", "opus") } };
+        content.Add(file, "file", "recording.webm");
+
+        var response = await _factory.CreateClient().PostAsync("/api/audio-jobs", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var created = await response.Content.ReadFromJsonAsync<CreateAudioJobResponse>();
+        using var scope = _factory.Services.CreateScope();
+        var job = await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.FindAsync(created!.Id);
+        job!.ContentType.Should().Be("audio/webm");
+    }
+
     public void Dispose()
     {
         _factory.Dispose();

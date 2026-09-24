@@ -203,8 +203,8 @@ public static class AudioJobEndpoints
                 statusCode: StatusCodes.Status413PayloadTooLarge);
         }
 
-        // Validate content type
-        var contentType = file.ContentType.ToLowerInvariant();
+        // Validate content type; compared without parameters, e.g. browsers send "audio/webm;codecs=opus" (S12)
+        var contentType = file.ContentType.ToLowerInvariant().Split(';')[0].Trim();
         if (!options.AllowedContentTypes.Contains(contentType))
         {
             return TypedResults.Problem(

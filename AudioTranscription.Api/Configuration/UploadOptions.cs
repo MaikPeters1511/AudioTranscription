@@ -12,7 +12,8 @@ public class UploadOptions
         "audio/x-wav",
         "audio/mp4",
         "audio/x-m4a",
-        "audio/ogg"
+        "audio/ogg",
+        "audio/webm"
     ];
     public string TempStoragePath { get; set; } = "temp-uploads";
     public bool DeleteAfterTranscription { get; set; } = true;

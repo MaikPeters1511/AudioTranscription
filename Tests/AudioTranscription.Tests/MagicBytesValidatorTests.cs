@@ -46,4 +46,32 @@ public class MagicBytesValidatorTests
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public void IsValid_WithEbmlBytes_AcceptsAudioWebm()
+    {
+        // Arrange: EBML header, as MediaRecorder's audio/webm;codecs=opus produces (S12)
+        var ebmlHeader = new byte[] { 0x1A, 0x45, 0xDF, 0xA3, 0x01, 0x02, 0x03, 0x04 };
+        using var stream = new MemoryStream(ebmlHeader);
+
+        // Act
+        var result = MagicBytesValidator.IsValid("audio/webm", stream);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WithNonEbmlBytes_RejectsAudioWebm()
+    {
+        // Arrange
+        var randomBytes = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        using var stream = new MemoryStream(randomBytes);
+
+        // Act
+        var result = MagicBytesValidator.IsValid("audio/webm", stream);
+
+        // Assert
+        result.Should().BeFalse();
+    }
 }

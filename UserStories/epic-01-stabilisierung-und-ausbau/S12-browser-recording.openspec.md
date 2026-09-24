@@ -13,8 +13,8 @@ Nutzer sollen per Mikrofon direkt im Browser aufnehmen (MediaRecorder-API), ohne
 ### S12-T1 Backend: `audio/webm` zulassen · backend · XS
 - Chrome und Firefox liefern `audio/webm;codecs=opus`, Safari `audio/mp4`. Der Content-Type wird ohne Parameter verglichen, Magic Bytes EBML (`1A 45 DF A3`).
 - **AC (TDD):**
-  - [ ] Magic-Bytes-Test.
-  - [ ] Integrationstest: `audio/webm;codecs=opus` wird akzeptiert.
+  - [x] Magic-Bytes-Test (`MagicBytesValidatorTests`: EBML-Header wird akzeptiert, andere Bytes abgelehnt).
+  - [x] Integrationstest: `audio/webm;codecs=opus` wird akzeptiert (`UploadStorageIntegrationTests.Upload_WithWebmCodecsParameter_IsAccepted`; gespeicherter `ContentType` ist ohne Parameter `audio/webm`).
 
 ### S12-T2 `AudioRecorderService` · frontend · S
 - Kapselt `getUserMedia` und `MediaRecorder`, wählt das Format per `MediaRecorder.isTypeSupported`. Zustände als Signals: `idle`, `recording`, `stopped`, `error`. Behandelt verweigerte Berechtigung.
