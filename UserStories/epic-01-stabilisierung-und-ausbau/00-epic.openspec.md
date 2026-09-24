@@ -1,0 +1,69 @@
+# Epic E-01: Stabilisierung & Ausbau der Audio-Transkription
+
+## 1. Description
+AudioTranscription wirbt mit „privat & offline“. Die Analyse des aktuellen Stands (Commit `9b0a5d9`) zeigt Lücken bei Datenschutz, Robustheit und Nutzwert:
+
+- Hochgeladene Audiodateien liegen im Git-Verlauf, eine `.gitignore` im Root fehlt.
+- Jobs gehen bei einem Neustart verloren (`TranscriptionQueue` ist ein reiner In-Memory-Channel).
+- Temp-Dateien bleiben nach Fehlern liegen, die Ollama-Nachbearbeitung überschreibt das Roh-Transkript.
+- Whisper liefert Zeitstempel pro Segment, der Code verwirft sie.
+- Modell (`GgmlType.Base`) und Sprache (Auto-Erkennung) sind fest verdrahtet.
+
+Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS–M, höchstens ein Tag) zerlegt, die einzeln per PR umsetzbar sind.
+
+**Ziel:** Nach Phase 1 ist das System datenschutzkonform und robust. Nach Phase 2 bietet es Untertitel, Live-Fortschritt, Konfigurierbarkeit und Job-Verwaltung. Phase 3 enthält größere Ausbaustufen, die erst nach Spikes oder ADRs umgesetzt werden.
+
+## 2. Stories
+
+### Phase 1: Aufräumen & Absichern (Sprint 1)
+| ID | Story | Agent(s) | Größe |
+|----|-------|----------|-------|
+| [S01](./S01-repo-hygiene.openspec.md) | Repo-Hygiene: `.gitignore` anlegen, Audiodateien entfernen | devops, sec | S |
+| [S16](./S16-ci-pipeline.openspec.md) | CI mit GitHub Actions (vorgezogen als Sicherheitsnetz) | devops | S |
+| [S05](./S05-test-cleanup.openspec.md) | Platzhalter-Test entfernen | backend, qa | XS |
+| [S03](./S03-temp-file-cleanup.openspec.md) | Temp-Dateien auch nach Fehlern löschen | backend | S |
+| [S02](./S02-job-recovery.openspec.md) | Offene Jobs beim Start wiederherstellen | backend | M |
+| [S04](./S04-raw-vs-processed-transcript.openspec.md) | Roh- und nachbearbeitetes Transkript getrennt speichern | backend, frontend | M |
+
+### Phase 2: Features mit viel Wirkung (Sprint 2–3)
+| ID | Story | Agent(s) | Größe |
+|----|-------|----------|-------|
+| [S09](./S09-job-lifecycle.openspec.md) | Jobs löschen, abbrechen, neu starten | backend, frontend, sec | L |
+| [S08](./S08-model-and-language.openspec.md) | Modell und Sprache wählbar | backend, frontend | M |
+| [S07](./S07-live-progress.openspec.md) | Live-Fortschritt in Prozent | backend, frontend | S |
+| [S06](./S06-subtitles-and-player.openspec.md) | Segmente speichern, SRT/VTT-Export, synchroner Player | backend, frontend, ux | L |
+| [S10](./S10-postprocessing-modes.openspec.md) | Mehrere Nachbearbeitungs-Modi mit Ollama | ai, backend, frontend | M |
+
+### Phase 3: Größere Ausbaustufen (ab Sprint 4, Spike/ADR zuerst)
+| ID | Story | Agent(s) | Größe |
+|----|-------|----------|-------|
+| [S14](./S14-large-files-and-video.openspec.md) | Große Dateien & Video-Upload | backend, devops, frontend | L |
+| [S12](./S12-browser-recording.openspec.md) | Direkt im Browser aufnehmen | frontend, backend, ux | M |
+| [S13](./S13-fulltext-search.openspec.md) | Volltextsuche über alle Transkripte | architect, backend, frontend | M |
+| [S15](./S15-gpu-acceleration.openspec.md) | GPU-Beschleunigung (CUDA/CoreML) | devops, backend | M |
+| [S11](./S11-speaker-diarization.openspec.md) | Sprechererkennung | architect, ai, backend, frontend | XL |
+
+**Reihenfolge:** CI (S16) wird vorgezogen, damit jede folgende Änderung automatisch geprüft wird. S04 und S06 ändern beide das Datenmodell und sollten deshalb nacheinander umgesetzt werden, nicht parallel.
+
+## 3. Übergreifende Voraussetzungen (Enabler)
+- **EN-1 i18n-Grundgerüst im Frontend:** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
+
+## 4. Offene Entscheidungen (vor Sprint-Start klären)
+| # | Frage | Betrifft | Empfehlung |
+|---|-------|----------|------------|
+| D1 | **Datenbank:** Der Code nutzt SQL Server (`AddSqlServer`, `UseSqlServer`), CLAUDE.md nennt PostgreSQL. Welche gilt? | S13 (Volltextsuche), alle Migrationen | Per ADR festhalten. Die Volltextsuche hängt direkt davon ab. |
+| D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | Konfigurierbare Aufbewahrung, Standard „löschen“. Player und Retry werden nur angeboten, wenn die Datei noch vorhanden ist. |
+| D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | Entscheidung des Repo-Owners (siehe S01-T3) |
+| D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | Eigene Security-Story über `sec-agent` vor oder parallel zu S09 |
+| D5 | **Test-Ablage:** CLAUDE.md schreibt `Tests/` vor, Backend-Tests liegen in `AudioTranscription.Tests/`, E2E-Tests in `AudioTranscription.Web/tests/`. | alle | Ist-Zustand per ADR legitimieren oder migrieren |
+
+## 5. Beobachtungen außerhalb des Scopes
+- `WhisperTranscriptionService` enthält ein leeres `catch { /* best effort */ }`. Das verstößt gegen CLAUDE.md und wird in S03-T2 behoben.
+- CORS erlaubt jede Origin zusammen mit `AllowCredentials` (`Program.cs`). Das sollte `sec-agent` separat bewerten.
+
+## 6. Acceptance Criteria (Epic-DoD)
+- [ ] Alle Stories aus Phase 1 und 2 sind abgenommen, Phase-3-Stories haben mindestens ein abgeschlossenes Spike- oder ADR-Ergebnis.
+- [ ] CI (S16) ist auf `main` grün.
+- [ ] Keine Nutzerdaten (Audio, Transkripte) im Repository oder im Git-Verlauf (sofern D3 entschieden).
+- [ ] Alle neuen UI-Texte liegen in DE/EN vor, alle neuen Komponenten sind per Tastatur bedienbar und haben ARIA-Labels.
+- [ ] Swagger/OpenAPI dokumentiert alle neuen Endpoints (`doc-agent`).
