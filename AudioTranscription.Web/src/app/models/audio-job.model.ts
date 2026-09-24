@@ -11,7 +11,10 @@ export interface AudioJob {
   fileSizeBytes: number;
   contentType: string;
   status: AudioJobStatus;
-  transcriptText?: string;
+  /** Unmodified Whisper output. */
+  rawTranscript?: string;
+  /** LLM post-processed transcript; only set when post-processing changed the text. */
+  processedTranscript?: string;
   errorMessage?: string;
   language?: string;
   durationSeconds?: number;

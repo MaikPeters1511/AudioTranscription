@@ -97,20 +97,20 @@ import { ToastService } from '../../services/toast.service';
         }
 
         <!-- Transcript -->
-        @if (job.status === AudioJobStatus.Completed && job.transcriptText) {
+        @if (job.status === AudioJobStatus.Completed && transcript(); as transcriptText) {
           <div class="card bg-base-200 shadow-sm">
             <div class="card-body">
               <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-3">
                   <h2 class="card-title text-lg">Transkript</h2>
                   <span class="text-xs text-base-content/50">
-                    {{ wordCount() }} Wörter · {{ job.transcriptText.length }} Zeichen
+                    {{ wordCount() }} Wörter · {{ transcriptText.length }} Zeichen
                   </span>
                 </div>
                 <div class="flex gap-2">
                   <button
                     class="btn btn-sm btn-outline gap-1"
-                    (click)="downloadTranscript(job.transcriptText!, job.fileName)"
+                    (click)="downloadTranscript(transcriptText, job.fileName)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -121,7 +121,7 @@ import { ToastService } from '../../services/toast.service';
                     class="btn btn-sm gap-1"
                     [class.btn-ghost]="!copied()"
                     [class.btn-success]="copied()"
-                    (click)="copyTranscript(job.transcriptText!)"
+                    (click)="copyTranscript(transcriptText)"
                   >
                     @if (copied()) {
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,7 +138,7 @@ import { ToastService } from '../../services/toast.service';
                 </div>
               </div>
               <div class="bg-base-100 rounded-lg p-4 whitespace-pre-wrap leading-relaxed text-sm max-h-[500px] overflow-y-auto">
-                {{ job.transcriptText }}
+                {{ transcriptText }}
               </div>
             </div>
           </div>
@@ -159,8 +159,14 @@ export class JobDetailComponent implements OnInit {
   AudioJobStatus = AudioJobStatus;
   copied = signal(false);
 
+  /** Post-processed version if available, otherwise the raw Whisper output (toggle: S04-T4). */
+  transcript = computed(() => {
+    const job = this.jobService.selectedJob();
+    return job?.processedTranscript ?? job?.rawTranscript ?? '';
+  });
+
   wordCount = computed(() => {
-    const text = this.jobService.selectedJob()?.transcriptText;
+    const text = this.transcript();
     return text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
   });
 
