@@ -292,7 +292,7 @@ public class TranscriptionWorkerTests : IDisposable
     }
 
     [Fact]
-    public async Task ProcessJob_WithoutPostProcessor_StoresOnlyRawTranscript()
+    public async Task ProcessJob_WithoutVariantGenerator_CreatesNoAutomaticVariant()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
         TranscriptionSucceeds();
@@ -301,48 +301,32 @@ public class TranscriptionWorkerTests : IDisposable
 
         var job = await GetJobAsync(jobId);
         job.RawTranscript.Should().Be("Hallo Welt");
-        job.ProcessedTranscript.Should().BeNull();
+        using var scope = _provider!.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().TranscriptVariants.CountAsync()).Should().Be(0);
     }
 
     [Fact]
-    public async Task ProcessJob_WithPostProcessor_StoresRawAndProcessedTranscript()
+    public async Task ProcessJob_WithVariantGenerator_QueuesAnAutomaticCleanupVariant()
     {
-        var postProcessor = new Mock<ITranscriptPostProcessor>();
-        postProcessor
-            .Setup(p => p.ProcessAsync("Hallo Welt", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Hallo, Welt!");
-        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, postProcessor: postProcessor.Object);
+        var variantQueue = new VariantQueue();
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, variantGenerator: Mock.Of<IVariantGenerator>(), variantQueue: variantQueue);
         TranscriptionSucceeds();
 
         await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
 
-        var job = await GetJobAsync(jobId);
-        job.RawTranscript.Should().Be("Hallo Welt", "post-processing must never overwrite the original");
-        job.ProcessedTranscript.Should().Be("Hallo, Welt!");
-    }
-
-    [Fact]
-    public async Task ProcessJob_WhenPostProcessorChangesNothing_LeavesProcessedTranscriptEmpty()
-    {
-        var postProcessor = new Mock<ITranscriptPostProcessor>();
-        postProcessor
-            .Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string raw, CancellationToken _) => raw);
-        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, postProcessor: postProcessor.Object);
-        TranscriptionSucceeds();
-
-        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
-
-        var job = await GetJobAsync(jobId);
-        job.RawTranscript.Should().Be("Hallo Welt");
-        job.ProcessedTranscript.Should().BeNull();
+        using var scope = _provider!.CreateScope();
+        var variants = await scope.ServiceProvider.GetRequiredService<AppDbContext>().TranscriptVariants.ToListAsync();
+        variants.Should().ContainSingle(v => v.AudioJobId == jobId && v.Mode == PostProcessingMode.Cleanup && v.Status == VariantStatus.Pending);
+        variantQueue.TryRead(out var request).Should().BeTrue();
+        request!.VariantId.Should().Be(variants.Single().Id);
     }
 
     private async Task<(TranscriptionWorker Worker, Guid JobId, string File)> ArrangeAsync(
         bool deleteAfterTranscription,
         ITempFileStore? store = null,
         AudioJobStatus status = AudioJobStatus.Pending,
-        ITranscriptPostProcessor? postProcessor = null,
+        IVariantGenerator? variantGenerator = null,
+        VariantQueue? variantQueue = null,
         string model = "Base",
         string? requestedLanguage = null)
     {
@@ -364,8 +348,9 @@ public class TranscriptionWorkerTests : IDisposable
         services.AddSingleton(store ?? new TempFileStore(options));
         services.AddSingleton(_transcription.Object);
         services.AddSingleton(hubContext.Object);
-        if (postProcessor is not null)
-            services.AddSingleton(postProcessor);
+        services.AddSingleton(variantQueue ?? new VariantQueue());
+        if (variantGenerator is not null)
+            services.AddSingleton(variantGenerator);
         _provider = services.BuildServiceProvider();
 
         var jobId = Guid.NewGuid();

@@ -83,7 +83,7 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
     }
 
     [Fact]
-    public async Task GetAudioJob_ReturnsRawAndProcessedTranscript()
+    public async Task GetAudioJob_ReturnsRawTranscript()
     {
         // Arrange
         var jobId = Guid.NewGuid();
@@ -98,7 +98,6 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
                 ContentType = "audio/mpeg",
                 Status = AudioJobStatus.Completed,
                 RawTranscript = "aehm hallo welt",
-                ProcessedTranscript = "Hallo Welt.",
                 CreatedAtUtc = DateTime.UtcNow
             });
             await db.SaveChangesAsync();
@@ -111,7 +110,7 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         json.RootElement.GetProperty("rawTranscript").GetString().Should().Be("aehm hallo welt");
-        json.RootElement.GetProperty("processedTranscript").GetString().Should().Be("Hallo Welt.");
+        json.RootElement.TryGetProperty("processedTranscript", out _).Should().BeFalse("S10 replaces it with TranscriptVariant");
         json.RootElement.TryGetProperty("transcriptText", out _).Should().BeFalse();
     }
 }

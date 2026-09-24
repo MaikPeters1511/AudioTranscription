@@ -2,6 +2,23 @@ using AudioTranscription.Domain.Enums;
 
 namespace AudioTranscription.Api.Dtos;
 
+public record TranscriptVariantDto(
+    Guid Id,
+    PostProcessingMode Mode,
+    string? TargetLanguage,
+    VariantStatus Status,
+    string? Text,
+    string? ErrorMessage,
+    DateTime CreatedAtUtc,
+    DateTime? CompletedAtUtc
+);
+
+/// <summary>Body of POST /api/audio-jobs/{id}/variants.</summary>
+public record CreateVariantRequest(PostProcessingMode Mode, string? TargetLanguage);
+
+/// <summary>SignalR event "VariantCompleted".</summary>
+public record VariantCompletedDto(Guid JobId, Guid VariantId, PostProcessingMode Mode, VariantStatus Status);
+
 public record AudioJobDto(
     Guid Id,
     string FileName,
@@ -9,7 +26,6 @@ public record AudioJobDto(
     string ContentType,
     AudioJobStatus Status,
     string? RawTranscript,
-    string? ProcessedTranscript,
     string? ErrorMessage,
     string? Language,
     double? DurationSeconds,
@@ -45,7 +61,9 @@ public record PaginatedResult<T>(
 public record TranscriptionOptionsDto(
     IReadOnlyList<string> Models,
     string DefaultModel,
-    IReadOnlyList<string> Languages
+    IReadOnlyList<string> Languages,
+    /// <summary>Whether variant generation (S10) is available, i.e. an LLM (Ollama) is configured.</summary>
+    bool PostProcessingEnabled
 );
 
 public record TranscriptSegmentDto(int Index, long StartMs, long EndMs, string Text);

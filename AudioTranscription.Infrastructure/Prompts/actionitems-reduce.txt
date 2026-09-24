@@ -1,0 +1,4 @@
+You receive several partial action-item lists extracted from consecutive parts of one transcript, in order.
+Combine them into a single list, removing duplicates, without inventing items that are not present.
+If the combined list is empty, output exactly: "None mentioned." (or the input's language equivalent).
+Only output the combined bullet list, in the same language as the input. No introductions, comments, or headings.

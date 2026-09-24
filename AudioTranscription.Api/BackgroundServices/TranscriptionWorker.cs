@@ -95,7 +95,6 @@ public class TranscriptionWorker : BackgroundService
         var dbContext = services.GetRequiredService<AppDbContext>();
         var transcriptionService = services.GetRequiredService<ITranscriptionService>();
         var hubContext = services.GetRequiredService<IHubContext<TranscriptionHub>>();
-        var postProcessor = services.GetService<ITranscriptPostProcessor>();
 
         var job = await dbContext.AudioJobs.FindAsync([request.JobId], cancellationToken);
         if (job is null)
@@ -123,19 +122,9 @@ public class TranscriptionWorker : BackgroundService
             var progress = CreateProgress(services, hubContext, job.Id);
             var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, progress, cancellationToken);
 
-            // Optional post-processing; stored separately so the original is never lost
-            string? processedTranscript = null;
-            if (postProcessor is not null)
-            {
-                var processed = await postProcessor.ProcessAsync(result.Text, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(processed) && processed != result.Text)
-                    processedTranscript = processed;
-            }
-
             // Update job with results
             job.Status = AudioJobStatus.Completed;
             job.RawTranscript = result.Text;
-            job.ProcessedTranscript = processedTranscript;
             job.Language = result.DetectedLanguage;
             job.DurationSeconds = result.DurationSeconds;
             job.CompletedAtUtc = DateTime.UtcNow;
@@ -153,8 +142,13 @@ public class TranscriptionWorker : BackgroundService
             await NotifyStatusChanged(hubContext, job);
 
             _logger.LogInformation(
-                "Job {JobId} completed: {CharCount} chars, post-processed={PostProcessed}, language={Language}, duration={Duration:F1}s",
-                request.JobId, result.Text.Length, processedTranscript is not null, result.DetectedLanguage, result.DurationSeconds);
+                "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
+                request.JobId, result.Text.Length, result.DetectedLanguage, result.DurationSeconds);
+
+            // Automatic cleanup (S04); other modes are generated on demand (S10). Never fails the job itself.
+            if (services.GetService<IVariantGenerator>() is not null)
+                await EnqueueAutomaticCleanupVariant(services, dbContext, job.Id, cancellationToken);
+
             return AudioJobStatus.Completed;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
@@ -173,6 +167,22 @@ public class TranscriptionWorker : BackgroundService
             await dbContext.SaveChangesAsync(cancellationToken);
             await NotifyStatusChanged(hubContext, job);
             return AudioJobStatus.Failed;
+        }
+    }
+
+    private async Task EnqueueAutomaticCleanupVariant(
+        IServiceProvider services, AppDbContext dbContext, Guid jobId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var variant = new TranscriptVariant { AudioJobId = jobId, Mode = PostProcessingMode.Cleanup };
+            dbContext.TranscriptVariants.Add(variant);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await services.GetRequiredService<VariantQueue>().EnqueueAsync(new VariantJobRequest(variant.Id), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to queue the automatic cleanup variant for job {JobId}", jobId);
         }
     }
 

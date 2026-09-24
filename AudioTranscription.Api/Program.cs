@@ -41,12 +41,18 @@ builder.Services.AddHostedService<OrphanedUploadCleanupService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
 
-// Optional: Register Ollama post-processor if connection string is present
+// Optional: Register the LLM-backed variant generator (S10; formerly ITranscriptPostProcessor/S04)
+// if an Ollama connection string is present.
 var ollamaConnectionString = builder.Configuration.GetConnectionString("llama3.2");
 if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 {
     builder.Services.AddSingleton<Microsoft.Extensions.AI.IChatClient>(new Microsoft.Extensions.AI.OllamaChatClient(new Uri(ollamaConnectionString), "llama3.2"));
-    builder.Services.AddScoped<ITranscriptPostProcessor, OllamaPostProcessor>();
+    builder.Services.Configure<PostProcessingOptions>(builder.Configuration.GetSection(PostProcessingOptions.SectionName));
+    builder.Services.AddSingleton<IPostProcessingPromptCatalog, PostProcessingPromptCatalog>();
+    builder.Services.AddScoped<IVariantGenerator, OllamaVariantGenerator>();
+    builder.Services.AddSingleton<VariantQueue>();
+    builder.Services.AddHostedService<VariantRecoveryService>(); // must start before the worker
+    builder.Services.AddHostedService<VariantWorker>();
 }
 
 // Add SignalR
@@ -158,6 +164,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 app.MapAudioJobEndpoints();
 app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
+app.MapVariantEndpoints();
 
 app.Run();
 public partial class Program { }

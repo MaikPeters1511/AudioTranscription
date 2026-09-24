@@ -126,8 +126,9 @@ public static class AudioJobEndpoints
         job.Status = AudioJobStatus.Pending;
         job.ErrorMessage = null;
         job.RawTranscript = null;
-        job.ProcessedTranscript = null;
         job.CompletedAtUtc = null;
+        // Variants (S10) were generated from the old raw transcript, which is gone once retried
+        dbContext.TranscriptVariants.RemoveRange(dbContext.TranscriptVariants.Where(v => v.AudioJobId == id));
         await dbContext.SaveChangesAsync();
 
         await hubContext.Clients.All.SendAsync("JobStatusChanged", ToListDto(job));
@@ -307,7 +308,7 @@ public static class AudioJobEndpoints
 
         return TypedResults.Ok(new AudioJobDto(
             job.Id, job.FileName, job.FileSizeBytes, job.ContentType,
-            job.Status, job.RawTranscript, job.ProcessedTranscript, job.ErrorMessage,
+            job.Status, job.RawTranscript, job.ErrorMessage,
             job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc,
             job.Model, job.RequestedLanguage,

@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<AudioJob> AudioJobs => Set<AudioJob>();
     public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
+    public DbSet<TranscriptVariant> TranscriptVariants => Set<TranscriptVariant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

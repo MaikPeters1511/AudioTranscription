@@ -36,7 +36,6 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
         (await db.Database.GetAppliedMigrationsAsync()).Should().Equal(db.Database.GetMigrations());
         var job = await db.AudioJobs.SingleAsync(j => j.Id == jobId);
         job.RawTranscript.Should().Be("Alter Rohtext", "the old TranscriptText column is renamed, not dropped");
-        job.ProcessedTranscript.Should().BeNull();
         job.Model.Should().Be("Base", "existing jobs were transcribed with the former fixed model");
         job.RequestedLanguage.Should().BeNull();
         (await db.Users.CountAsync()).Should().Be(0, "the Identity tables are added to legacy databases too");
@@ -83,6 +82,40 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
 
         await using var check = CreateContext(connectionString);
         (await check.TranscriptSegments.Select(s => s.Text).ToListAsync()).Should().Equal("Andere");
+    }
+
+    [Fact]
+    public async Task MigrateWithBaseline_MigratesExistingProcessedTranscriptIntoACleanupVariant()
+    {
+        const string beforeVariants = "20260924180432_AddTranscriptSegments";
+        var connectionString = sqlServer.CreateConnectionString();
+        var jobId = Guid.NewGuid();
+        var withoutProcessing = Guid.NewGuid();
+        await using (var db = CreateContext(connectionString))
+        {
+            await db.GetService<IMigrator>().MigrateAsync(beforeVariants);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO [AudioJobs] ([Id], [FileName], [FileSizeBytes], [ContentType], [Status], [Model],
+                    [RawTranscript], [ProcessedTranscript], [CreatedAtUtc], [CompletedAtUtc])
+                VALUES ({jobId}, 'meeting.mp3', 1024, 'audio/mpeg', 2, 'Base',
+                    N'aehm hallo welt', N'Hallo Welt.', SYSUTCDATETIME(), SYSUTCDATETIME())
+                """);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO [AudioJobs] ([Id], [FileName], [FileSizeBytes], [ContentType], [Status], [Model],
+                    [RawTranscript], [ProcessedTranscript], [CreatedAtUtc])
+                VALUES ({withoutProcessing}, 'other.mp3', 1024, 'audio/mpeg', 2, 'Base', N'roh', NULL, SYSUTCDATETIME())
+                """);
+        }
+
+        await using var db2 = CreateContext(connectionString);
+        await db2.Database.MigrateWithBaselineAsync(NullLogger.Instance);
+
+        var variants = await db2.TranscriptVariants.Where(v => v.AudioJobId == jobId).ToListAsync();
+        variants.Should().ContainSingle();
+        variants[0].Mode.Should().Be(AudioTranscription.Domain.Enums.PostProcessingMode.Cleanup);
+        variants[0].Status.Should().Be(AudioTranscription.Domain.Enums.VariantStatus.Completed);
+        variants[0].Text.Should().Be("Hallo Welt.");
+        (await db2.TranscriptVariants.CountAsync(v => v.AudioJobId == withoutProcessing)).Should().Be(0);
     }
 
     /// <summary>

@@ -32,9 +32,6 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
         builder.Property(x => x.RawTranscript)
             .HasColumnType("nvarchar(max)");
 
-        builder.Property(x => x.ProcessedTranscript)
-            .HasColumnType("nvarchar(max)");
-
         builder.Property(x => x.ErrorMessage)
             .HasColumnType("nvarchar(max)");
 

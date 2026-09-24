@@ -11,8 +11,6 @@ public class AudioJob
     public AudioJobStatus Status { get; set; } = AudioJobStatus.Pending;
     /// <summary>Unmodified Whisper output.</summary>
     public string? RawTranscript { get; set; }
-    /// <summary>LLM post-processed transcript; null if no post-processing ran or it changed nothing.</summary>
-    public string? ProcessedTranscript { get; set; }
     public string? ErrorMessage { get; set; }
     /// <summary>Detected language, or the requested one if detection was off.</summary>
     public string? Language { get; set; }
