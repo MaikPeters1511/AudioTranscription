@@ -5,13 +5,14 @@ import { animate, query, stagger, style, transition, trigger } from '@angular/an
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus } from '../../models/audio-job.model';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
+import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
 
 @Component({
   selector: 'app-job-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobProgressComponent],
   animations: [
     trigger('listAnimation', [
       transition('* <=> *', [
@@ -98,6 +99,9 @@ import { PageTitleService } from '../../i18n/page-title.service';
                       }
                       {{ jobService.getStatusLabelKey(job.status) | transloco }}
                     </span>
+                    @if (job.status === AudioJobStatus.Processing) {
+                      <app-job-progress class="block w-28 mt-1" [percent]="jobService.progressOf(job.id)" />
+                    }
                   </td>
                   <td class="text-sm">{{ job.language || '-' }}</td>
                   <td class="text-sm">{{ jobService.formatDuration(job.durationSeconds) }}</td>
@@ -134,6 +138,9 @@ import { PageTitleService } from '../../i18n/page-title.service';
                     {{ jobService.getStatusLabelKey(job.status) | transloco }}
                   </span>
                 </div>
+                @if (job.status === AudioJobStatus.Processing) {
+                  <app-job-progress [percent]="jobService.progressOf(job.id)" />
+                }
                 <div class="flex items-center gap-3 text-xs text-base-content/60">
                   <span>{{ jobService.formatFileSize(job.fileSizeBytes) }}</span>
                   <span>•</span>

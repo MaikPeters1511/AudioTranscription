@@ -10,7 +10,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 
 - 🔒 **Vollständig offline** — Transkription läuft lokal via Whisper.net, keine Cloud-APIs
 - 📤 **Drag & Drop Upload** — MP3, WAV, M4A, OGG (bis 10 MB, konfigurierbar)
-- ⚡ **Live-Updates** — Job-Status wird per SignalR in Echtzeit an das Frontend gepusht
+- ⚡ **Live-Updates** — Job-Status und Fortschritt in Prozent werden per SignalR in Echtzeit an das Frontend gepusht
 - 📄 **Transkript-Verwaltung** — Kopieren, als `.txt` herunterladen, Wort-/Zeichenanzahl
 - 🌗 **Hell/Dunkel-Theme**, responsives UI (Desktop-Tabelle + Mobile-Karten)
 - 🎛️ **Modell und Sprache wählbar** — pro Upload ein freigegebenes Whisper-Modell und die Sprache der Aufnahme (oder automatische Erkennung)
@@ -178,7 +178,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts (`409`, solange der Job nicht abgeschlossen ist) |
 | `GET` | `/api/audio-jobs/{id}/subtitles?format=srt\|vtt` | Untertitel-Download (`409` wie oben, `400` bei unbekanntem Format) |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
-| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobDeleted`) |
+| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack
 

@@ -149,5 +149,9 @@
     "loading": "Loading timestamps",
     "noAudio": "The audio file is no longer available; by default it is deleted after a successful transcription. The timestamps are kept.",
     "noSegments": "No timestamps are available for this transcript."
+  },
+  "progress": {
+    "label": "Transcription progress",
+    "announce": "Transcription {{ percent }} % done"
   }
 }

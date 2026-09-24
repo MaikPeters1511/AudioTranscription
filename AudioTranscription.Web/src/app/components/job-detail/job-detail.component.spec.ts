@@ -112,6 +112,27 @@ describe('JobDetailComponent', () => {
     expect(fixture.nativeElement.querySelector('app-transcript-player')).toBeNull();
   });
 
+  it('shows the live progress of a running job', () => {
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    const fixture = render(completedJob({ status: AudioJobStatus.Processing }));
+    const bar = () => fixture.nativeElement.querySelector('app-job-progress progress') as HTMLProgressElement;
+    expect(bar().hasAttribute('value')).toBe(false);
+
+    jobService.setProgress('job-1', 64);
+    fixture.detectChanges();
+
+    expect(bar().getAttribute('value')).toBe('64');
+    expect(fixture.nativeElement.querySelector('[aria-live="polite"]').textContent.trim()).toBe('Transcription 60 % done');
+  });
+
+  it('does not claim a detected language before there is one', () => {
+    const fixture = render(completedJob({ status: AudioJobStatus.Processing, model: 'Base' }));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Nicht erkannt');
+    expect(text).not.toContain('Automatisch erkannt');
+  });
+
   it('offers the job actions and explains a cancelled job', () => {
     const fixture = render(completedJob({ status: AudioJobStatus.Cancelled }));
 

@@ -201,3 +201,42 @@ describe('AudioJobService transcription settings (S08)', () => {
     expect(result).toEqual(options);
   });
 });
+
+describe('AudioJobService progress (S07)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  it('takes the progress of running jobs from the loaded list', () => {
+    service.loadJobs();
+    http.expectOne((r) => r.url === '/api/audio-jobs').flush({
+      items: [{ ...listItem('a', AudioJobStatus.Processing), progressPercent: 30 }, listItem('b', AudioJobStatus.Pending)],
+      totalCount: 2,
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(service.progressOf('a')).toBe(30);
+    expect(service.progressOf('b')).toBeUndefined();
+  });
+
+  it('forgets the progress once the job is no longer processing', () => {
+    service.setProgress('a', 80);
+
+    service.updateJobInList(listItem('a', AudioJobStatus.Completed));
+
+    expect(service.progressOf('a')).toBeUndefined();
+  });
+
+  it('ignores a lower value arriving late', () => {
+    service.setProgress('a', 60);
+    service.setProgress('a', 55);
+
+    expect(service.progressOf('a')).toBe(60);
+  });
+});

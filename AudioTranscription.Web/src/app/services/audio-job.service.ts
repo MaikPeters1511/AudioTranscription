@@ -27,6 +27,9 @@ export class AudioJobService {
   readonly selectedJob = signal<AudioJob | null>(null);
   readonly selectedJobLoading = signal(false);
 
+  /** Progress in percent of running jobs, from "JobProgress" events and loaded jobs. */
+  private readonly progress = signal<ReadonlyMap<string, number>>(new Map());
+
   readonly totalPages = computed(() =>
     Math.ceil(this.totalCount() / this.pageSize())
   );
@@ -42,6 +45,7 @@ export class AudioJobService {
       .subscribe({
         next: (result) => {
           this.jobs.set(result.items);
+          result.items.forEach((job) => this.takeProgress(job));
           this.totalCount.set(result.totalCount);
           this.loading.set(false);
         },
@@ -58,6 +62,7 @@ export class AudioJobService {
     this.http.get<AudioJob>(`${this.baseUrl}/${id}`).subscribe({
       next: (job) => {
         this.selectedJob.set(job);
+        this.takeProgress(job);
         this.selectedJobLoading.set(false);
       },
       error: () => this.selectedJobLoading.set(false),
@@ -195,7 +200,40 @@ export class AudioJobService {
     }
   }
 
+  progressOf(id: string): number | undefined {
+    return this.progress().get(id);
+  }
+
+  /** Values only rise; a lower one arriving late is ignored. */
+  setProgress(id: string, percent: number): void {
+    const current = this.progress().get(id);
+    if (current !== undefined && percent <= current) {
+      return;
+    }
+    this.progress.update((map) => new Map(map).set(id, percent));
+  }
+
+  private clearProgress(id: string): void {
+    if (this.progress().has(id)) {
+      this.progress.update((map) => {
+        const next = new Map(map);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  /** Keeps the progress of a (re)loaded or updated job in sync with its status. */
+  private takeProgress(job: AudioJobListItem | AudioJob): void {
+    if (job.status !== AudioJobStatus.Processing) {
+      this.clearProgress(job.id);
+    } else if (job.progressPercent != null) {
+      this.setProgress(job.id, job.progressPercent);
+    }
+  }
+
   updateJobInList(job: AudioJobListItem): void {
+    this.takeProgress(job);
     this.jobs.update((current) => {
       const index = current.findIndex((j) => j.id === job.id);
       if (index >= 0) {

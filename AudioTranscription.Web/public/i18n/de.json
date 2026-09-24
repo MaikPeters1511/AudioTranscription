@@ -149,5 +149,9 @@
     "loading": "Zeitstempel werden geladen",
     "noAudio": "Die Audiodatei ist nicht mehr vorhanden, sie wird nach erfolgreicher Transkription standardmäßig gelöscht. Die Zeitstempel bleiben erhalten.",
     "noSegments": "Für dieses Transkript sind keine Zeitstempel vorhanden."
+  },
+  "progress": {
+    "label": "Transkriptionsfortschritt",
+    "announce": "Transkription zu {{ percent }} % fertig"
   }
 }

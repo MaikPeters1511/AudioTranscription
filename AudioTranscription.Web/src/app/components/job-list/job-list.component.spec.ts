@@ -18,7 +18,7 @@ const job: AudioJobListItem = {
 } as AudioJobListItem;
 
 describe('JobListComponent', () => {
-  function render(language: Language) {
+  function render(language: Language, items: AudioJobListItem[] = [job]) {
     TestBed.configureTestingModule({
       imports: [JobListComponent, translocoTesting(language)],
       providers: [
@@ -32,7 +32,7 @@ describe('JobListComponent', () => {
     fixture.detectChanges();
     TestBed.inject(HttpTestingController)
       .expectOne((r) => r.url === '/api/audio-jobs')
-      .flush({ items: [job], totalCount: 1, page: 1, pageSize: 20 });
+      .flush({ items, totalCount: items.length, page: 1, pageSize: 20 });
     fixture.detectChanges();
     return fixture;
   }
@@ -79,5 +79,15 @@ describe('JobListComponent', () => {
     deleteButton.click();
 
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('shows the progress of running jobs without announcing it', () => {
+    const running = { ...job, id: 'job-2', status: AudioJobStatus.Processing, progressPercent: 25 };
+    const fixture = render('en', [running, job]);
+
+    const bars = fixture.nativeElement.querySelectorAll('table app-job-progress progress');
+    expect(bars.length).toBe(1);
+    expect(bars[0].getAttribute('value')).toBe('25');
+    expect(fixture.nativeElement.querySelector('[aria-live]')).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
+import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus, SubtitleFormat } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
@@ -16,7 +17,7 @@ type TranscriptVersion = 'processed' | 'raw';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, TranscriptPlayerComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, TranscriptPlayerComponent, JobProgressComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -68,9 +69,11 @@ type TranscriptVersion = 'processed' | 'raw';
               <p class="text-xl font-semibold">
                 {{ job.language ? languageLabel(job.language) : ('jobDetail.languageUnknown' | transloco) }}
               </p>
-              <p class="text-xs text-base-content/60">
-                {{ (job.requestedLanguage ? 'jobDetail.languageRequested' : 'jobDetail.languageDetected') | transloco }}
-              </p>
+              @if (job.language || job.requestedLanguage) {
+                <p class="text-xs text-base-content/70">
+                  {{ (job.requestedLanguage ? 'jobDetail.languageRequested' : 'jobDetail.languageDetected') | transloco }}
+                </p>
+              }
             </div>
           </div>
           <div class="card bg-base-200 shadow-sm">
@@ -99,7 +102,11 @@ type TranscriptVersion = 'processed' | 'raw';
         @if (job.status === AudioJobStatus.Pending || job.status === AudioJobStatus.Processing) {
           <div class="card bg-base-200 shadow-sm">
             <div class="card-body items-center text-center py-12">
-              <span class="loading loading-dots loading-lg text-primary"></span>
+              @if (job.status === AudioJobStatus.Processing) {
+                <app-job-progress class="block w-full max-w-md" [percent]="jobService.progressOf(job.id)" [announce]="true" />
+              } @else {
+                <span class="loading loading-dots loading-lg text-primary"></span>
+              }
               <p class="text-lg mt-4">
                 {{ (job.status === AudioJobStatus.Pending ? 'jobDetail.waiting' : 'jobDetail.processing') | transloco }}
               </p>

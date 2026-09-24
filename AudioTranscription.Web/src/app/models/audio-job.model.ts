@@ -26,6 +26,8 @@ export interface AudioJob {
   model: string;
   /** Language chosen at upload (ISO-639-1); missing means automatic detection. */
   requestedLanguage?: string;
+  /** Latest progress of a running job in percent; only set while processing. */
+  progressPercent?: number;
 }
 
 export interface AudioJobListItem {
@@ -37,6 +39,14 @@ export interface AudioJobListItem {
   durationSeconds?: number;
   createdAtUtc: string;
   completedAtUtc?: string;
+  /** Latest progress of a running job in percent; only set while processing. */
+  progressPercent?: number;
+}
+
+/** SignalR event "JobProgress". */
+export interface JobProgressEvent {
+  jobId: string;
+  percent: number;
 }
 
 export interface PaginatedResult<T> {
