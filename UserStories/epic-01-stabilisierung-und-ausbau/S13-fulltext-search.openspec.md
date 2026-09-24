@@ -17,7 +17,7 @@ Nutzer sollen alle Transkripte nach Begriffen durchsuchen und direkt zur Fundste
 ### S13-T1 ADR: Suchtechnologie · architect · S
 - Hängt von D1 ab. Bei SQL Server: Full-Text Index (`CONTAINS`/`FREETEXT`), der Container braucht die FTS-Komponente. Bei PostgreSQL: `tsvector` mit GIN-Index und Sprachkonfiguration `german`/`english`. Alternative: semantische Suche über Qdrant laut Tech-Stack (eigene Story).
 - **AC:**
-  - [ ] ADR in `docs/adr/`.
+  - [x] ADR in `docs/adr/`: [ADR 0005](../../docs/adr/0005-volltextsuche.md). D1 entschieden (bei SQL Server bleiben), Technologie: SQL Server Full-Text Search (`CONTAINS`) gegenüber Qdrant.
 
 ### S13-T2 Index-Migration · backend · S
 - **AC:**

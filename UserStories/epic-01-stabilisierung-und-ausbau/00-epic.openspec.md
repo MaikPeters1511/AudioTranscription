@@ -55,7 +55,7 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 ## 4. Offene Entscheidungen (vor Sprint-Start klären)
 | # | Frage | Betrifft | Empfehlung |
 |---|-------|----------|------------|
-| D1 | **Datenbank:** Der Code nutzt SQL Server (`AddSqlServer`, `UseSqlServer`), CLAUDE.md nennt PostgreSQL. Welche gilt? | S13 (Volltextsuche), alle Migrationen | Per ADR festhalten. Die Volltextsuche hängt direkt davon ab. |
+| D1 | **Datenbank:** Der Code nutzt SQL Server (`AddSqlServer`, `UseSqlServer`), CLAUDE.md nennt PostgreSQL. Welche gilt? | S13 (Volltextsuche), alle Migrationen | ✅ Entschieden (2026-09-24): **Bei SQL Server bleiben**, siehe [ADR 0005](../../docs/adr/0005-volltextsuche.md). |
 | D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | ✅ Entschieden (2026-09-24): Nach Erfolg wird gelöscht. Bei `Failed`/`Cancelled` bleibt die Datei für einen Neustart liegen, bis der Job gelöscht wird oder die Frist `OrphanedFileRetentionHours` abläuft (Umsetzung in S09). Der Player (S06) wird später entschieden. |
 | D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | ✅ Entschieden (2026-09-24): **nicht bereinigen**, siehe S01-T3 |
 | D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | ✅ Entschieden (2026-09-24): **Erst Auth, dann S09.** Lokale ASP.NET Core Identity, gemeinsame Jobs für alle Angemeldeten, siehe [S17](./S17-authentication.openspec.md). |
