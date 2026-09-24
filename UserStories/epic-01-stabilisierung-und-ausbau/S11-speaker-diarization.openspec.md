@@ -14,8 +14,8 @@ Bei Meetings und Interviews ist entscheidend, wer etwas gesagt hat. Sprecher-Dia
 ### S11-T1 Spike und ADR: Diarisierungs-Ansatz · architect + ai · M
 - Kandidaten vergleichen: sherpa-onnx (.NET-Bindings), pyannote als ONNX-Export mit eigenem Clustering, oder ein Python-Sidecar-Container. Kriterien: Offline-Fähigkeit, Lizenz der Modelle, Genauigkeit (DER an 2–3 Testaufnahmen), Laufzeit, Integrationsaufwand in .NET.
 - **AC:**
-  - [ ] ADR mit Entscheidung und Messwerten.
-  - [ ] Folge-Tasks (T2–T5) werden anhand der ADR geschärft.
+  - [x] ADR mit Entscheidung und Messwerten: [ADR 0004](../../docs/adr/0004-sprechererkennung.md). Entscheidung: sherpa-onnx (`org.k2fsa.sherpa.onnx`). Messwerte zur Genauigkeit (DER) konnten nicht erhoben werden, siehe ADR-Konsequenzen (huggingface.co/github.com sind aus dieser Umgebung gesperrt).
+  - [x] Folge-Tasks (T2–T5) sind anhand der ADR geschärft: `IDiarizationService` kapselt sherpa-onnx, `OfflineSpeakerDiarizationSegment` liefert (Start, End, Speaker) in Sekunden, die WAV-Konvertierung aus S08 wird wiederverwendet.
 
 ### S11-T2 `IDiarizationService` und Implementierung · ai · L (nach Spike ggf. splitten)
 - Ergebnis: Liste von (`startMs`, `endMs`, `speakerIndex`).
