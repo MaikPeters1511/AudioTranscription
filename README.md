@@ -29,7 +29,7 @@ AudioTranscription.Api/              ASP.NET Core Minimal API + SignalR Hub + Ba
 AudioTranscription.Domain/           Entities, Enums (framework-unabhängig)
 AudioTranscription.Infrastructure/   EF Core, Whisper.net-Integration, ffmpeg-Konvertierung
 AudioTranscription.ServiceDefaults/  Gemeinsame Aspire-Service-Defaults (Telemetry, Health Checks)
-AudioTranscription.Tests/            xUnit-Tests
+Tests/AudioTranscription.Tests/      xUnit-Tests (Backend, siehe docs/adr/0001)
 AudioTranscription.Web/              Angular 22 Frontend (Tailwind CSS + DaisyUI)
 ```
 

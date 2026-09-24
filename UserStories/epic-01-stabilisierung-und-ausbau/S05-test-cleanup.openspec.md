@@ -9,12 +9,14 @@
 
 ### S05-T1 `UnitTest1.cs` löschen · backend · XS
 - **AC:**
-  - [ ] Die Datei ist entfernt, `dotnet test` ist grün.
+  - [x] Die Datei ist entfernt, `dotnet test` ist grün.
+- Zusätzlich entfernt: `AudioTranscription.Web/tests/example.spec.ts` (Playwright-Beispiel aus der Projektvorlage, testet `playwright.dev`).
 
 ### S05-T2 Test-Ablageort klären (Entscheidung D5) · architect · XS
 - CLAUDE.md verlangt `Tests/`, tatsächlich liegen die Tests in `AudioTranscription.Tests/` und `AudioTranscription.Web/tests/`. Kurz-ADR: Ist-Zustand übernehmen oder Projekte nach `Tests/` verschieben.
 - **AC:**
-  - [ ] ADR in `docs/adr/` liegt vor, CLAUDE.md oder die Projektstruktur ist angepasst.
+  - [x] ADR in `docs/adr/` liegt vor, CLAUDE.md oder die Projektstruktur ist angepasst.
+- **Entscheidung (2026-09-24):** Mischform, siehe [ADR 0001](../../docs/adr/0001-ablageort-von-tests.md). Backend-Tests liegen unter `Tests/<Projekt>/`, die Frontend-Tests bleiben im Web-Projekt.
 
 ## 3. Acceptance Criteria (DoD)
-- [ ] Kein leerer oder trivialer Test mehr im Repo.
+- [x] Kein leerer oder trivialer Test mehr im Repo.

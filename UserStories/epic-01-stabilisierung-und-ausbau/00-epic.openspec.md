@@ -58,7 +58,7 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 | D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | Konfigurierbare Aufbewahrung, Standard „löschen“. Player und Retry werden nur angeboten, wenn die Datei noch vorhanden ist. |
 | D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | ✅ Entschieden (2026-09-24): **nicht bereinigen**, siehe S01-T3 |
 | D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | Eigene Security-Story über `sec-agent` vor oder parallel zu S09 |
-| D5 | **Test-Ablage:** CLAUDE.md schreibt `Tests/` vor, Backend-Tests liegen in `AudioTranscription.Tests/`, E2E-Tests in `AudioTranscription.Web/tests/`. | alle | Ist-Zustand per ADR legitimieren oder migrieren |
+| D5 | **Test-Ablage:** CLAUDE.md schreibt `Tests/` vor, Backend-Tests liegen in `AudioTranscription.Tests/`, E2E-Tests in `AudioTranscription.Web/tests/`. | alle | ✅ Entschieden (2026-09-24): Mischform, siehe [ADR 0001](../../docs/adr/0001-ablageort-von-tests.md) |
 
 ## 5. Beobachtungen außerhalb des Scopes
 - `WhisperTranscriptionService` enthält ein leeres `catch { /* best effort */ }`. Das verstößt gegen CLAUDE.md und wird in S03-T2 behoben.

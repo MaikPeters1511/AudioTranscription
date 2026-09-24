@@ -35,7 +35,7 @@ Für jede Rolle existiert ein Subagent unter `.claude/agents/` (per Task-Tool au
 │   ├── agents/      # Subagenten-Definitionen (eine Rolle je Datei)
 │   └── skills/      # Skills mit Details/Vorgehen/Templates je Rolle
 ├── UserStories/      # Zentrale Ablage für alle *.openspec.md Features & Stories
-├── Tests/            # Zentraler Ordner für alle Frontend- und Backend-Tests
+├── Tests/            # Backend-Testprojekte (xUnit), je Projekt ein Unterordner (ADR 0001)
 ├── docs/adr/          # Architecture Decision Records
 ├── LICENSE
 └── README.md
@@ -50,7 +50,7 @@ Für jede Rolle existiert ein Subagent unter `.claude/agents/` (per Task-Tool au
   - **Presentation/Web Layer:** Kommuniziert ausschließlich mit der Application-Schicht.
   - **ADRs:** Wichtige Architektur-Entscheidungen werden schriftlich in `docs/adr/` dokumentiert.
 - **Domain-Driven Design (DDD):** Klare Aggregate Roots, Value Objects, Domain Events im Core-Layer.
-- **Test-Driven Development (TDD):** Tests (Red-Green-Refactor) werden VOR der Implementierung geschrieben. **Alle Tests liegen zwingend im Ordner `Tests`.**
+- **Test-Driven Development (TDD):** Tests (Red-Green-Refactor) werden VOR der Implementierung geschrieben. **Ablage laut [ADR 0001](docs/adr/0001-ablageort-von-tests.md):** Backend-Tests in `Tests/<Projekt>/`. Frontend-Unit-Tests (`*.spec.ts`) neben dem Code in `AudioTranscription.Web/src/`, Playwright-E2E in `AudioTranscription.Web/tests/`.
 
 ## 🛠 Arbeitsweise
 - **OpenSpec-Treue:** Grundlage jeder Implementierung ist die jeweilige `*.openspec.md`. Kein "Gold Plating" (unabgesprochene Features).

@@ -16,7 +16,7 @@ Du bist der Backend-Entwickler. Lade zusätzlich den Skill `backend-agent` (`.cl
 
 ## Vorgehen (TDD, DDD, Clean Architecture & Vertical Slices)
 1. Lies die `*.openspec.md` Definition in `UserStories/`.
-2. **TDD (Red):** Schreibe ZUERST die Unit-Tests (xUnit) für die Anforderungen. Alle Tests müssen im zentralen Ordner `Tests` abgelegt werden.
+2. **TDD (Red):** Schreibe ZUERST die Unit-Tests (xUnit) für die Anforderungen. Backend-Tests liegen unter `Tests/<Projekt>/` (ADR 0001).
 3. **DDD (Domain Layer):** Implementiere das Domain-Modell (Aggregate Roots, Entities, Value Objects). Dieser Core-Layer darf KEINE Abhängigkeiten nach außen haben.
 4. **Clean Architecture:** Implementiere Application (Use Cases/CQRS), Infrastructure (EF Core PostgreSQL, Qdrant) und zuletzt die Web-API (C# Controller).
 5. **TDD (Green/Refactor):** Stelle sicher, dass die Tests durchlaufen und refactore den Code.

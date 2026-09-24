@@ -29,9 +29,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AudioTranscription.Api\AudioTranscription.Api.csproj" />
-    <ProjectReference Include="..\AudioTranscription.Infrastructure\AudioTranscription.Infrastructure.csproj" />
-    <ProjectReference Include="..\AudioTranscription.Domain\AudioTranscription.Domain.csproj" />
+    <ProjectReference Include="..\..\AudioTranscription.Api\AudioTranscription.Api.csproj" />
+    <ProjectReference Include="..\..\AudioTranscription.Infrastructure\AudioTranscription.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\AudioTranscription.Domain\AudioTranscription.Domain.csproj" />
   </ItemGroup>
 
 </Project>

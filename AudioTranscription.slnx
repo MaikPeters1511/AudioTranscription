@@ -4,5 +4,5 @@
   <Project Path="AudioTranscription.Domain/AudioTranscription.Domain.csproj" />
   <Project Path="AudioTranscription.Infrastructure/AudioTranscription.Infrastructure.csproj" />
   <Project Path="AudioTranscription.ServiceDefaults/AudioTranscription.ServiceDefaults.csproj" />
-  <Project Path="AudioTranscription.Tests/AudioTranscription.Tests.csproj" />
+  <Project Path="Tests/AudioTranscription.Tests/AudioTranscription.Tests.csproj" />
 </Solution>
