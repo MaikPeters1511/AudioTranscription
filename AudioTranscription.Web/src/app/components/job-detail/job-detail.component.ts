@@ -1,13 +1,14 @@
 import { Component, ElementRef, inject, OnInit, signal, computed, effect, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
+import { languageName } from '../../i18n/language-names';
 
 type TranscriptVersion = 'processed' | 'raw';
 
@@ -59,11 +60,22 @@ type TranscriptVersion = 'processed' | 'raw';
         }
 
         <!-- Metadata Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="card bg-base-200 shadow-sm">
             <div class="card-body p-4">
               <p class="text-xs uppercase tracking-wider text-base-content/50">{{ 'jobDetail.language' | transloco }}</p>
-              <p class="text-xl font-semibold">{{ job.language || ('jobDetail.languageUnknown' | transloco) }}</p>
+              <p class="text-xl font-semibold">
+                {{ job.language ? languageLabel(job.language) : ('jobDetail.languageUnknown' | transloco) }}
+              </p>
+              <p class="text-xs text-base-content/60">
+                {{ (job.requestedLanguage ? 'jobDetail.languageRequested' : 'jobDetail.languageDetected') | transloco }}
+              </p>
+            </div>
+          </div>
+          <div class="card bg-base-200 shadow-sm">
+            <div class="card-body p-4">
+              <p class="text-xs uppercase tracking-wider text-base-content/50">{{ 'jobDetail.model' | transloco }}</p>
+              <p class="text-xl font-semibold">{{ job.model || '-' }}</p>
             </div>
           </div>
           <div class="card bg-base-200 shadow-sm">
@@ -201,6 +213,7 @@ export class JobDetailComponent implements OnInit {
   private toastService = inject(ToastService);
   private pageTitle = inject(PageTitleService);
   private transloco = inject(TranslocoService);
+  private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
   AudioJobStatus = AudioJobStatus;
   copied = signal(false);
 
@@ -248,6 +261,11 @@ export class JobDetailComponent implements OnInit {
         this.pageTitle.set('app.name');
       }
     });
+  }
+
+  /** Language code named in the UI language, e.g. "de" -> "German". */
+  languageLabel(code: string): string {
+    return languageName(code, this.activeLang());
   }
 
   ngOnInit(): void {

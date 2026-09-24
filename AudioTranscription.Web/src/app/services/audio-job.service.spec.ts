@@ -159,3 +159,45 @@ describe('AudioJobService job actions (S09)', () => {
     expect(service.totalCount()).toBe(1);
   });
 });
+
+describe('AudioJobService transcription settings (S08)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  const file = () => new File(['ID3'], 'meeting.mp3', { type: 'audio/mpeg' });
+
+  it('sends the chosen model and language with the upload', () => {
+    service.uploadFile(file(), { model: 'Small', language: 'de' }).subscribe();
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect((body.get('file') as File).name).toBe('meeting.mp3');
+    expect(body.get('model')).toBe('Small');
+    expect(body.get('language')).toBe('de');
+  });
+
+  it('leaves model and language to the server when none are chosen', () => {
+    service.uploadFile(file()).subscribe();
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect(body.has('model')).toBe(false);
+    expect(body.has('language')).toBe(false);
+  });
+
+  it('loads the selectable models and languages', () => {
+    let result: unknown;
+    service.loadTranscriptionOptions().subscribe((o) => (result = o));
+
+    const options = { models: ['Base', 'Small'], defaultModel: 'Base', languages: ['de', 'en'] };
+    http.expectOne('/api/transcription-options').flush(options);
+
+    expect(result).toEqual(options);
+  });
+});

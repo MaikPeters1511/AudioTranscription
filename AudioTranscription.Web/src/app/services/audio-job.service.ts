@@ -6,6 +6,8 @@ import {
   AudioJobStatus,
   CreateAudioJobResponse,
   PaginatedResult,
+  TranscriptionOptions,
+  TranscriptionSettings,
 } from '../models/audio-job.model';
 import { Observable, Subject, tap, map, filter, firstValueFrom } from 'rxjs';
 
@@ -75,9 +77,23 @@ export class AudioJobService {
     });
   }
 
-  uploadFile(file: File): Observable<{ progress: number; jobId?: string }> {
+  loadTranscriptionOptions(): Observable<TranscriptionOptions> {
+    return this.http.get<TranscriptionOptions>('/api/transcription-options');
+  }
+
+  /** Unset settings are left to the server (default model, language detection). */
+  uploadFile(
+    file: File,
+    settings: TranscriptionSettings = {},
+  ): Observable<{ progress: number; jobId?: string }> {
     const formData = new FormData();
     formData.append('file', file, file.name);
+    if (settings.model) {
+      formData.append('model', settings.model);
+    }
+    if (settings.language) {
+      formData.append('language', settings.language);
+    }
 
     return this.http
       .post<CreateAudioJobResponse>(this.baseUrl, formData, {

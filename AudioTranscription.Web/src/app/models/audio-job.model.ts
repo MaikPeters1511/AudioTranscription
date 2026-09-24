@@ -17,10 +17,15 @@ export interface AudioJob {
   /** LLM post-processed transcript; only set when post-processing changed the text. */
   processedTranscript?: string;
   errorMessage?: string;
+  /** Detected language, or the requested one if detection was off. */
   language?: string;
   durationSeconds?: number;
   createdAtUtc: string;
   completedAtUtc?: string;
+  /** Whisper model chosen at upload, e.g. "Base". */
+  model: string;
+  /** Language chosen at upload (ISO-639-1); missing means automatic detection. */
+  requestedLanguage?: string;
 }
 
 export interface AudioJobListItem {
@@ -43,4 +48,21 @@ export interface PaginatedResult<T> {
 
 export interface CreateAudioJobResponse {
   id: string;
+}
+
+/** Choices for the upload form (GET /api/transcription-options). */
+export interface TranscriptionOptions {
+  models: string[];
+  defaultModel: string;
+  /** ISO-639-1 codes; automatic detection is always available in addition. */
+  languages: string[];
+}
+
+/** Value of the language select for automatic detection. */
+export const AUTO_LANGUAGE = 'auto';
+
+export interface TranscriptionSettings {
+  model?: string;
+  /** ISO-639-1 code or {@link AUTO_LANGUAGE}. */
+  language?: string;
 }

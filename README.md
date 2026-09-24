@@ -13,6 +13,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - ⚡ **Live-Updates** — Job-Status wird per SignalR in Echtzeit an das Frontend gepusht
 - 📄 **Transkript-Verwaltung** — Kopieren, als `.txt` herunterladen, Wort-/Zeichenanzahl
 - 🌗 **Hell/Dunkel-Theme**, responsives UI (Desktop-Tabelle + Mobile-Karten)
+- 🎛️ **Modell und Sprache wählbar** — pro Upload ein freigegebenes Whisper-Modell und die Sprache der Aufnahme (oder automatische Erkennung)
 - 🧠 **Optionale Nachbearbeitung** über Ollama (z. B. Zusammenfassung, Rechtschreibkorrektur)
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -68,7 +69,7 @@ cd AudioTranscription.AppHost
 dotnet run
 ```
 
-Das Aspire-Dashboard zeigt dir die zugewiesenen Ports für API und Web-Frontend an. Beim ersten Start lädt Whisper.net automatisch das GGML-Modell (`base`) herunter.
+Das Aspire-Dashboard zeigt dir die zugewiesenen Ports für API und Web-Frontend an. Whisper.net lädt jedes Modell beim ersten Einsatz automatisch herunter (siehe [Whisper-Modelle](#-whisper-modelle)).
 
 ### Optional: Ollama-Nachbearbeitung aktivieren
 
@@ -126,11 +127,35 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
     "DeleteAfterTranscription": true,
     "OrphanedFileRetentionHours": 24
   },
+  "Whisper": {
+    "DefaultModel": "Base",
+    "AllowedModels": ["Tiny", "Base", "Small", "Medium", "LargeV3"],
+    "SupportedLanguages": ["de", "en", "fr", "..."],
+    "ModelsDirectory": "whisper-models"
+  },
   "Auth": { "AllowRegistration": false },
   "Cors": { "AllowedOrigins": [] },
   "Features": { "OllamaPostProcessing": false }
 }
 ```
+
+## 🎛️ Whisper-Modelle
+
+Beim Upload wählt man ein Modell aus `Whisper:AllowedModels` (Standard: `Whisper:DefaultModel`) und die Sprache der Aufnahme aus `Whisper:SupportedLanguages` oder „Automatisch erkennen“. Eine vorgegebene Sprache verbessert die Erkennung, vor allem bei kurzen oder nicht-englischen Aufnahmen.
+
+| Modell | Download | RAM (ca.) | Hinweis |
+|---|---|---|---|
+| `Tiny` | 75 MB | 0,3 GB | sehr schnell, ungenau |
+| `Base` | 142 MB | 0,4 GB | Standard |
+| `Small` | 466 MB | 0,9 GB | deutlich besser bei Deutsch |
+| `Medium` | 1,5 GB | 2,1 GB | langsam ohne GPU |
+| `LargeV3` | 2,9 GB | 3,9 GB | am genauesten, sehr langsam ohne GPU |
+
+- Die Werte stammen aus der whisper.cpp-Dokumentation und sind Richtwerte.
+- **Download:** Ein Modell wird beim ersten Job mit diesem Modell nach `Whisper:ModelsDirectory` geladen. Relative Pfade gelten ab dem Programmverzeichnis. Dieser Job dauert entsprechend länger.
+- **Speicher:** Jedes einmal genutzte Modell bleibt bis zum Neustart geladen. Gibst du nur Modelle frei, die gemeinsam in den Arbeitsspeicher passen, kommt es nicht zu Engpässen.
+- **Namen:** Erlaubt sind alle Namen von Whisper.nets `GgmlType`, z. B. `SmallEn` oder `LargeV3Turbo`.
+- **Prüfung beim Start:** Eine ungültige Konfiguration verhindert den Start der API und nennt den Grund, z. B. ein unbekanntes Modell oder ein `DefaultModel`, das nicht in `AllowedModels` steht.
 
 ## 📡 API-Übersicht
 
@@ -141,10 +166,14 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST` | `/api/auth/login?useCookies=true` | Anmelden (`{ email, password }`), setzt das Session-Cookie |
 | `POST` | `/api/auth/logout` | Abmelden |
 | `GET` | `/api/auth/me` | Angemeldeter Benutzer (`{ email }`) |
-| `POST` | `/api/audio-jobs` | Audiodatei hochladen, Transkriptions-Job anlegen |
+| `POST` | `/api/audio-jobs` | Audiodatei hochladen (`file`, optional `model` und `language`), Transkriptions-Job anlegen. Unbekanntes Modell oder unbekannte Sprache: `400` |
+| `GET` | `/api/transcription-options` | Wählbare Modelle, Standardmodell und Sprachen (`auto` ist immer möglich) |
 | `GET` | `/api/audio-jobs` | Paginierte Liste aller Jobs |
 | `GET` | `/api/audio-jobs/{id}` | Details & Transkript eines Jobs |
-| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`) |
+| `DELETE` | `/api/audio-jobs/{id}` | Job samt Transkript und Upload löschen (bricht einen laufenden Job vorher ab) |
+| `POST` | `/api/audio-jobs/{id}/cancel` | Wartenden oder laufenden Job abbrechen |
+| `POST` | `/api/audio-jobs/{id}/retry` | Fehlgeschlagenen oder abgebrochenen Job erneut einreihen |
+| `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack
 

@@ -1,4 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -6,6 +7,8 @@ import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
+import { languageName } from '../../i18n/language-names';
+import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
 
 @Component({
   selector: 'app-upload',
@@ -14,6 +17,45 @@ import { PageTitleService } from '../../i18n/page-title.service';
   template: `
     <div class="max-w-2xl mx-auto">
       <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
+
+      <!-- Transcription settings; without options from the server, its defaults apply -->
+      @if (options(); as opts) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="flex flex-col gap-1">
+            <label for="upload-model" class="text-sm font-medium">{{ 'upload.settings.model' | transloco }}</label>
+            <select
+              id="upload-model"
+              class="select w-full"
+              aria-describedby="upload-model-hint"
+              [disabled]="uploading()"
+              [value]="selectedModel()"
+              (change)="selectedModel.set($any($event.target).value)"
+            >
+              @for (model of opts.models; track model) {
+                <option [value]="model" [selected]="model === selectedModel()">{{ model }}</option>
+              }
+            </select>
+            <p id="upload-model-hint" class="text-xs text-base-content/60">{{ 'upload.settings.modelHint' | transloco }}</p>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="upload-language" class="text-sm font-medium">{{ 'upload.settings.language' | transloco }}</label>
+            <select
+              id="upload-language"
+              class="select w-full"
+              [disabled]="uploading()"
+              [value]="selectedLanguage()"
+              (change)="selectedLanguage.set($any($event.target).value)"
+            >
+              <option [value]="autoLanguage" [selected]="selectedLanguage() === autoLanguage">
+                {{ 'upload.settings.auto' | transloco }}
+              </option>
+              @for (language of languageOptions(); track language.code) {
+                <option [value]="language.code" [selected]="language.code === selectedLanguage()">{{ language.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      }
 
       <!-- Drop Zone -->
       <div
@@ -106,6 +148,17 @@ export class UploadComponent implements OnInit {
   successMessage = signal('');
   selectedFileName = signal('');
 
+  readonly autoLanguage = AUTO_LANGUAGE;
+  options = signal<TranscriptionOptions | null>(null);
+  selectedModel = signal('');
+  selectedLanguage = signal(AUTO_LANGUAGE);
+  private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
+  /** Selectable languages in the configured order, named in the UI language. */
+  languageOptions = computed(() => {
+    const uiLanguage = this.activeLang();
+    return (this.options()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
+  });
+
   private readonly maxSize = 10_485_760; // 10 MB
   private readonly allowedTypes = [
     'audio/mpeg', 'audio/wav', 'audio/x-wav',
@@ -114,6 +167,14 @@ export class UploadComponent implements OnInit {
 
   ngOnInit(): void {
     this.pageTitle.set('upload.pageTitle');
+    this.audioJobService.loadTranscriptionOptions().subscribe({
+      next: (options) => {
+        this.options.set(options);
+        this.selectedModel.set(options.defaultModel);
+      },
+      // Uploads still work without the selects: the server uses its default model and detection
+      error: () => this.options.set(null),
+    });
   }
 
   onDragOver(event: DragEvent): void {
@@ -178,7 +239,7 @@ export class UploadComponent implements OnInit {
     this.uploading.set(true);
     this.uploadProgress.set(0);
 
-    this.uploadSubscription = this.audioJobService.uploadFile(file).subscribe({
+    this.uploadSubscription = this.audioJobService.uploadFile(file, this.transcriptionSettings()).subscribe({
       next: (event) => {
         this.uploadProgress.set(event.progress);
         if (event.jobId) {
@@ -194,6 +255,10 @@ export class UploadComponent implements OnInit {
         this.toastService.error(detail);
       },
     });
+  }
+
+  private transcriptionSettings() {
+    return this.options() ? { model: this.selectedModel(), language: this.selectedLanguage() } : {};
   }
 
   private isAllowedExtension(name: string): boolean {

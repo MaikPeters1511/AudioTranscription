@@ -59,6 +59,9 @@
     "back": "Back to list",
     "language": "Language",
     "languageUnknown": "Not detected",
+    "languageRequested": "Set at upload",
+    "languageDetected": "Detected automatically",
+    "model": "Model",
     "duration": "Duration",
     "completedAt": "Completed",
     "waiting": "Waiting for processing...",
@@ -94,7 +97,13 @@
     "tooLarge": "File is too large ({{ size }}). Maximum: 10 MB.",
     "invalidType": "Invalid file format. Allowed: MP3, WAV, M4A, OGG.",
     "success": "Upload successful! Processing started.",
-    "failed": "Upload failed."
+    "failed": "Upload failed.",
+    "settings": {
+      "model": "Model",
+      "modelHint": "Larger models are more accurate but slower. A model is downloaded the first time it is used.",
+      "language": "Language of the recording",
+      "auto": "Detect automatically"
+    }
   },
   "toast": {
     "close": "Close"

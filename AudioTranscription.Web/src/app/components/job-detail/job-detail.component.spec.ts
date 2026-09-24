@@ -74,6 +74,24 @@ describe('JobDetailComponent', () => {
     expect(text).not.toContain('Zurück zur Liste');
   });
 
+  it('shows the model and whether the language was set at upload', () => {
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    const fixture = render(completedJob({ model: 'Small', requestedLanguage: 'de', language: 'de' }));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Small');
+    expect(text).toContain('German');
+    expect(text).toContain('Set at upload');
+  });
+
+  it('marks an automatically detected language', () => {
+    const fixture = render(completedJob({ model: 'Base', language: 'en' }));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Englisch');
+    expect(text).toContain('Automatisch erkannt');
+  });
+
   it('offers the job actions and explains a cancelled job', () => {
     const fixture = render(completedJob({ status: AudioJobStatus.Cancelled }));
 
