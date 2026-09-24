@@ -30,6 +30,7 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 ### Phase 2: Features mit viel Wirkung (Sprint 2–3)
 | ID | Issue | Story | Agent(s) | Größe |
 |----|-------|-------|----------|-------|
+| [S17](./S17-authentication.openspec.md) | #94 | Authentifizierung (lokale Identity), Voraussetzung für S09 | sec, backend, frontend | L |
 | [S09](./S09-job-lifecycle.openspec.md) | #10 | Jobs löschen, abbrechen, neu starten | backend, frontend, sec | L |
 | [S08](./S08-model-and-language.openspec.md) | #11 | Modell und Sprache wählbar | backend, frontend | M |
 | [S07](./S07-live-progress.openspec.md) | #12 | Live-Fortschritt in Prozent | backend, frontend | S |
@@ -55,9 +56,9 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 | # | Frage | Betrifft | Empfehlung |
 |---|-------|----------|------------|
 | D1 | **Datenbank:** Der Code nutzt SQL Server (`AddSqlServer`, `UseSqlServer`), CLAUDE.md nennt PostgreSQL. Welche gilt? | S13 (Volltextsuche), alle Migrationen | Per ADR festhalten. Die Volltextsuche hängt direkt davon ab. |
-| D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | Konfigurierbare Aufbewahrung, Standard „löschen“. Player und Retry werden nur angeboten, wenn die Datei noch vorhanden ist. |
+| D2 | **Audio-Aufbewahrung:** Player (S06) und Retry (S09) brauchen die Originaldatei. `DeleteAfterTranscription=true` löscht sie aber. | S03, S06, S09 | ✅ Entschieden (2026-09-24): Nach Erfolg wird gelöscht. Bei `Failed`/`Cancelled` bleibt die Datei für einen Neustart liegen, bis der Job gelöscht wird oder die Frist `OrphanedFileRetentionHours` abläuft (Umsetzung in S09). Der Player (S06) wird später entschieden. |
 | D3 | **Git-History bereinigen:** Sollen die Audiodateien auch aus dem Verlauf entfernt werden? Das erfordert einen Force-Push. | S01 | ✅ Entschieden (2026-09-24): **nicht bereinigen**, siehe S01-T3 |
-| D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | Eigene Security-Story über `sec-agent` vor oder parallel zu S09 |
+| D4 | **Authentifizierung:** Alle Endpoints sind anonym. Mit `DELETE` (S09) könnte jeder beliebige Jobs löschen. | S09, S10 | ✅ Entschieden (2026-09-24): **Erst Auth, dann S09.** Lokale ASP.NET Core Identity, gemeinsame Jobs für alle Angemeldeten, siehe [S17](./S17-authentication.openspec.md). |
 | D5 | **Test-Ablage:** CLAUDE.md schreibt `Tests/` vor, Backend-Tests liegen in `AudioTranscription.Tests/`, E2E-Tests in `AudioTranscription.Web/tests/`. | alle | ✅ Entschieden (2026-09-24): Mischform, siehe [ADR 0001](../../docs/adr/0001-ablageort-von-tests.md) |
 
 ## 5. Beobachtungen außerhalb des Scopes
