@@ -109,3 +109,68 @@ describe('UploadComponent', () => {
     expect(body.has('language')).toBe(false);
   });
 });
+
+describe('UploadComponent speaker diarization (S11)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [UploadComponent, translocoTesting('en')],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  function render(options: object) {
+    const fixture = TestBed.createComponent(UploadComponent);
+    fixture.detectChanges();
+    http.expectOne('/api/transcription-options').flush(options);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function selectFile(fixture: ReturnType<typeof render>, file: File) {
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type=file]');
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  }
+
+  it('hides the diarize checkbox when diarization is not configured on the server', () => {
+    const fixture = render({ ...transcriptionOptions, diarizationEnabled: false });
+
+    expect(fixture.nativeElement.querySelector('#upload-diarize')).toBeNull();
+  });
+
+  it('offers a diarize checkbox when diarization is configured', () => {
+    const fixture = render({ ...transcriptionOptions, diarizationEnabled: true });
+    const el: HTMLElement = fixture.nativeElement;
+
+    const checkbox = el.querySelector<HTMLInputElement>('#upload-diarize')!;
+    expect(checkbox).not.toBeNull();
+    expect(checkbox.checked).toBe(false);
+    expect(el.querySelector('label[for="upload-diarize"]')!.textContent).toContain('speaker');
+  });
+
+  it('sends diarize=true when the checkbox is checked', () => {
+    const fixture = render({ ...transcriptionOptions, diarizationEnabled: true });
+    const checkbox: HTMLInputElement = fixture.nativeElement.querySelector('#upload-diarize');
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    selectFile(fixture, new File(['ID3'], 'meeting.mp3', { type: 'audio/mpeg' }));
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect(body.get('diarize')).toBe('true');
+  });
+
+  it('does not send diarize when the checkbox is left unchecked', () => {
+    const fixture = render({ ...transcriptionOptions, diarizationEnabled: true });
+
+    selectFile(fixture, new File(['ID3'], 'meeting.mp3', { type: 'audio/mpeg' }));
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect(body.has('diarize')).toBe(false);
+  });
+});

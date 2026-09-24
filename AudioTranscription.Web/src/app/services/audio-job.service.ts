@@ -5,6 +5,7 @@ import {
   AudioJobListItem,
   AudioJobStatus,
   CreateAudioJobResponse,
+  JobSpeaker,
   PaginatedResult,
   PostProcessingMode,
   SubtitleFormat,
@@ -100,6 +101,16 @@ export class AudioJobService {
     return this.http.get<TranscriptSegment[]>(`${this.baseUrl}/${id}/segments`);
   }
 
+  // --- speaker diarization (S11) ---------------------------------------------
+
+  loadSpeakers(jobId: string): Observable<JobSpeaker[]> {
+    return this.http.get<JobSpeaker[]>(`${this.baseUrl}/${jobId}/speakers`);
+  }
+
+  renameSpeaker(jobId: string, index: number, displayName: string): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${jobId}/speakers/${index}`, { displayName });
+  }
+
   // --- transcript variants (S10) --------------------------------------------
 
   /** Variants of the currently open job, keyed by id; empty until {@link loadVariants} resolves. */
@@ -151,6 +162,9 @@ export class AudioJobService {
     }
     if (settings.language) {
       formData.append('language', settings.language);
+    }
+    if (settings.diarize) {
+      formData.append('diarize', 'true');
     }
 
     return this.http

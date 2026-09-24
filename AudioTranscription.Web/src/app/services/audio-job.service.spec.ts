@@ -195,10 +195,61 @@ describe('AudioJobService transcription settings (S08)', () => {
     let result: unknown;
     service.loadTranscriptionOptions().subscribe((o) => (result = o));
 
-    const options = { models: ['Base', 'Small'], defaultModel: 'Base', languages: ['de', 'en'], postProcessingEnabled: false };
+    const options = {
+      models: ['Base', 'Small'], defaultModel: 'Base', languages: ['de', 'en'],
+      postProcessingEnabled: false, diarizationEnabled: false,
+    };
     http.expectOne('/api/transcription-options').flush(options);
 
     expect(result).toEqual(options);
+  });
+});
+
+describe('AudioJobService speaker diarization (S11)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  const file = () => new File(['ID3'], 'meeting.mp3', { type: 'audio/mpeg' });
+
+  it('sends diarize=true with the upload when requested', () => {
+    service.uploadFile(file(), { diarize: true }).subscribe();
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect(body.get('diarize')).toBe('true');
+  });
+
+  it('does not send diarize when not requested', () => {
+    service.uploadFile(file()).subscribe();
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect(body.has('diarize')).toBe(false);
+  });
+
+  it('loads the speakers of a job', () => {
+    let result: unknown;
+    service.loadSpeakers('job-1').subscribe((speakers) => (result = speakers));
+
+    const speakers = [{ index: 0, displayName: 'Anna' }, { index: 1, displayName: 'Sprecher 2' }];
+    http.expectOne('/api/audio-jobs/job-1/speakers').flush(speakers);
+
+    expect(result).toEqual(speakers);
+  });
+
+  it('renames a speaker', () => {
+    service.renameSpeaker('job-1', 1, 'Ben').subscribe();
+
+    const req = http.expectOne('/api/audio-jobs/job-1/speakers/1');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ displayName: 'Ben' });
+    req.flush(null);
   });
 });
 

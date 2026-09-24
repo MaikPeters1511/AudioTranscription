@@ -16,6 +16,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🎛️ **Modell und Sprache wählbar** — pro Upload ein freigegebenes Whisper-Modell und die Sprache der Aufnahme (oder automatische Erkennung)
 - ⏱️ **Zeitstempel und Untertitel** — Export als `.srt`/`.vtt`, Audio-Player mit mitlaufendem Transkript (Klick auf einen Satz springt dorthin)
 - 🧠 **Nachbearbeitung mit Ollama** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
+- 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
 ## 🔐 Datenschutz
@@ -85,6 +86,22 @@ Beim nächsten `dotnet run` startet Aspire zusätzlich einen Ollama-Container in
 
 In der Detailansicht eines abgeschlossenen Jobs erscheint dann eine Aktionsleiste „Weitere Fassungen“ mit einem Knopf je Modus (Bereinigen, Zusammenfassen, Stichpunkte, Aufgaben, Übersetzen). Ergebnisse erscheinen als zusätzliche Tabs neben „Original“; ein erneuter Klick auf denselben Modus ersetzt das Ergebnis. Lange Transkripte werden für Zusammenfassung und Aufgaben in Abschnitten verarbeitet und anschließend zusammengeführt (`PostProcessing:MaxChunkLength` in `appsettings.json`, Richtwert in Zeichen statt Tokens, da für das gewählte Ollama-Modell kein Tokenizer verfügbar ist).
 
+### Optional: Sprechererkennung (Diarisierung) aktivieren
+
+Sprechererkennung läuft vollständig offline über [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) und benötigt zwei ONNX-Modelle (pyannote-Segmentierung + Speaker-Embedding), die **nicht** mitgeliefert werden und selbst besorgt werden müssen (siehe [ADR 0004](docs/adr/0004-sprechererkennung.md)). In `AudioTranscription.Api/appsettings.json`:
+
+```json
+"Diarization": {
+  "Enabled": true,
+  "SegmentationModelPath": "/pfad/zu/segmentation.onnx",
+  "EmbeddingModelPath": "/pfad/zu/embedding.onnx",
+  "Threshold": 0.5,
+  "NumThreads": 1
+}
+```
+
+Beim Upload erscheint dann eine Checkbox „Sprechererkennung“. Ist sie aktiv, wird jedes Transkript-Segment nach der Transkription einem Sprecher zugeordnet (`Sprecher 1`, `Sprecher 2`, …); in der Detailansicht lassen sich Sprecher per Klick auf den Bearbeiten-Knopf umbenennen (z. B. „Anna“), SRT-/VTT-Export und die Segmentliste übernehmen den neuen Namen automatisch.
+
 ## 🐳 Alternative: docker-compose
 
 Für einen produktionsnäheren Stack ohne Aspire:
@@ -140,7 +157,14 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
   "Auth": { "AllowRegistration": false },
   "Cors": { "AllowedOrigins": [] },
   "PostProcessing": { "MaxChunkLength": 6000 },
-  "Features": { "OllamaPostProcessing": false }
+  "Features": { "OllamaPostProcessing": false },
+  "Diarization": {
+    "Enabled": false,
+    "SegmentationModelPath": "",
+    "EmbeddingModelPath": "",
+    "Threshold": 0.5,
+    "NumThreads": 1
+  }
 }
 ```
 
@@ -171,15 +195,17 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST` | `/api/auth/login?useCookies=true` | Anmelden (`{ email, password }`), setzt das Session-Cookie |
 | `POST` | `/api/auth/logout` | Abmelden |
 | `GET` | `/api/auth/me` | Angemeldeter Benutzer (`{ email }`) |
-| `POST` | `/api/audio-jobs` | Audiodatei hochladen (`file`, optional `model` und `language`), Transkriptions-Job anlegen. Unbekanntes Modell oder unbekannte Sprache: `400` |
-| `GET` | `/api/transcription-options` | Wählbare Modelle, Standardmodell und Sprachen (`auto` ist immer möglich) |
+| `POST` | `/api/audio-jobs` | Audiodatei hochladen (`file`, optional `model`, `language` und `diarize`), Transkriptions-Job anlegen. Unbekanntes Modell/Sprache oder `diarize=true` ohne konfigurierte Diarisierung: `400` |
+| `GET` | `/api/transcription-options` | Wählbare Modelle, Standardmodell, Sprachen (`auto` ist immer möglich), `postProcessingEnabled`, `diarizationEnabled` |
 | `GET` | `/api/audio-jobs` | Paginierte Liste aller Jobs |
 | `GET` | `/api/audio-jobs/{id}` | Details & Transkript eines Jobs |
 | `DELETE` | `/api/audio-jobs/{id}` | Job samt Transkript und Upload löschen (bricht einen laufenden Job vorher ab) |
 | `POST` | `/api/audio-jobs/{id}/cancel` | Wartenden oder laufenden Job abbrechen |
 | `POST` | `/api/audio-jobs/{id}/retry` | Fehlgeschlagenen oder abgebrochenen Job erneut einreihen |
-| `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts (`409`, solange der Job nicht abgeschlossen ist) |
-| `GET` | `/api/audio-jobs/{id}/subtitles?format=srt\|vtt` | Untertitel-Download (`409` wie oben, `400` bei unbekanntem Format) |
+| `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts, bei Diarisierung inkl. `speakerIndex`/`speakerName` (`409`, solange der Job nicht abgeschlossen ist) |
+| `GET` | `/api/audio-jobs/{id}/subtitles?format=srt\|vtt` | Untertitel-Download, Cues bei Diarisierung mit Sprechername (`409` wie oben, `400` bei unbekanntem Format) |
+| `GET` | `/api/audio-jobs/{id}/speakers` | Erkannte Sprecher eines Jobs mit aufgelöstem Namen (`Sprecher N` bis umbenannt) |
+| `PUT` | `/api/audio-jobs/{id}/speakers/{index}` | Sprecher umbenennen (`{ displayName }`, max. 100 Zeichen); `404` bei unbekanntem Job/Sprecher |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
 | `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes Ollama |
 | `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |

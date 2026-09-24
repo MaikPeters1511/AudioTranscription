@@ -26,6 +26,8 @@ export interface AudioJob {
   requestedLanguage?: string;
   /** Latest progress of a running job in percent; only set while processing. */
   progressPercent?: number;
+  /** Whether speaker diarization (S11) was requested at upload. */
+  diarizationRequested: boolean;
 }
 
 export interface AudioJobListItem {
@@ -66,6 +68,8 @@ export interface TranscriptionOptions {
   languages: string[];
   /** Whether variant generation (S10) is available, i.e. an LLM (Ollama) is configured. */
   postProcessingEnabled: boolean;
+  /** Whether speaker diarization (S11) is available, i.e. the sherpa-onnx models are configured. */
+  diarizationEnabled: boolean;
 }
 
 /** What an on-demand transcript variant (S10) was generated for. */
@@ -111,6 +115,8 @@ export interface TranscriptionSettings {
   model?: string;
   /** ISO-639-1 code or {@link AUTO_LANGUAGE}. */
   language?: string;
+  /** Requests speaker diarization (S11); only sent when {@link TranscriptionOptions.diarizationEnabled}. */
+  diarize?: boolean;
 }
 
 /** Timed part of the raw transcript (GET /api/audio-jobs/{id}/segments). */
@@ -119,6 +125,16 @@ export interface TranscriptSegment {
   startMs: number;
   endMs: number;
   text: string;
+  /** Set only for a diarized job (S11); undefined otherwise or when no speaker overlapped this segment. */
+  speakerIndex?: number;
+  /** Resolved display name for {@link speakerIndex} ("Sprecher N" until renamed). */
+  speakerName?: string;
 }
 
 export type SubtitleFormat = 'srt' | 'vtt';
+
+/** A detected speaker of a diarized job (S11), with its current (possibly renamed) display name. */
+export interface JobSpeaker {
+  index: number;
+  displayName: string;
+}

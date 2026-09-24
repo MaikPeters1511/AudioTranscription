@@ -117,7 +117,8 @@
       "model": "Model",
       "modelHint": "Larger models are more accurate but slower. A model is downloaded the first time it is used.",
       "language": "Language of the recording",
-      "auto": "Detect automatically"
+      "auto": "Detect automatically",
+      "diarize": "Detect who is speaking (speaker diarization); runs fully offline and may take longer."
     }
   },
   "toast": {
@@ -159,7 +160,12 @@
     "segments": "Transcript with timestamps, click to jump there",
     "loading": "Loading timestamps",
     "noAudio": "The audio file is no longer available; by default it is deleted after a successful transcription. The timestamps are kept.",
-    "noSegments": "No timestamps are available for this transcript."
+    "noSegments": "No timestamps are available for this transcript.",
+    "speakers": "Detected speakers, rename them here",
+    "save": "Save",
+    "cancel": "Cancel",
+    "renameSpeaker": "Rename {{ name }}",
+    "renameInputLabel": "New name for {{ name }}"
   },
   "progress": {
     "label": "Transcription progress",

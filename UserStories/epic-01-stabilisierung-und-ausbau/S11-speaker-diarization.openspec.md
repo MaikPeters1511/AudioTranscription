@@ -36,8 +36,19 @@ Bei Meetings und Interviews ist entscheidend, wer etwas gesagt hat. Sprecher-Dia
 ### S11-T5 Frontend: Sprecher-Anzeige und Umbenennen · frontend · M
 - Farbmarkierung pro Sprecher (nicht nur Farbe, sondern zusätzlich Name bzw. Label, WCAG 1.4.1). Inline-Umbenennen per Button und Eingabefeld.
 - **AC:**
-  - [ ] Unit-Tests.
-  - [ ] UX-Review (`ux-agent`).
+  - [x] Unit-Tests (`transcript-player.component.spec.ts`: Sprecher-Badges pro Segment, Toolbar mit Umbenennen-Buttons, Umbenennen aktualisiert Toolbar+Segmente; `upload.component.spec.ts`/`audio-job.service.spec.ts`: `diarize`-Checkbox nur bei `diarizationEnabled`, Upload-Flag).
+  - [x] UX-Review (inline, siehe Umsetzungsnotizen).
 
 ## 4. Acceptance Criteria (DoD)
-- [ ] Eine Interview-Testaufnahme mit zwei Sprechern wird zu mindestens 85 % der Sprechzeit korrekt zugeordnet (Messmethode laut ADR).
+- [ ] Eine Interview-Testaufnahme mit zwei Sprechern wird zu mindestens 85 % der Sprechzeit korrekt zugeordnet (Messmethode laut ADR). **Offen:** in dieser Sandbox nicht überprüfbar (siehe Umsetzungsnotizen).
+
+## 5. Umsetzungsnotizen
+
+- **Backend:** `SherpaOnnxDiarizationService` kapselt `SherpaOnnx.OfflineSpeakerDiarization` (Paket `org.k2fsa.sherpa.onnx` 1.13.8); Modelle werden lazy geladen und für die Prozesslaufzeit gecacht, Aufrufe sind über ein `SemaphoreSlim` serialisiert. Die WAV-Konvertierung wurde aus `WhisperTranscriptionService` in `Audio16kHzWavConverter` extrahiert und wird von beiden Diensten genutzt.
+- **Zuordnung:** `SpeakerOverlapAssigner` ordnet jedes `TranscriptSegment` dem Sprecher mit der größten zeitlichen Überlappung zu (Unentschieden → niedrigerer Index gewinnt). Reine Domain-Logik, vollständig unit-getestet inkl. Randfälle (Lücke, Berührung, Nulldauer, vertauschte Eingabe).
+- **Konfiguration:** neue `Diarization`-Sektion in `appsettings.json` (`Enabled`, `SegmentationModelPath`, `EmbeddingModelPath`, `Threshold`, `NumThreads`), standardmäßig deaktiviert. `GET /api/transcription-options` liefert zusätzlich `diarizationEnabled`, damit das Frontend die Diarisierungs-Option nur anzeigt, wenn der Server dafür konfiguriert ist (analog zu `postProcessingEnabled` aus S10).
+- **Export:** SRT stellt `"Name: "` voran, VTT nutzt `<v Name>Text</v>` (Voice-Span). Ohne Sprecherzuordnung bleibt der Export unverändert (Rückwärtskompatibilität zu S06).
+- **Naming:** Unbenannte Sprecher heißen `"Sprecher N"` (1-basiert); `PUT /api/audio-jobs/{id}/speakers/{index}` erlaubt das Umbenennen (Validierung: nicht leer, max. 100 Zeichen).
+- **Frontend:** `TranscriptPlayerComponent` zeigt bei einer diarisierten Aufnahme eine Sprecher-Toolbar (farbiges Badge + Name + Umbenennen-Button) sowie ein Sprecher-Badge vor jedem Transkript-Segment. WCAG 1.4.1: Farbe wird nie allein verwendet, der Sprechername steht immer als Text daneben. Umbenennen per Inline-Eingabefeld (Enter zum Speichern, Escape zum Abbrechen), aktualisiert Toolbar und Segmente sofort. Der Upload-Dialog zeigt eine "Sprechererkennung"-Checkbox nur, wenn der Server sie unterstützt (`diarizationEnabled`). Manuell im Browser mit gemockten API-Antworten verifiziert (Playwright: Checkbox-Sichtbarkeit, Badges, Umbenennen-Flow inkl. Live-Update).
+- **Bekannte Einschränkung (unverändert seit S08):** huggingface.co und github.com liefern aus dieser Sandbox `403`, sodass die realen pyannote-Segmentierungs- und Embedding-ONNX-Modelle nicht heruntergeladen werden konnten. Die tatsächliche Diarisierungsgenauigkeit (DER) wurde daher **nicht** gemessen; die API-Oberfläche wurde stattdessen per NuGet-Restore + Reflection gegen die reale sherpa-onnx-Bibliothek verifiziert. Vor einem produktiven Einsatz muss ein Betreiber mit Internetzugang die Modelle beschaffen und einen echten DER-Test durchführen.
+- **GitGuardian:** weiterhin nur der bekannte Altfund aus Commit `39789d6` (Testpasswort), History-Rewrite laut Entscheidung D3 ausgeschlossen; wartet auf manuelle Aktion im Dashboard.

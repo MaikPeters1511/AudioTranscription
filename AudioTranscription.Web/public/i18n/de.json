@@ -117,7 +117,8 @@
       "model": "Modell",
       "modelHint": "Größere Modelle sind genauer, aber langsamer. Ein Modell wird beim ersten Einsatz heruntergeladen.",
       "language": "Sprache der Aufnahme",
-      "auto": "Automatisch erkennen"
+      "auto": "Automatisch erkennen",
+      "diarize": "Erkennen, wer spricht (Sprechererkennung); läuft vollständig offline und kann länger dauern."
     }
   },
   "toast": {
@@ -159,7 +160,12 @@
     "segments": "Transkript mit Zeitstempeln, Klick springt zur Stelle",
     "loading": "Zeitstempel werden geladen",
     "noAudio": "Die Audiodatei ist nicht mehr vorhanden, sie wird nach erfolgreicher Transkription standardmäßig gelöscht. Die Zeitstempel bleiben erhalten.",
-    "noSegments": "Für dieses Transkript sind keine Zeitstempel vorhanden."
+    "noSegments": "Für dieses Transkript sind keine Zeitstempel vorhanden.",
+    "speakers": "Erkannte Sprecher, hier umbenennen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "renameSpeaker": "{{ name }} umbenennen",
+    "renameInputLabel": "Neuer Name für {{ name }}"
   },
   "progress": {
     "label": "Transkriptionsfortschritt",

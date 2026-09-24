@@ -55,6 +55,21 @@ import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.mode
             </select>
           </div>
         </div>
+        @if (opts.diarizationEnabled) {
+          <div class="form-control mb-6">
+            <label for="upload-diarize" class="label cursor-pointer justify-start gap-3 w-fit">
+              <input
+                id="upload-diarize"
+                type="checkbox"
+                class="checkbox"
+                [disabled]="uploading()"
+                [checked]="diarize()"
+                (change)="diarize.set($any($event.target).checked)"
+              />
+              <span class="label-text">{{ 'upload.settings.diarize' | transloco }}</span>
+            </label>
+          </div>
+        }
       }
 
       <!-- Drop Zone -->
@@ -152,6 +167,7 @@ export class UploadComponent implements OnInit {
   options = signal<TranscriptionOptions | null>(null);
   selectedModel = signal('');
   selectedLanguage = signal(AUTO_LANGUAGE);
+  diarize = signal(false);
   private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
   /** Selectable languages in the configured order, named in the UI language. */
   languageOptions = computed(() => {
@@ -258,7 +274,9 @@ export class UploadComponent implements OnInit {
   }
 
   private transcriptionSettings() {
-    return this.options() ? { model: this.selectedModel(), language: this.selectedLanguage() } : {};
+    return this.options()
+      ? { model: this.selectedModel(), language: this.selectedLanguage(), diarize: this.diarize() }
+      : {};
   }
 
   private isAllowedExtension(name: string): boolean {
