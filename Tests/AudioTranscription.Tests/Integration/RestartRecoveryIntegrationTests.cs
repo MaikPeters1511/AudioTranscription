@@ -93,7 +93,8 @@ public class RestartRecoveryIntegrationTests : IClassFixture<WebApplicationFacto
             await Task.Delay(50);
         } while (DateTime.UtcNow < deadline);
 
-        job.Status.Should().Be(expected, "the recovered job should be processed within {0}", timeout);
+        job.Status.Should().Be(expected,
+            "the recovered job should be processed within {0} (last error: {1})", timeout, job.ErrorMessage ?? "none");
         return job;
     }
 

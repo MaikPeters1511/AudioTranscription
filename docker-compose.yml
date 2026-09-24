@@ -21,6 +21,9 @@ services:
       - sql
     environment:
       - ConnectionStrings__transcriptiondb=Server=sql;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+      # First login (ADR 0003); set in a local, git-ignored .env file
+      - Auth__InitialUser__Email=${INITIAL_USER_EMAIL:-}
+      - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
     ports:
       - "8080:8080"
     volumes:

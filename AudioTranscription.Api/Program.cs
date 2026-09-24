@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Auth;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Endpoints;
@@ -5,6 +6,9 @@ using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +28,7 @@ builder.Services.AddSingleton<TranscriptionQueue>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
+builder.Services.AddHostedService<InitialUserSeeder>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
@@ -39,16 +44,42 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 // Add SignalR
 builder.Services.AddSignalR();
 
-// Configure CORS for Angular frontend (SignalR needs AllowCredentials)
-builder.Services.AddCors(options =>
+// Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+    .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    // API: answer with status codes instead of redirecting to a login page
+    options.Events.OnRedirectToLogin = context =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+
+// Every endpoint requires a signed-in user unless it explicitly allows anonymous access
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+// CORS only for explicitly configured origins; the frontend normally is same-origin via proxy/nginx
+builder.Services.AddCors();
+builder.Services.AddOptions<CorsOptions>().Configure<IConfiguration>((options, configuration) =>
+{
+    var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    options.AddDefaultPolicy(policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 // Configure max request body size for file uploads
@@ -107,7 +138,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
+app.MapAuthEndpoints();
 
 // Map SignalR hub
 app.MapHub<TranscriptionHub>("/hubs/transcription");

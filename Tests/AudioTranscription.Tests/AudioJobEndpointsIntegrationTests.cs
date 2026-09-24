@@ -7,6 +7,8 @@ using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using AudioTranscription.Tests.Integration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,6 +41,7 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
                     options.UseInMemoryDatabase("IntegrationTestsDb");
                 });
             });
+            builder.ConfigureTestServices(services => services.AddTestAuthentication());
         });
     }
 

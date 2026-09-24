@@ -40,6 +40,7 @@ public class UploadStorageIntegrationTests : IClassFixture<WebApplicationFactory
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
 
             services.AddSingleton(transcription.Object);
+            services.AddTestAuthentication();
             services.Configure<UploadOptions>(o =>
             {
                 o.TempStoragePath = _dir.Path;
