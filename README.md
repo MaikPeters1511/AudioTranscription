@@ -9,7 +9,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 ## ✨ Features
 
 - 🔒 **Vollständig offline** — Transkription läuft lokal via Whisper.net, keine Cloud-APIs
-- 📤 **Drag & Drop Upload** — MP3, WAV, M4A, OGG (bis 10 MB, konfigurierbar)
+- 📤 **Drag & Drop Upload** — MP3, WAV, M4A, OGG sowie Video (MP4, WebM, MKV, MOV — es wird nur die Tonspur verwendet), bis 500 MB (konfigurierbar), per Streaming direkt auf die Platte geschrieben
 - 🎙️ **Direkt im Browser aufnehmen** — Mikrofonaufnahme ohne vorherigen Datei-Export, Vorhören vor dem Transkribieren (siehe unten, HTTPS erforderlich)
 - ⚡ **Live-Updates** — Job-Status und Fortschritt in Prozent werden per SignalR in Echtzeit an das Frontend gepusht
 - 📄 **Transkript-Verwaltung** — Kopieren, als `.txt` herunterladen, Wort-/Zeichenanzahl
@@ -158,8 +158,11 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
 ```json
 {
   "Upload": {
-    "MaxFileSizeBytes": 10485760,
-    "AllowedContentTypes": ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/ogg"],
+    "MaxFileSizeBytes": 500000000,
+    "AllowedContentTypes": [
+      "audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/ogg", "audio/webm",
+      "video/mp4", "video/webm", "video/x-matroska", "video/quicktime"
+    ],
     "TempStoragePath": "temp-uploads",
     "DeleteAfterTranscription": true,
     "OrphanedFileRetentionHours": 24
@@ -183,6 +186,8 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
   }
 }
 ```
+
+`Upload:MaxFileSizeBytes` bestimmt außer der serverseitigen Prüfung auch die Kestrel- (`MaxRequestBodySize`) und Formular-Limits (`FormOptions.MultipartBodyLengthLimit`, siehe `Program.cs`) — es genügt, hier einen Wert zu ändern. Videos (MP4/WebM/MKV/MOV) werden akzeptiert, aber nur ihre Tonspur wird transkribiert (ffmpeg `-vn`). Beim docker-compose-Setup wird derselbe Wert zusätzlich für nginx' `client_max_body_size` gebraucht (sonst würde nginx große Uploads schon vor der API abweisen); dort steuert die Umgebungsvariable `UPLOAD_MAX_FILE_SIZE_MB` (Default 500) beide Seiten gemeinsam.
 
 ## 🎛️ Whisper-Modelle
 
