@@ -1,5 +1,7 @@
 # 🎙️ Audio Transcription
 
+[![CI](https://github.com/MaikPeters1511/AudioTranscription/actions/workflows/ci.yml/badge.svg)](https://github.com/MaikPeters1511/AudioTranscription/actions/workflows/ci.yml)
+
 Lokale, private Audio-Transkription auf Basis von [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp) — läuft komplett offline, ohne dass Audiodaten an einen externen Dienst gesendet werden.
 
 Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR und erhalte das fertige Transkript direkt im Browser — mit optionaler Nachbearbeitung durch ein lokales Ollama-LLM.
@@ -17,7 +19,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 ## 🔐 Datenschutz
 
 - Hochgeladene Dateien werden nur lokal im Ordner `temp-uploads/` der API gespeichert (`Upload:TempStoragePath`) und standardmäßig nach erfolgreicher Transkription gelöscht (`Upload:DeleteAfterTranscription`).
-- `temp-uploads/`, Audiodateien und die Whisper-Modelle sind per `.gitignore` ausgeschlossen. Der CI-Workflow `Repo Hygiene` lässt jeden Push fehlschlagen, der solche Dateien enthält.
+- `temp-uploads/`, Audiodateien und die Whisper-Modelle sind per `.gitignore` ausgeschlossen. Der Job `Repo hygiene` im CI-Workflow lässt jeden PR fehlschlagen, der solche Dateien enthält.
 
 ## 🏗️ Architektur
 
