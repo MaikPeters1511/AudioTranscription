@@ -10,6 +10,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 
 - 🔒 **Vollständig offline** — Transkription läuft lokal via Whisper.net, keine Cloud-APIs
 - 📤 **Drag & Drop Upload** — MP3, WAV, M4A, OGG (bis 10 MB, konfigurierbar)
+- 🎙️ **Direkt im Browser aufnehmen** — Mikrofonaufnahme ohne vorherigen Datei-Export, Vorhören vor dem Transkribieren (siehe unten, HTTPS erforderlich)
 - ⚡ **Live-Updates** — Job-Status und Fortschritt in Prozent werden per SignalR in Echtzeit an das Frontend gepusht
 - 📄 **Transkript-Verwaltung** — Kopieren, als `.txt` herunterladen, Wort-/Zeichenanzahl
 - 🌗 **Hell/Dunkel-Theme**, responsives UI (Desktop-Tabelle + Mobile-Karten)
@@ -101,6 +102,14 @@ Sprechererkennung läuft vollständig offline über [sherpa-onnx](https://github
 ```
 
 Beim Upload erscheint dann eine Checkbox „Sprechererkennung“. Ist sie aktiv, wird jedes Transkript-Segment nach der Transkription einem Sprecher zugeordnet (`Sprecher 1`, `Sprecher 2`, …); in der Detailansicht lassen sich Sprecher per Klick auf den Bearbeiten-Knopf umbenennen (z. B. „Anna“), SRT-/VTT-Export und die Segmentliste übernehmen den neuen Namen automatisch.
+
+### Direkt im Browser aufnehmen
+
+Die Upload-Seite hat zwei Reiter: „Datei hochladen“ und „Aufnehmen“. Im Aufnahme-Reiter starten/stoppen ein Knopf die Mikrofonaufnahme (`MediaRecorder`-API), danach lässt sich die Aufnahme vorhören und entweder transkribieren (wie ein normaler Upload) oder verwerfen. Das gewählte Modell/Sprache/Sprechererkennung (siehe oben) gilt auch für Aufnahmen.
+
+**Wichtig:** `getUserMedia` (Mikrofonzugriff) verlangt einen [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) — die Seite muss über **HTTPS** oder `http://localhost` aufgerufen werden, sonst bietet der Browser den Reiter zwar an, aber die Berechtigungsanfrage schlägt fehl. In der Produktion (docker-compose/nginx) ist daher ein gültiges TLS-Zertifikat nötig, genau wie schon für das Session-Cookie (siehe [Anmeldung](#-anmeldung)).
+
+Chrome und Firefox liefern die Aufnahme als `audio/webm;codecs=opus`, Safari als `audio/mp4` — beide werden vom Upload-Endpunkt akzeptiert. Manuell getestet wurde der volle Ablauf (Aufnehmen → Stoppen → Vorhören → Transkribieren) in Chromium; ein Test in echtem Firefox/Safari war in dieser Sandbox mangels installierter Browser nicht möglich (siehe Umsetzungsnotizen in der Story-Spezifikation).
 
 ## 🐳 Alternative: docker-compose
 

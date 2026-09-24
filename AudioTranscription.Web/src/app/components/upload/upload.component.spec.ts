@@ -110,6 +110,50 @@ describe('UploadComponent', () => {
   });
 });
 
+describe('UploadComponent browser recording (S12)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [UploadComponent, translocoTesting('en')],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  function render() {
+    const fixture = TestBed.createComponent(UploadComponent);
+    fixture.detectChanges();
+    http.expectOne('/api/transcription-options').flush(transcriptionOptions);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('shows the drop zone by default and the recorder after switching tabs', () => {
+    const fixture = render();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(el.querySelector('app-recorder')).toBeNull();
+    [...el.querySelectorAll<HTMLButtonElement>('[role=tab]')].find((t) => t.textContent?.includes('Record audio'))!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelector('input[type=file]')).toBeNull();
+    expect(el.querySelector('app-recorder')).not.toBeNull();
+  });
+
+  it('uploads a recorded take like a picked file', () => {
+    const fixture = render();
+    const el: HTMLElement = fixture.nativeElement;
+    [...el.querySelectorAll<HTMLButtonElement>('[role=tab]')].find((t) => t.textContent?.includes('Record audio'))!.click();
+    fixture.detectChanges();
+
+    fixture.componentInstance.onRecorded(new File(['x'], 'recording.webm', { type: 'audio/webm' }));
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect((body.get('file') as File).name).toBe('recording.webm');
+  });
+});
+
 describe('UploadComponent speaker diarization (S11)', () => {
   let http: HttpTestingController;
 

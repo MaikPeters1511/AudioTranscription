@@ -119,6 +119,10 @@
       "language": "Language of the recording",
       "auto": "Detect automatically",
       "diarize": "Detect who is speaking (speaker diarization); runs fully offline and may take longer."
+    },
+    "tabs": {
+      "file": "Upload file",
+      "record": "Record audio"
     }
   },
   "toast": {
@@ -170,5 +174,22 @@
   "progress": {
     "label": "Transcription progress",
     "announce": "Transcription {{ percent }} % done"
+  },
+  "recorder": {
+    "start": "Start recording",
+    "stop": "Stop recording",
+    "preview": "Preview of the recording",
+    "transcribe": "Transcribe",
+    "discard": "Discard",
+    "maxDurationHint": "Keep the recording well under the {{ size }} upload limit.",
+    "status": {
+      "recording": "Recording…",
+      "stopped": "Recording stopped. Preview it, then transcribe or discard."
+    },
+    "error": {
+      "permissionDenied": "Microphone access was denied. Allow microphone access in your browser settings and try again.",
+      "unsupported": "This browser cannot record audio. Try Chrome, Firefox or Safari, or upload a file instead.",
+      "recordingFailed": "Recording failed unexpectedly. Please try again."
+    }
   }
 }

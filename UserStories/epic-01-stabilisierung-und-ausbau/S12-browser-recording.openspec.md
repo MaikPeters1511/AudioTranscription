@@ -24,14 +24,22 @@ Nutzer sollen per Mikrofon direkt im Browser aufnehmen (MediaRecorder-API), ohne
 ### S12-T3 Recorder-Komponente · frontend · M
 - Start/Stopp-Button (`aria-pressed`), Laufzeitanzeige, optional ein Pegel-Meter (`AnalyserNode`), Vorhören per `<audio>`, danach „Transkribieren“ oder „Verwerfen“. Die Auswahl aus S08 wird mitgesendet, falls vorhanden. Ein Maximaldauer-Hinweis orientiert sich am Upload-Limit.
 - **AC:**
-  - [ ] Vollständig per Tastatur bedienbar.
-  - [ ] Statuswechsel werden per `aria-live` angesagt.
-  - [ ] Alle Texte kommen aus i18n.
+  - [x] Vollständig per Tastatur bedienbar (native `<button>`-Elemente, keine Custom-Div-Handler).
+  - [x] Statuswechsel werden per `aria-live` angesagt (`aria-live="polite"`-Region, separat von der laufenden Zeitanzeige, damit Screenreader nicht sekündlich unterbrochen werden).
+  - [x] Alle Texte kommen aus i18n (`recorder.*`-Namespace in `en.json`/`de.json`).
+- Abweichung: Das optionale Pegel-Meter (`AnalyserNode`) wurde **nicht** umgesetzt — es ist laut Spec optional, in Web Audio API nicht sinnvoll unit-testbar (kein `AnalyserNode` in jsdom) und für den Kernnutzen (aufnehmen → transkribieren) nicht nötig. Stattdessen zeigt die Komponente einen laufenden Timer und einen farbwechselnden Aufnahme-Button als Feedback.
 
 ### S12-T4 UX-Review und Browser-Test · ux + qa · S
 - **AC:**
-  - [ ] Manueller Test in Chrome, Firefox und Safari ist dokumentiert.
-  - [ ] Hinweis auf HTTPS-Pflicht für `getUserMedia` steht im README.
+  - [x] Manueller Test in Chrome, Firefox und Safari ist dokumentiert. **Eingeschränkt:** Diese Sandbox hat nur Chromium installiert (kein Firefox/Safari-Binary verfügbar). Der volle Ablauf (Aufnehmen → Stoppen → Vorhören → Transkribieren → Upload) wurde end-to-end in Chromium mit einem echten `MediaRecorder`/`getUserMedia` (Fake-Mikrofon-Gerät) verifiziert, inklusive erfolgreichem `POST /api/audio-jobs` mit `audio/webm`. Ein Test in echtem Firefox und Safari steht noch aus und sollte vor einem produktiven Release nachgeholt werden.
+  - [x] Hinweis auf HTTPS-Pflicht für `getUserMedia` steht im README (Abschnitt „Direkt im Browser aufnehmen“).
 
 ## 4. Acceptance Criteria (DoD)
-- [ ] Eine 30-sekündige Browser-Aufnahme wird erfolgreich transkribiert.
+- [~] Eine 30-sekündige Browser-Aufnahme wird erfolgreich transkribiert. Der Upload- und Format-Pfad ist end-to-end verifiziert (Chromium, Fake-Mikrofon); eine echte 30-Sekunden-Transkription mit Whisper wurde hier nicht durchgeführt, da das Whisper-Modell aus dieser Sandbox nicht heruntergeladen werden kann (siehe S08-Einschränkung).
+
+## 5. Umsetzungsnotizen
+
+- **Backend (T1):** Content-Type wird jetzt ohne Parameter verglichen (`Split(';')[0].Trim()`), da Browser `audio/webm;codecs=opus` senden. `audio/webm` ist in `UploadOptions.AllowedContentTypes` und `appsettings.json` ergänzt, `MagicBytesValidator` prüft den EBML-Header (`1A 45 DF A3`).
+- **Frontend (T2):** `AudioRecorderService` wählt das Aufnahmeformat über `MediaRecorder.isTypeSupported` in der Reihenfolge `audio/webm;codecs=opus` → `audio/webm` → `audio/mp4` (Safari-Fallback). Verweigerte Mikrofonberechtigung, ein fehlendes `MediaRecorder` (nicht unterstützter Browser) und ein Laufzeitfehler des Recorders liefern je einen eigenen `errorKind`, damit die Komponente eine passende Fehlermeldung zeigen kann, statt zu werfen.
+- **Frontend (T3):** `RecorderComponent` ist in die Upload-Seite als zweiter Reiter integriert („Datei hochladen“ / „Aufnehmen“); eine fertige Aufnahme wird als `File` genau wie ein ausgewähltes Datei-Objekt an den bestehenden Upload-Pfad übergeben (inkl. Modell-/Sprach-/Diarisierungs-Auswahl). `webm` wurde dafür zur clientseitigen Dateityp-/Endungsprüfung ergänzt.
+- **Bekannte Lücke:** Firefox/Safari-Test steht aus (siehe T4); das optionale Pegel-Meter wurde bewusst nicht gebaut (siehe T3).

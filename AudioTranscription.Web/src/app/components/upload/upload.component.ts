@@ -9,14 +9,40 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
 import { languageName } from '../../i18n/language-names';
 import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
+import { RecorderComponent } from '../recorder/recorder.component';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, TranslocoPipe],
+  imports: [CommonModule, TranslocoPipe, RecorderComponent],
   template: `
     <div class="max-w-2xl mx-auto">
       <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
+
+      <div class="tabs tabs-boxed mb-6 w-fit" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.tab-active]="mode() === 'file'"
+          [attr.aria-selected]="mode() === 'file'"
+          [disabled]="uploading()"
+          (click)="mode.set('file')"
+        >
+          {{ 'upload.tabs.file' | transloco }}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.tab-active]="mode() === 'record'"
+          [attr.aria-selected]="mode() === 'record'"
+          [disabled]="uploading()"
+          (click)="mode.set('record')"
+        >
+          {{ 'upload.tabs.record' | transloco }}
+        </button>
+      </div>
 
       <!-- Transcription settings; without options from the server, its defaults apply -->
       @if (options(); as opts) {
@@ -72,59 +98,79 @@ import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.mode
         }
       }
 
-      <!-- Drop Zone -->
-      <div
-        class="border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300"
-        [class.border-primary]="isDragging()"
-        [class.bg-primary/5]="isDragging()"
-        [class.border-base-300]="!isDragging()"
-        [class.hover:border-primary]="!uploading()"
-        [class.cursor-pointer]="!uploading()"
-        [class.cursor-default]="uploading()"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="!uploading() && fileInput.click()"
-      >
-        @if (!uploading()) {
-          <div class="flex flex-col items-center gap-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <div>
-              <p class="text-lg font-medium">{{ 'upload.dropTitle' | transloco }}</p>
-              <p class="text-sm text-base-content/60 mt-1">{{ 'upload.dropHint' | transloco }}</p>
+      @if (mode() === 'file') {
+        <!-- Drop Zone -->
+        <div
+          class="border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300"
+          [class.border-primary]="isDragging()"
+          [class.bg-primary/5]="isDragging()"
+          [class.border-base-300]="!isDragging()"
+          [class.hover:border-primary]="!uploading()"
+          [class.cursor-pointer]="!uploading()"
+          [class.cursor-default]="uploading()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="!uploading() && fileInput.click()"
+        >
+          @if (!uploading()) {
+            <div class="flex flex-col items-center gap-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <div>
+                <p class="text-lg font-medium">{{ 'upload.dropTitle' | transloco }}</p>
+                <p class="text-sm text-base-content/60 mt-1">{{ 'upload.dropHint' | transloco }}</p>
+              </div>
+              <p class="text-xs text-base-content/40">{{ 'upload.formats' | transloco }}</p>
             </div>
-            <p class="text-xs text-base-content/40">{{ 'upload.formats' | transloco }}</p>
-          </div>
-        } @else {
-          <div class="flex flex-col items-center gap-4">
-            <span class="loading loading-spinner loading-lg text-primary"></span>
-            <div class="w-full max-w-xs">
-              <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
-              <progress
-                class="progress progress-primary w-full mt-2"
-                [value]="uploadProgress()"
-                max="100"
-                [attr.aria-label]="'upload.progress' | transloco"
-              ></progress>
-              <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
+          } @else {
+            <div class="flex flex-col items-center gap-4">
+              <span class="loading loading-spinner loading-lg text-primary"></span>
+              <div class="w-full max-w-xs">
+                <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
+                <progress
+                  class="progress progress-primary w-full mt-2"
+                  [value]="uploadProgress()"
+                  max="100"
+                  [attr.aria-label]="'upload.progress' | transloco"
+                ></progress>
+                <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
+              </div>
+              <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+                {{ 'upload.cancel' | transloco }}
+              </button>
             </div>
-            <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
-              {{ 'upload.cancel' | transloco }}
-            </button>
-          </div>
-        }
-      </div>
+          }
+        </div>
 
-      <input
-        #fileInput
-        type="file"
-        class="hidden"
-        [attr.aria-label]="'upload.dropZone' | transloco"
-        accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
-        (change)="onFileSelected($event)"
-      />
+        <input
+          #fileInput
+          type="file"
+          class="hidden"
+          [attr.aria-label]="'upload.dropZone' | transloco"
+          accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
+          (change)="onFileSelected($event)"
+        />
+      } @else if (uploading()) {
+        <div class="flex flex-col items-center gap-4 p-12">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+          <div class="w-full max-w-xs">
+            <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
+            <progress
+              class="progress progress-primary w-full mt-2"
+              [value]="uploadProgress()"
+              max="100"
+              [attr.aria-label]="'upload.progress' | transloco"
+            ></progress>
+          </div>
+          <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+            {{ 'upload.cancel' | transloco }}
+          </button>
+        </div>
+      } @else {
+        <app-recorder (recorded)="onRecorded($event)" />
+      }
 
       <!-- Error Message -->
       @if (errorMessage()) {
@@ -156,6 +202,7 @@ export class UploadComponent implements OnInit {
   private transloco = inject(TranslocoService);
   private uploadSubscription?: Subscription;
 
+  mode = signal<'file' | 'record'>('file');
   isDragging = signal(false);
   uploading = signal(false);
   uploadProgress = signal(0);
@@ -178,7 +225,7 @@ export class UploadComponent implements OnInit {
   private readonly maxSize = 10_485_760; // 10 MB
   private readonly allowedTypes = [
     'audio/mpeg', 'audio/wav', 'audio/x-wav',
-    'audio/mp4', 'audio/x-m4a', 'audio/ogg',
+    'audio/mp4', 'audio/x-m4a', 'audio/ogg', 'audio/webm',
   ];
 
   ngOnInit(): void {
@@ -224,6 +271,11 @@ export class UploadComponent implements OnInit {
       this.processFile(input.files[0]);
       input.value = '';
     }
+  }
+
+  /** A take recorded directly in the browser (S12) is uploaded exactly like a picked file. */
+  onRecorded(file: File): void {
+    this.processFile(file);
   }
 
   cancelUpload(event: Event): void {
@@ -281,6 +333,6 @@ export class UploadComponent implements OnInit {
 
   private isAllowedExtension(name: string): boolean {
     const ext = name.toLowerCase().split('.').pop();
-    return ['mp3', 'wav', 'm4a', 'ogg'].includes(ext || '');
+    return ['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(ext || '');
   }
 }

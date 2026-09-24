@@ -119,6 +119,10 @@
       "language": "Sprache der Aufnahme",
       "auto": "Automatisch erkennen",
       "diarize": "Erkennen, wer spricht (Sprechererkennung); läuft vollständig offline und kann länger dauern."
+    },
+    "tabs": {
+      "file": "Datei hochladen",
+      "record": "Aufnehmen"
     }
   },
   "toast": {
@@ -170,5 +174,22 @@
   "progress": {
     "label": "Transkriptionsfortschritt",
     "announce": "Transkription zu {{ percent }} % fertig"
+  },
+  "recorder": {
+    "start": "Aufnahme starten",
+    "stop": "Aufnahme stoppen",
+    "preview": "Vorschau der Aufnahme",
+    "transcribe": "Transkribieren",
+    "discard": "Verwerfen",
+    "maxDurationHint": "Die Aufnahme sollte deutlich unter dem Upload-Limit von {{ size }} bleiben.",
+    "status": {
+      "recording": "Aufnahme läuft…",
+      "stopped": "Aufnahme gestoppt. Vorhören und dann transkribieren oder verwerfen."
+    },
+    "error": {
+      "permissionDenied": "Der Mikrofonzugriff wurde verweigert. Erlaube den Zugriff in den Browser-Einstellungen und versuche es erneut.",
+      "unsupported": "Dieser Browser kann keine Audioaufnahmen erstellen. Nutze Chrome, Firefox oder Safari, oder lade stattdessen eine Datei hoch.",
+      "recordingFailed": "Die Aufnahme ist unerwartet fehlgeschlagen. Bitte versuche es erneut."
+    }
   }
 }
