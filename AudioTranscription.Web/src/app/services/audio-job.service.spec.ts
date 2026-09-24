@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { AudioJobService } from './audio-job.service';
 import {
@@ -323,5 +323,42 @@ describe('AudioJobService transcript variants (S10)', () => {
 
     service.refreshVariant('job-1');
     http.expectOne('/api/audio-jobs/job-1/variants').flush([]);
+  });
+});
+
+describe('AudioJobService large file upload progress (S14)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  const file = () => new File(['ID3'], 'movie.mp4', { type: 'video/mp4' });
+
+  it('reports rising percentages as UploadProgress events arrive', () => {
+    const percentages: number[] = [];
+    service.uploadFile(file()).subscribe((result) => percentages.push(result.progress));
+
+    const req = http.expectOne('/api/audio-jobs');
+    req.event({ type: HttpEventType.UploadProgress, loaded: 50_000_000, total: 500_000_000 } as any);
+    req.event({ type: HttpEventType.UploadProgress, loaded: 250_000_000, total: 500_000_000 } as any);
+    req.event({ type: HttpEventType.UploadProgress, loaded: 500_000_000, total: 500_000_000 } as any);
+    req.flush({ id: 'job-1' });
+
+    expect(percentages).toEqual([0, 10, 50, 100, 100]);
+  });
+
+  it('resolves the created job id once the response arrives', () => {
+    let jobId: string | undefined;
+    service.uploadFile(file()).subscribe((result) => (jobId = result.jobId));
+
+    http.expectOne('/api/audio-jobs').flush({ id: 'job-42' });
+
+    expect(jobId).toBe('job-42');
   });
 });

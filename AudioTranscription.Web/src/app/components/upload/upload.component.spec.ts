@@ -64,8 +64,28 @@ describe('UploadComponent', () => {
     selectFile(fixture, new File(['x'], 'notes.txt', { type: 'text/plain' }));
 
     expect(fixture.nativeElement.textContent).toContain(
-      'Invalid file format. Allowed: MP3, WAV, M4A, OGG.',
+      'Invalid file format. Allowed: MP3, WAV, M4A, OGG, WebM, MP4, MKV, MOV.',
     );
+  });
+
+  it('uploads an MP4 video file (S14)', () => {
+    const fixture = render();
+
+    selectFile(fixture, new File(['ftyp'], 'meeting.mp4', { type: 'video/mp4' }));
+
+    const body = http.expectOne('/api/audio-jobs').request.body as FormData;
+    expect((body.get('file') as File).name).toBe('meeting.mp4');
+  });
+
+  it('rejects files above the 500 MB limit (S14)', () => {
+    const fixture = render();
+    const oversized = new File([new Uint8Array(1)], 'huge.mp3', { type: 'audio/mpeg' });
+    Object.defineProperty(oversized, 'size', { value: 500_000_001 });
+
+    selectFile(fixture, oversized);
+
+    expect(fixture.nativeElement.textContent).toContain('Maximum: 500 MB.');
+    http.expectNone('/api/audio-jobs');
   });
 
   it('offers labelled selects for model and language with server default and detection preselected', () => {

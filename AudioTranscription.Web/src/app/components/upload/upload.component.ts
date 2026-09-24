@@ -149,7 +149,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
           type="file"
           class="hidden"
           [attr.aria-label]="'upload.dropZone' | transloco"
-          accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
+          accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mkv,.mov,audio/mpeg,audio/wav,audio/mp4,audio/ogg,video/mp4,video/webm,video/x-matroska,video/quicktime"
           (change)="onFileSelected($event)"
         />
       } @else if (uploading()) {
@@ -222,10 +222,11 @@ export class UploadComponent implements OnInit {
     return (this.options()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
   });
 
-  private readonly maxSize = 10_485_760; // 10 MB
+  private readonly maxSize = 500_000_000; // S14: matches the API's Upload:MaxFileSizeBytes default
   private readonly allowedTypes = [
     'audio/mpeg', 'audio/wav', 'audio/x-wav',
     'audio/mp4', 'audio/x-m4a', 'audio/ogg', 'audio/webm',
+    'video/mp4', 'video/webm', 'video/x-matroska', 'video/quicktime',
   ];
 
   ngOnInit(): void {
@@ -333,6 +334,6 @@ export class UploadComponent implements OnInit {
 
   private isAllowedExtension(name: string): boolean {
     const ext = name.toLowerCase().split('.').pop();
-    return ['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(ext || '');
+    return ['mp3', 'wav', 'm4a', 'ogg', 'webm', 'mp4', 'mkv', 'mov'].includes(ext || '');
   }
 }
