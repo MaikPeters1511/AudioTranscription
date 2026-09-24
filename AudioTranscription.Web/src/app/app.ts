@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SignalRService } from './services/signalr.service';
 import { ToastComponent } from './components/toast/toast.component';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { LanguageService } from './i18n/language.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ToastComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, TranslocoPipe],
   template: `
     <div class="min-h-screen bg-base-100" [attr.data-theme]="theme()">
       <!-- Navbar -->
@@ -17,32 +19,54 @@ import { ToastComponent } from './components/toast/toast.component';
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-            Transkription
+            {{ 'app.name' | transloco }}
           </a>
         </div>
-        <div class="navbar-center hidden sm:flex">
+        <nav class="navbar-center hidden sm:flex" [attr.aria-label]="'app.nav.main' | transloco">
           <ul class="menu menu-horizontal px-1 gap-1">
             <li>
               <a routerLink="/upload" routerLinkActive="active" class="rounded-lg">
-                Upload
+                {{ 'app.nav.upload' | transloco }}
               </a>
             </li>
             <li>
               <a routerLink="/jobs" routerLinkActive="active" class="rounded-lg">
-                Jobs
+                {{ 'app.nav.jobs' | transloco }}
               </a>
             </li>
           </ul>
-        </div>
+        </nav>
         <div class="navbar-end gap-2">
           <!-- SignalR Connection Status -->
-          <div class="tooltip tooltip-bottom" [attr.data-tip]="signalR.connected() ? 'Live verbunden' : 'Nicht verbunden'">
-            <div class="w-2 h-2 rounded-full" [class.bg-success]="signalR.connected()" [class.bg-error]="!signalR.connected()"></div>
+          <div class="tooltip tooltip-bottom" [attr.data-tip]="(signalR.connected() ? 'app.connection.live' : 'app.connection.offline') | transloco">
+            <div
+              class="w-2 h-2 rounded-full"
+              role="status"
+              [attr.aria-label]="(signalR.connected() ? 'app.connection.live' : 'app.connection.offline') | transloco"
+              [class.bg-success]="signalR.connected()"
+              [class.bg-error]="!signalR.connected()"
+            ></div>
           </div>
+
+          <!-- Language Switch -->
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm font-semibold"
+            (click)="language.toggle()"
+            [attr.aria-label]="'app.language.switch' | transloco"
+            [title]="'app.language.' + (language.current() === 'de' ? 'en' : 'de') | transloco"
+          >
+            {{ language.current().toUpperCase() }}
+          </button>
 
           <!-- Theme Toggle -->
           <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
-            <input type="checkbox" [checked]="theme() === 'dark'" (change)="toggleTheme()" />
+            <input
+              type="checkbox"
+              [checked]="theme() === 'dark'"
+              (change)="toggleTheme()"
+              [attr.aria-label]="'app.theme.toggle' | transloco"
+            />
             <!-- Sun -->
             <svg class="swap-off h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -61,13 +85,13 @@ import { ToastComponent } from './components/toast/toast.component';
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          <span class="btm-nav-label text-xs">Upload</span>
+          <span class="btm-nav-label text-xs">{{ 'app.nav.upload' | transloco }}</span>
         </a>
         <a routerLink="/jobs" routerLinkActive="active">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span class="btm-nav-label text-xs">Jobs</span>
+          <span class="btm-nav-label text-xs">{{ 'app.nav.jobs' | transloco }}</span>
         </a>
       </div>
 
@@ -83,6 +107,7 @@ import { ToastComponent } from './components/toast/toast.component';
 })
 export class App implements OnInit {
   signalR = inject(SignalRService);
+  language = inject(LanguageService);
   theme = signal<'light' | 'dark'>(
     (typeof localStorage !== 'undefined' && localStorage.getItem('theme') as 'light' | 'dark') || 'light'
   );

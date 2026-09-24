@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { ToastService } from '../../services/toast.service';
 import { CommonModule } from '@angular/common';
 import { animate, style, transition, trigger } from '@angular/animations';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-toast',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslocoPipe],
   template: `
     <div class="toast toast-bottom toast-end z-50 max-w-[90vw] sm:max-w-sm">
       @for (toast of toastService.toasts(); track toast.id) {
@@ -36,7 +37,7 @@ import { animate, style, transition, trigger } from '@angular/animations';
           <button
             class="btn btn-ghost btn-xs btn-circle"
             (click)="toastService.remove(toast.id)"
-            aria-label="Schließen"
+            [attr.aria-label]="'toast.close' | transloco"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

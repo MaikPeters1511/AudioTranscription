@@ -30,6 +30,9 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* The UI language follows the browser language (ADR 0002); the E2E tests assert German texts. */
+    locale: 'de-DE',
   },
 
   /* Configure projects for major browsers */

@@ -48,7 +48,7 @@ Das Epic bündelt 16 Stories in drei Phasen. Jede Story ist in kleine Tasks (XS�
 **Reihenfolge:** CI (S16) wird vorgezogen, damit jede folgende Änderung automatisch geprüft wird. S04 und S06 ändern beide das Datenmodell und sollten deshalb nacheinander umgesetzt werden, nicht parallel.
 
 ## 3. Übergreifende Voraussetzungen (Enabler)
-- **EN-1 i18n-Grundgerüst im Frontend (#3):** `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
+- **EN-1 i18n-Grundgerüst im Frontend (#3):** ✅ Umgesetzt mit Transloco, siehe [ADR 0002](../../docs/adr/0002-frontend-i18n-mit-transloco.md). `AudioTranscription.Web` hat aktuell keine i18n-Infrastruktur. Laut CLAUDE.md sind hartcodierte sichtbare Texte untersagt. Das Grundgerüst (DE/EN) muss deshalb vor der ersten Frontend-Task dieses Epics stehen. *Agent: frontend · Größe: M*
 - **EN-2 Frontend-Unit-Test-Infrastruktur (#93):** Im Web-Projekt fehlte ein `test`-Target, `ng test` schlug fehl (aufgefallen bei S16). ✅ Umgesetzt: `@angular/build:unit-test` mit Vitest 4 und jsdom, erste Specs, CI-Schritt. *Agent: frontend · Größe: S*
 
 ## 4. Offene Entscheidungen (vor Sprint-Start klären)

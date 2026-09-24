@@ -117,16 +117,17 @@ export class AudioJobService {
     });
   }
 
-  getStatusLabel(status: AudioJobStatus): string {
+  /** Translation key of the status label (see public/i18n). */
+  getStatusLabelKey(status: AudioJobStatus): string {
     switch (status) {
       case AudioJobStatus.Pending:
-        return 'Ausstehend';
+        return 'status.pending';
       case AudioJobStatus.Processing:
-        return 'Verarbeitung';
+        return 'status.processing';
       case AudioJobStatus.Completed:
-        return 'Abgeschlossen';
+        return 'status.completed';
       case AudioJobStatus.Failed:
-        return 'Fehlgeschlagen';
+        return 'status.failed';
     }
   }
 

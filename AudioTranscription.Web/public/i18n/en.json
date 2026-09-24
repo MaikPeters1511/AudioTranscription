@@ -1,0 +1,94 @@
+{
+  "app": {
+    "name": "Transcription",
+    "nav": {
+      "upload": "Upload",
+      "jobs": "Jobs",
+      "main": "Main navigation"
+    },
+    "connection": {
+      "live": "Live connected",
+      "offline": "Not connected"
+    },
+    "theme": {
+      "toggle": "Toggle color theme"
+    },
+    "language": {
+      "switch": "Change language",
+      "de": "Deutsch",
+      "en": "English"
+    }
+  },
+  "format": {
+    "dateTime": "yyyy-MM-dd HH:mm",
+    "dateTimeSeconds": "yyyy-MM-dd HH:mm:ss",
+    "time": "HH:mm:ss"
+  },
+  "status": {
+    "pending": "Pending",
+    "processing": "Processing",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "jobList": {
+    "title": "Transcriptions",
+    "pageTitle": "Transcriptions · Transcription",
+    "count": "{{ shown }} of {{ total }} entries",
+    "refresh": "Refresh",
+    "newFile": "New file",
+    "empty": "No transcriptions yet",
+    "emptyCta": "Upload your first audio file",
+    "columns": {
+      "fileName": "File name",
+      "size": "Size",
+      "status": "Status",
+      "language": "Language",
+      "duration": "Duration",
+      "created": "Created"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {{ page }}"
+    }
+  },
+  "jobDetail": {
+    "pageTitle": "{{ fileName }} · Transcription",
+    "back": "Back to list",
+    "language": "Language",
+    "languageUnknown": "Not detected",
+    "duration": "Duration",
+    "completedAt": "Completed",
+    "waiting": "Waiting for processing...",
+    "processing": "Transcribing...",
+    "liveHint": "The result will appear here automatically via live update.",
+    "failedTitle": "Transcription failed",
+    "unknownError": "Unknown error",
+    "transcript": "Transcript",
+    "stats": "{{ words }} words · {{ chars }} characters",
+    "download": "Download .txt",
+    "downloadStarted": "Download started",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "copiedToast": "Transcript copied to clipboard",
+    "notFound": "Job not found."
+  },
+  "upload": {
+    "title": "Upload audio",
+    "pageTitle": "Upload · Transcription",
+    "dropTitle": "Drag an audio file here",
+    "dropHint": "or click to select one",
+    "formats": "MP3, WAV, M4A, OGG • Max. 10 MB",
+    "dropZone": "Select or drop an audio file",
+    "progress": "Upload progress",
+    "cancel": "Cancel",
+    "cancelled": "Upload cancelled",
+    "tooLarge": "File is too large ({{ size }}). Maximum: 10 MB.",
+    "invalidType": "Invalid file format. Allowed: MP3, WAV, M4A, OGG.",
+    "success": "Upload successful! Processing started.",
+    "failed": "Upload failed."
+  },
+  "toast": {
+    "close": "Close"
+  }
+}

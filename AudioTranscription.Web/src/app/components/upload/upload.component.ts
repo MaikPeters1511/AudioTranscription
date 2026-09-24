@@ -1,18 +1,19 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { PageTitleService } from '../../i18n/page-title.service';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslocoPipe],
   template: `
     <div class="max-w-2xl mx-auto">
-      <h1 class="text-3xl font-bold mb-6">Audio hochladen</h1>
+      <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
 
       <!-- Drop Zone -->
       <div
@@ -34,10 +35,10 @@ import { ToastService } from '../../services/toast.service';
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <div>
-              <p class="text-lg font-medium">Audiodatei hierher ziehen</p>
-              <p class="text-sm text-base-content/60 mt-1">oder klicken zum Auswählen</p>
+              <p class="text-lg font-medium">{{ 'upload.dropTitle' | transloco }}</p>
+              <p class="text-sm text-base-content/60 mt-1">{{ 'upload.dropHint' | transloco }}</p>
             </div>
-            <p class="text-xs text-base-content/40">MP3, WAV, M4A, OGG • Max. 10 MB</p>
+            <p class="text-xs text-base-content/40">{{ 'upload.formats' | transloco }}</p>
           </div>
         } @else {
           <div class="flex flex-col items-center gap-4">
@@ -48,11 +49,12 @@ import { ToastService } from '../../services/toast.service';
                 class="progress progress-primary w-full mt-2"
                 [value]="uploadProgress()"
                 max="100"
+                [attr.aria-label]="'upload.progress' | transloco"
               ></progress>
               <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
             </div>
             <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
-              Abbrechen
+              {{ 'upload.cancel' | transloco }}
             </button>
           </div>
         }
@@ -62,6 +64,7 @@ import { ToastService } from '../../services/toast.service';
         #fileInput
         type="file"
         class="hidden"
+        [attr.aria-label]="'upload.dropZone' | transloco"
         accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
         (change)="onFileSelected($event)"
       />
@@ -92,7 +95,8 @@ export class UploadComponent implements OnInit {
   private audioJobService = inject(AudioJobService);
   private router = inject(Router);
   private toastService = inject(ToastService);
-  private titleService = inject(Title);
+  private pageTitle = inject(PageTitleService);
+  private transloco = inject(TranslocoService);
   private uploadSubscription?: Subscription;
 
   isDragging = signal(false);
@@ -109,7 +113,7 @@ export class UploadComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.titleService.setTitle('Upload · Transkription');
+    this.pageTitle.set('upload.pageTitle');
   }
 
   onDragOver(event: DragEvent): void {
@@ -150,7 +154,7 @@ export class UploadComponent implements OnInit {
     this.uploadSubscription?.unsubscribe();
     this.uploading.set(false);
     this.uploadProgress.set(0);
-    this.toastService.show('Upload abgebrochen', 'info');
+    this.toastService.show(this.transloco.translate('upload.cancelled'), 'info');
   }
 
   private processFile(file: File): void {
@@ -160,15 +164,13 @@ export class UploadComponent implements OnInit {
     // Client-side validation
     if (file.size > this.maxSize) {
       this.errorMessage.set(
-        `Datei ist zu groß (${this.audioJobService.formatFileSize(file.size)}). Maximum: 10 MB.`
+        this.transloco.translate('upload.tooLarge', { size: this.audioJobService.formatFileSize(file.size) })
       );
       return;
     }
 
     if (!this.allowedTypes.includes(file.type) && !this.isAllowedExtension(file.name)) {
-      this.errorMessage.set(
-        'Ungültiges Dateiformat. Erlaubt: MP3, WAV, M4A, OGG.'
-      );
+      this.errorMessage.set(this.transloco.translate('upload.invalidType'));
       return;
     }
 
@@ -181,13 +183,13 @@ export class UploadComponent implements OnInit {
         this.uploadProgress.set(event.progress);
         if (event.jobId) {
           this.uploading.set(false);
-          this.toastService.success('Upload erfolgreich! Verarbeitung gestartet.');
+          this.toastService.success(this.transloco.translate('upload.success'));
           this.router.navigate(['/jobs', event.jobId]);
         }
       },
       error: (err) => {
         this.uploading.set(false);
-        const detail = err.error?.detail || err.error?.title || 'Upload fehlgeschlagen.';
+        const detail = err.error?.detail || err.error?.title || this.transloco.translate('upload.failed');
         this.errorMessage.set(detail);
         this.toastService.error(detail);
       },

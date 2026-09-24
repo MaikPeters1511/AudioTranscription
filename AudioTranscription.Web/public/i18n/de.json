@@ -1,0 +1,94 @@
+{
+  "app": {
+    "name": "Transkription",
+    "nav": {
+      "upload": "Upload",
+      "jobs": "Jobs",
+      "main": "Hauptnavigation"
+    },
+    "connection": {
+      "live": "Live verbunden",
+      "offline": "Nicht verbunden"
+    },
+    "theme": {
+      "toggle": "Farbschema wechseln"
+    },
+    "language": {
+      "switch": "Sprache wechseln",
+      "de": "Deutsch",
+      "en": "English"
+    }
+  },
+  "format": {
+    "dateTime": "dd.MM.yyyy HH:mm",
+    "dateTimeSeconds": "dd.MM.yyyy HH:mm:ss",
+    "time": "HH:mm:ss"
+  },
+  "status": {
+    "pending": "Ausstehend",
+    "processing": "Verarbeitung",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen"
+  },
+  "jobList": {
+    "title": "Transkriptionen",
+    "pageTitle": "Transkriptionen · Transkription",
+    "count": "{{ shown }} von {{ total }} Einträgen",
+    "refresh": "Aktualisieren",
+    "newFile": "Neue Datei",
+    "empty": "Noch keine Transkriptionen vorhanden",
+    "emptyCta": "Erste Audiodatei hochladen",
+    "columns": {
+      "fileName": "Dateiname",
+      "size": "Größe",
+      "status": "Status",
+      "language": "Sprache",
+      "duration": "Dauer",
+      "created": "Erstellt"
+    },
+    "pagination": {
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "page": "Seite {{ page }}"
+    }
+  },
+  "jobDetail": {
+    "pageTitle": "{{ fileName }} · Transkription",
+    "back": "Zurück zur Liste",
+    "language": "Sprache",
+    "languageUnknown": "Nicht erkannt",
+    "duration": "Dauer",
+    "completedAt": "Abgeschlossen",
+    "waiting": "Warte auf Verarbeitung...",
+    "processing": "Transkription läuft...",
+    "liveHint": "Das Ergebnis erscheint hier automatisch via Live-Update.",
+    "failedTitle": "Transkription fehlgeschlagen",
+    "unknownError": "Unbekannter Fehler",
+    "transcript": "Transkript",
+    "stats": "{{ words }} Wörter · {{ chars }} Zeichen",
+    "download": "Download .txt",
+    "downloadStarted": "Download gestartet",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "copiedToast": "Transkript in die Zwischenablage kopiert",
+    "notFound": "Job nicht gefunden."
+  },
+  "upload": {
+    "title": "Audio hochladen",
+    "pageTitle": "Upload · Transkription",
+    "dropTitle": "Audiodatei hierher ziehen",
+    "dropHint": "oder klicken zum Auswählen",
+    "formats": "MP3, WAV, M4A, OGG • Max. 10 MB",
+    "dropZone": "Audiodatei auswählen oder hierher ziehen",
+    "progress": "Upload-Fortschritt",
+    "cancel": "Abbrechen",
+    "cancelled": "Upload abgebrochen",
+    "tooLarge": "Datei ist zu groß ({{ size }}). Maximum: 10 MB.",
+    "invalidType": "Ungültiges Dateiformat. Erlaubt: MP3, WAV, M4A, OGG.",
+    "success": "Upload erfolgreich! Verarbeitung gestartet.",
+    "failed": "Upload fehlgeschlagen."
+  },
+  "toast": {
+    "close": "Schließen"
+  }
+}

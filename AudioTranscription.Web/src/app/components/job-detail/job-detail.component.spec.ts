@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslocoService } from '@jsverse/transloco';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { JobDetailComponent } from './job-detail.component';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJob, AudioJobStatus } from '../../models/audio-job.model';
+import { translocoTesting } from '../../i18n/transloco-testing';
 
 const completedJob = (overrides: Partial<AudioJob>): AudioJob =>
   ({
@@ -22,7 +24,7 @@ describe('JobDetailComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [JobDetailComponent],
+      imports: [JobDetailComponent, translocoTesting('de')],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
     jobService = TestBed.inject(AudioJobService);
@@ -59,5 +61,16 @@ describe('JobDetailComponent', () => {
     );
 
     expect(fixture.nativeElement.textContent).not.toContain('teilweise');
+  });
+
+  it('renders labels in the active language', () => {
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    const fixture = render(completedJob({ rawTranscript: 'hello world' }));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Back to list');
+    expect(text).toContain('2 words · 11 characters');
+    expect(text).toContain('Completed');
+    expect(text).not.toContain('Zurück zur Liste');
   });
 });

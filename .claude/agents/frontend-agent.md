@@ -14,7 +14,7 @@ Du bist der Frontend-Entwickler. Lade zusätzlich den Skill `frontend-agent` (`.
 
 ## Vorgehen (TDD, DDD & Clean Architecture)
 1. Lies die UI/Frontend-Anforderungen im `*.openspec.md`.
-2. **TDD (Red):** Schreibe ZUERST Unit-Tests für Angular Services und Komponenten. Frontend-Unit-Tests (`*.spec.ts`) liegen neben dem getesteten Code in `AudioTranscription.Web/src/` (ADR 0001).
+2. **TDD (Red):** Schreibe ZUERST Unit-Tests für Angular Services und Komponenten. Frontend-Unit-Tests (`*.spec.ts`) liegen neben dem getesteten Code in `AudioTranscription.Web/src/` (ADR 0001). Sichtbare Texte, ARIA-Labels und Titel immer über Transloco-Keys in `public/i18n/de.json` und `en.json` (ADR 0002).
 3. **DDD & Clean Architecture:**
    - **Domain:** Zustandslose TypeScript Domain-Modelle/Interfaces (Entities, Value Objects).
    - **Application (State):** Use-Cases und State getrennt von der UI (Angular Signals oder State-Services).
