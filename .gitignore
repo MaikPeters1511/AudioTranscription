@@ -1,0 +1,92 @@
+# ---------------------------------------------------------------------------
+# User data – never commit uploads or transcripts (privacy, see UserStories S01)
+# ---------------------------------------------------------------------------
+temp-uploads/
+**/temp-uploads/
+*.mp3
+*.ogg
+*.wav
+*.m4a
+*.flac
+*.webm
+*.opus
+
+# Whisper GGML models (downloaded at runtime, several hundred MB)
+whisper-models/
+**/whisper-models/
+ggml-*.bin
+
+# ---------------------------------------------------------------------------
+# .NET build output
+# ---------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+publish/
+*.nupkg
+*.snupkg
+project.lock.json
+*.nuget.props
+*.nuget.targets
+
+# Test results & coverage
+[Tt]est[Rr]esult*/
+*.trx
+coverage/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# ---------------------------------------------------------------------------
+# IDEs and editors
+# ---------------------------------------------------------------------------
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ---------------------------------------------------------------------------
+# Node / Angular (details in AudioTranscription.Web/.gitignore)
+# ---------------------------------------------------------------------------
+node_modules/
+.angular/
+dist/
+npm-debug.log*
+yarn-error.log*
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# ---------------------------------------------------------------------------
+# Secrets & local configuration
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+*.pfx
+
+# ---------------------------------------------------------------------------
+# OS files
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
