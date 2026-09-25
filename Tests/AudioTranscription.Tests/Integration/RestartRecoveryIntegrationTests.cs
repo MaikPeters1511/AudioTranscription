@@ -45,7 +45,12 @@ public class RestartRecoveryIntegrationTests : IClassFixture<WebApplicationFacto
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName, _dbRoot));
 
             services.AddSingleton(transcription.Object);
-            services.Configure<UploadOptions>(o => o.TempStoragePath = _dir.Path);
+            services.Configure<UploadOptions>(o =>
+            {
+                o.TempStoragePath = _dir.Path;
+                // Independent of appsettings.Development.json's local-dev override (keeps uploads for the player)
+                o.DeleteAfterTranscription = true;
+            });
         }));
     }
 
