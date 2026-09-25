@@ -1,4 +1,5 @@
 using Whisper.net.Ggml;
+using Whisper.net.LibraryLoader;
 
 namespace AudioTranscription.Infrastructure.Services;
 
@@ -25,6 +26,12 @@ public class WhisperOptions
 
     /// <summary>Where downloaded models are kept; relative paths are resolved against the application directory.</summary>
     public string ModelsDirectory { get; set; } = "whisper-models";
+
+    /// <summary>
+    /// Preferred native runtime order (S15), named like <see cref="RuntimeLibrary"/> (e.g. "Cuda", "CoreML", "Cpu").
+    /// Empty keeps Whisper.net's own default order, which already ends in "Cpu" as a fallback.
+    /// </summary>
+    public string[] RuntimeOrder { get; set; } = [];
 
     /// <summary>
     /// Maps a requested model (case-insensitive, null or empty for the default) to its configured name.
@@ -60,5 +67,13 @@ public class WhisperOptions
         // Only plain names: Enum.TryParse would also accept numbers and comma-separated combinations
         return !string.IsNullOrEmpty(model) && char.IsAsciiLetter(model[0]) && model.All(char.IsAsciiLetterOrDigit) &&
                Enum.TryParse(model, ignoreCase: true, out type) && Enum.IsDefined(type);
+    }
+
+    /// <summary>The Whisper.net native runtime for a configured <see cref="RuntimeOrder"/> entry.</summary>
+    public static bool TryParseRuntimeLibrary(string? name, out RuntimeLibrary library)
+    {
+        library = default;
+        return !string.IsNullOrEmpty(name) && char.IsAsciiLetter(name[0]) && name.All(char.IsAsciiLetterOrDigit) &&
+               Enum.TryParse(name, ignoreCase: true, out library) && Enum.IsDefined(library);
     }
 }

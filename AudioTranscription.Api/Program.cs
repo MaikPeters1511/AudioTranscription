@@ -37,6 +37,9 @@ builder.Services.AddOptions<WhisperOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<WhisperOptions>, WhisperOptionsValidator>();
 builder.Services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
+// Must start before JobRecoveryService/TranscriptionWorker: applies Whisper:RuntimeOrder (S15)
+// before the first model load can happen.
+builder.Services.AddHostedService<WhisperRuntimeConfigurator>();
 
 // Speaker diarization (S11, ADR 0004): optional, needs local ONNX models the operator supplies
 builder.Services.AddOptions<DiarizationOptions>()

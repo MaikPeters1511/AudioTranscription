@@ -28,6 +28,9 @@ public partial class WhisperOptionsValidator : IValidateOptions<WhisperOptions>
         if (string.IsNullOrWhiteSpace(options.ModelsDirectory))
             errors.Add("Whisper:ModelsDirectory must not be empty.");
 
+        foreach (var runtime in options.RuntimeOrder.Where(r => !WhisperOptions.TryParseRuntimeLibrary(r, out _)))
+            errors.Add($"Whisper:RuntimeOrder contains '{runtime}', which is not a Whisper.net runtime library (Cpu, Cuda, Cuda12, Vulkan, CoreML, OpenVino, CpuNoAvx).");
+
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }

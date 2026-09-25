@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Whisper.net;
 using Whisper.net.Ggml;
+using Whisper.net.LibraryLoader;
 
 namespace AudioTranscription.Infrastructure.Services;
 
@@ -107,7 +108,10 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             _logger.LogInformation("Using existing Whisper model at {Path}", modelPath);
         }
 
-        return WhisperFactory.FromPath(modelPath);
+        var factory = WhisperFactory.FromPath(modelPath);
+        // S15: only known after the native library actually loads (lazy, on first model use)
+        _logger.LogInformation("Whisper native runtime in use: {Runtime}", RuntimeOptions.LoadedLibrary);
+        return factory;
     }
 
     public async ValueTask DisposeAsync()

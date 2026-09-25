@@ -97,4 +97,48 @@ public class WhisperOptionsTests
     [InlineData("german")]
     public void TryResolveLanguage_WithUnsupportedLanguage_Fails(string requested) =>
         ValidOptions().TryResolveLanguage(requested, out _).Should().BeFalse();
+
+    // --- runtime order (S15) ---------------------------------------------------
+
+    [Fact]
+    public void Validate_WithoutRuntimeOrder_Succeeds() =>
+        IsValid(ValidOptions()).Should().BeTrue();
+
+    [Theory]
+    [InlineData("Cuda")]
+    [InlineData("cuda")]
+    [InlineData("Cuda12")]
+    [InlineData("Vulkan")]
+    [InlineData("CoreML")]
+    [InlineData("OpenVino")]
+    [InlineData("Cpu")]
+    [InlineData("CpuNoAvx")]
+    public void Validate_WithKnownRuntimeOrderEntries_Succeeds(string runtime)
+    {
+        var options = ValidOptions();
+        options.RuntimeOrder = [runtime, "Cpu"];
+
+        IsValid(options).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Metal")]     // not a Whisper.net.LibraryLoader.RuntimeLibrary value
+    [InlineData("")]
+    [InlineData("Cuda,Cpu")]  // Enum.TryParse would accept a comma-separated combination; must be rejected
+    public void Validate_WithUnknownRuntimeOrderEntry_Fails(string runtime)
+    {
+        var options = ValidOptions();
+        options.RuntimeOrder = [runtime];
+
+        IsValid(options).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Cuda", true)]
+    [InlineData("cpu", true)]
+    [InlineData("CORE ML", false)]
+    [InlineData("Metal", false)]
+    [InlineData("", false)]
+    public void TryParseRuntimeLibrary_ParsesKnownWhisperNetRuntimes(string name, bool expected) =>
+        WhisperOptions.TryParseRuntimeLibrary(name, out _).Should().Be(expected);
 }
