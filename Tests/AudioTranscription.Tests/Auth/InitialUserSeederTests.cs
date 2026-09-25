@@ -22,7 +22,9 @@ public class InitialUserSeederTests : IDisposable
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddIdentityCore<IdentityUser>().AddEntityFrameworkStores<AppDbContext>();
+        services.AddIdentityCore<IdentityUser>()
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<AppDbContext>();
         _provider = services.BuildServiceProvider();
     }
 
@@ -37,6 +39,21 @@ public class InitialUserSeederTests : IDisposable
         return await scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>().Users.ToListAsync();
     }
 
+    private async Task<List<string>> RolesForAsync(string email)
+    {
+        using var scope = _provider.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await users.Users.SingleAsync(u => u.Email == email);
+        return [.. await users.GetRolesAsync(user)];
+    }
+
+    private async Task<int> RoleCountAsync(string roleName)
+    {
+        using var scope = _provider.CreateScope();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        return await roles.Roles.CountAsync(r => r.Name == roleName);
+    }
+
     [Fact]
     public async Task CreatesConfiguredUser_WhenNoUserExists()
     {
@@ -49,6 +66,27 @@ public class InitialUserSeederTests : IDisposable
         using var scope = _provider.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         (await users.CheckPasswordAsync(user, _password)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AssignsAdminRole_ToTheInitialUser()
+    {
+        await CreateSut("admin@example.com", _password).StartAsync(CancellationToken.None);
+
+        (await RolesForAsync("admin@example.com")).Should().ContainSingle().Which.Should().Be(Roles.Admin);
+        (await RoleCountAsync(Roles.Admin)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DoesNotDuplicateTheAdminRole_WhenSeederRunsAgainAfterAUserExists()
+    {
+        await CreateSut("first@example.com", _password).StartAsync(CancellationToken.None);
+
+        // Simulates the hosted service starting again (e.g. app restart); must stay idempotent.
+        await CreateSut("first@example.com", _password).StartAsync(CancellationToken.None);
+
+        (await RoleCountAsync(Roles.Admin)).Should().Be(1);
+        (await RolesForAsync("first@example.com")).Should().Equal(Roles.Admin);
     }
 
     [Fact]

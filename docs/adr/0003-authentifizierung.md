@@ -30,3 +30,7 @@ API und SignalR-Hub waren anonym erreichbar. Mit den geplanten Aktionen aus S09 
 - Das Frontend braucht Login-Seite, Route-Guard und einen 401-Interceptor. SignalR verbindet sich erst nach dem Login.
 - Integrationstests authentifizieren sich über einen Test-Auth-Handler.
 - Cookie und `SameSite=Strict` setzen voraus, dass Frontend und API unter derselben Site laufen. Das ist über den Dev-Proxy bzw. nginx gegeben.
+
+## Ergänzung (2026-09-25): Admin-Rolle für den initialen Benutzer
+
+Der `InitialUserSeeder` (siehe Punkt 5) legt jetzt zusätzlich die Rolle `Admin` an (idempotent über `RoleManager<IdentityRole>`) und weist sie dem ersten Benutzer zu. `IdentityDbContext<IdentityUser>` nutzt implizit bereits `IdentityRole` als Rollentyp; die Tabellen (`AspNetRoles`, `AspNetUserRoles`) existieren seit der `AddIdentity`-Migration. Es gibt aktuell keine Endpoints, die die Rolle prüfen – Punkt 4 (gemeinsame Jobs für alle angemeldeten Benutzer) bleibt unverändert. Die Rolle ist die Grundlage für zukünftige administrative Aktionen (z.B. Benutzerverwaltung), ohne das Passwort-Handling zu ändern: Es kommt weiterhin ausschließlich aus `Auth:InitialUser:Password` (User-Secrets/Umgebungsvariable), niemals aus dem Code.

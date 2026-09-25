@@ -29,13 +29,20 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 
 ## 🔑 Anmeldung
 
-Die App ist nur nach Login nutzbar. Sie verwendet lokale Konten (ASP.NET Core Identity, [ADR 0003](docs/adr/0003-authentifizierung.md)), alle angemeldeten Benutzer sehen dieselben Jobs. Eine Selbst-Registrierung ist standardmäßig **aus**. Der erste Benutzer wird beim Start aus der Konfiguration angelegt, sofern noch keiner existiert:
+Die App ist nur nach Login nutzbar. Sie verwendet lokale Konten (ASP.NET Core Identity, [ADR 0003](docs/adr/0003-authentifizierung.md)), alle angemeldeten Benutzer sehen dieselben Jobs. Eine Selbst-Registrierung ist standardmäßig **aus**.
+
+### Initialer Admin-Account
+
+Der `InitialUserSeeder` (`AudioTranscription.Api/Auth/InitialUserSeeder.cs`) legt beim Start automatisch den ersten Benutzer an — aber **nur**, solange noch kein User existiert (idempotent, läuft also bei jedem weiteren Start folgenlos durch) und **nur**, wenn Zugangsdaten konfiguriert sind. Aus Sicherheitsgründen gibt es bewusst **kein hardcodiertes Standardpasswort**: Fehlen E-Mail oder Passwort, loggt der Seeder lediglich eine Warnung und legt kein Konto an. Der angelegte Account erhält automatisch die `Admin`-Rolle (`RoleManager<IdentityRole>`).
+
+Die Zugangsdaten werden ausschließlich aus der Konfiguration gelesen (`Auth:InitialUser:Email` / `Auth:InitialUser:Password`), je nach Umgebung wie folgt gesetzt:
 
 | Umgebung | So setzt du den ersten Benutzer |
 |---|---|
-| Aspire | `dotnet user-secrets set "Parameters:initial-user-email" "du@example.com" --project AudioTranscription.AppHost` und ebenso `Parameters:initial-user-password`. Fehlen die Werte, fragt das Aspire-Dashboard nach. |
+| Aspire | `dotnet user-secrets set "Parameters:initial-user-email" "du@example.com" --project AudioTranscription.AppHost` und ebenso `Parameters:initial-user-password`. Fehlen die Werte, fragt das Aspire-Dashboard nach. Im AppHost (`AudioTranscription.AppHost/Program.cs`) werden diese Parameter — das Passwort als `secret: true` — an die API als `Auth__InitialUser__Email`/`Auth__InitialUser__Password` durchgereicht. |
 | docker compose | `.env.example` nach `.env` kopieren (wird nicht committet) und `INITIAL_USER_EMAIL`/`INITIAL_USER_PASSWORD` setzen |
-| API direkt | Umgebungsvariablen `Auth__InitialUser__Email` und `Auth__InitialUser__Password` oder User-Secrets des API-Projekts |
+| API direkt / lokale Entwicklung | User-Secrets des API-Projekts setzen: <br>`dotnet user-secrets set "Auth:InitialUser:Email" "admin@example.com" --project AudioTranscription.Api` <br>`dotnet user-secrets set "Auth:InitialUser:Password" "<dein-passwort>" --project AudioTranscription.Api` |
+| Produktion / Container (ohne Aspire) | Umgebungsvariablen `Auth__InitialUser__Email` und `Auth__InitialUser__Password` setzen (Doppel-Unterstrich als Trenner, ASP.NET-Core-Konvention für verschachtelte Konfigurationswerte) |
 
 - **Passwortregeln:** Es gelten die Standardregeln von Identity (mindestens 6 Zeichen, Groß- und Kleinbuchstabe, Ziffer, Sonderzeichen). Erfüllt das Passwort sie nicht, wird kein Konto angelegt, und das Log nennt den Grund.
 - **Weitere Konten:** Über `Auth:AllowRegistration=true` lässt sich `POST /api/auth/register` vorübergehend freischalten.
