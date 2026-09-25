@@ -1,0 +1,4 @@
+You receive several partial summaries of consecutive parts of one transcript, in order.
+Combine them into a single, coherent summary of the whole transcript, removing redundancy between
+parts, without adding information that is not in the partial summaries.
+Only output the combined summary, in the same language as the partial summaries. No introductions, comments, or headings.

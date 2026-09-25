@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    build:
+      context: ./docker/mssql-fts
     container_name: audio-transcription-sql
     environment:
       - ACCEPT_EULA=Y
@@ -21,8 +22,42 @@ services:
       - sql
     environment:
       - ConnectionStrings__transcriptiondb=Server=sql;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+      # First login (ADR 0003); set in a local, git-ignored .env file
+      - Auth__InitialUser__Email=${INITIAL_USER_EMAIL:-}
+      - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
+      # S14: single source of truth for the upload size limit, also used by the web service below
+      - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
     ports:
       - "8080:8080"
+    volumes:
+      - api-uploads:/app/uploads
+
+  # S15-T3: GPU-accelerated variant, opt-in via `docker compose --profile gpu up api-gpu`.
+  # Runs alongside the default "api" service (different host port) rather than replacing it, so
+  # the default `docker compose up` flow keeps working unchanged without a GPU.
+  api-gpu:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: AudioTranscription.Api/Dockerfile
+      target: final-cuda
+    container_name: audio-transcription-api-gpu
+    depends_on:
+      - sql
+    environment:
+      - ConnectionStrings__transcriptiondb=Server=sql;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+      - Auth__InitialUser__Email=${INITIAL_USER_EMAIL:-}
+      - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
+      - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    ports:
+      - "8081:8080"
     volumes:
       - api-uploads:/app/uploads
 
@@ -33,6 +68,9 @@ services:
     container_name: audio-transcription-web
     depends_on:
       - api
+    environment:
+      # S14: derived from the same UPLOAD_MAX_FILE_SIZE_MB value as the api service above
+      - NGINX_CLIENT_MAX_BODY_SIZE=${UPLOAD_MAX_FILE_SIZE_MB:-500}M
     ports:
       - "80:80"
 

@@ -1,0 +1,206 @@
+{
+  "app": {
+    "name": "Transkription",
+    "nav": {
+      "upload": "Upload",
+      "jobs": "Jobs",
+      "main": "Hauptnavigation",
+      "search": "Suche"
+    },
+    "connection": {
+      "live": "Live verbunden",
+      "offline": "Nicht verbunden"
+    },
+    "theme": {
+      "toggle": "Farbschema wechseln"
+    },
+    "language": {
+      "switch": "Sprache wechseln",
+      "de": "Deutsch",
+      "en": "English"
+    }
+  },
+  "format": {
+    "dateTime": "dd.MM.yyyy HH:mm",
+    "dateTimeSeconds": "dd.MM.yyyy HH:mm:ss",
+    "time": "HH:mm:ss"
+  },
+  "status": {
+    "pending": "Ausstehend",
+    "processing": "Verarbeitung",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen"
+  },
+  "jobList": {
+    "title": "Transkriptionen",
+    "pageTitle": "Transkriptionen · Transkription",
+    "count": "{{ shown }} von {{ total }} Einträgen",
+    "refresh": "Aktualisieren",
+    "newFile": "Neue Datei",
+    "empty": "Noch keine Transkriptionen vorhanden",
+    "emptyCta": "Erste Audiodatei hochladen",
+    "columns": {
+      "fileName": "Dateiname",
+      "size": "Größe",
+      "status": "Status",
+      "language": "Sprache",
+      "duration": "Dauer",
+      "created": "Erstellt",
+      "actions": "Aktionen"
+    },
+    "pagination": {
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "page": "Seite {{ page }}"
+    }
+  },
+  "jobDetail": {
+    "pageTitle": "{{ fileName }} · Transkription",
+    "back": "Zurück zur Liste",
+    "language": "Sprache",
+    "languageUnknown": "Nicht erkannt",
+    "languageRequested": "Beim Upload vorgegeben",
+    "languageDetected": "Automatisch erkannt",
+    "model": "Modell",
+    "duration": "Dauer",
+    "completedAt": "Abgeschlossen",
+    "waiting": "Warte auf Verarbeitung...",
+    "processing": "Transkription läuft...",
+    "liveHint": "Das Ergebnis erscheint hier automatisch via Live-Update.",
+    "failedTitle": "Transkription fehlgeschlagen",
+    "unknownError": "Unbekannter Fehler",
+    "transcript": "Transkript",
+    "stats": "{{ words }} Wörter · {{ chars }} Zeichen",
+    "download": "Download .txt",
+    "downloadStarted": "Download gestartet",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "copiedToast": "Transkript in die Zwischenablage kopiert",
+    "notFound": "Job nicht gefunden.",
+    "versions": {
+      "label": "Transkript-Fassung",
+      "processed": "Bearbeitet",
+      "raw": "Original",
+      "summary": "Zusammenfassung",
+      "bulletPoints": "Stichpunkte",
+      "actionItems": "Aufgaben",
+      "translate": "Übersetzung ({{ language }})"
+    },
+    "cancelledInfo": "Die Transkription wurde abgebrochen.",
+    "subtitles": {
+      "srt": "Untertitel als SRT herunterladen",
+      "vtt": "Untertitel als VTT herunterladen"
+    },
+    "variants": {
+      "title": "Weitere Fassungen",
+      "translate": "Übersetzen",
+      "translateLanguage": "Zielsprache",
+      "failed": "Erstellung fehlgeschlagen.",
+      "unknownError": "Unbekannter Fehler"
+    }
+  },
+  "upload": {
+    "title": "Audio hochladen",
+    "pageTitle": "Upload · Transkription",
+    "dropTitle": "Audiodatei hierher ziehen",
+    "dropHint": "oder klicken zum Auswählen",
+    "formats": "MP3, WAV, M4A, OGG, WebM, MP4, MKV, MOV • Max. 500 MB",
+    "dropZone": "Audio- oder Videodatei auswählen oder hierher ziehen",
+    "progress": "Upload-Fortschritt",
+    "cancel": "Abbrechen",
+    "cancelled": "Upload abgebrochen",
+    "tooLarge": "Datei ist zu groß ({{ size }}). Maximum: 500 MB.",
+    "invalidType": "Ungültiges Dateiformat. Erlaubt: MP3, WAV, M4A, OGG, WebM, MP4, MKV, MOV.",
+    "success": "Upload erfolgreich! Verarbeitung gestartet.",
+    "failed": "Upload fehlgeschlagen.",
+    "settings": {
+      "model": "Modell",
+      "modelHint": "Größere Modelle sind genauer, aber langsamer. Ein Modell wird beim ersten Einsatz heruntergeladen.",
+      "language": "Sprache der Aufnahme",
+      "auto": "Automatisch erkennen",
+      "diarize": "Erkennen, wer spricht (Sprechererkennung); läuft vollständig offline und kann länger dauern."
+    },
+    "tabs": {
+      "file": "Datei hochladen",
+      "record": "Aufnehmen"
+    }
+  },
+  "toast": {
+    "close": "Schließen"
+  },
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "pageTitle": "Anmelden · Transkription",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft...",
+      "failed": "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen."
+    },
+    "logout": "Abmelden",
+    "signedInAs": "Angemeldet als {{ email }}"
+  },
+  "jobActions": {
+    "cancel": "Abbrechen",
+    "retry": "Neu starten",
+    "delete": "Löschen",
+    "cancelFor": "Abbrechen: {{ fileName }}",
+    "retryFor": "Neu starten: {{ fileName }}",
+    "deleteFor": "Löschen: {{ fileName }}",
+    "cancelRequested": "Abbruch angefordert",
+    "retried": "Job neu gestartet",
+    "deleted": "Job gelöscht",
+    "retryGone": "Die hochgeladene Datei ist nicht mehr vorhanden. Bitte erneut hochladen.",
+    "failed": "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+    "confirmTitle": "Job löschen?",
+    "confirmText": "„{{ fileName }}“ wird samt Transkript und Audiodatei endgültig gelöscht.",
+    "confirmDelete": "Endgültig löschen",
+    "confirmAbort": "Behalten"
+  },
+  "player": {
+    "title": "Audio und Zeitstempel",
+    "audio": "Audiowiedergabe",
+    "segments": "Transkript mit Zeitstempeln, Klick springt zur Stelle",
+    "loading": "Zeitstempel werden geladen",
+    "noAudio": "Die Audiodatei ist nicht mehr vorhanden, sie wird nach erfolgreicher Transkription standardmäßig gelöscht. Die Zeitstempel bleiben erhalten.",
+    "noSegments": "Für dieses Transkript sind keine Zeitstempel vorhanden.",
+    "speakers": "Erkannte Sprecher, hier umbenennen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "renameSpeaker": "{{ name }} umbenennen",
+    "renameInputLabel": "Neuer Name für {{ name }}"
+  },
+  "progress": {
+    "label": "Transkriptionsfortschritt",
+    "announce": "Transkription zu {{ percent }} % fertig"
+  },
+  "recorder": {
+    "start": "Aufnahme starten",
+    "stop": "Aufnahme stoppen",
+    "preview": "Vorschau der Aufnahme",
+    "transcribe": "Transkribieren",
+    "discard": "Verwerfen",
+    "maxDurationHint": "Die Aufnahme sollte deutlich unter dem Upload-Limit von {{ size }} bleiben.",
+    "status": {
+      "recording": "Aufnahme läuft…",
+      "stopped": "Aufnahme gestoppt. Vorhören und dann transkribieren oder verwerfen."
+    },
+    "error": {
+      "permissionDenied": "Der Mikrofonzugriff wurde verweigert. Erlaube den Zugriff in den Browser-Einstellungen und versuche es erneut.",
+      "unsupported": "Dieser Browser kann keine Audioaufnahmen erstellen. Nutze Chrome, Firefox oder Safari, oder lade stattdessen eine Datei hoch.",
+      "recordingFailed": "Die Aufnahme ist unerwartet fehlgeschlagen. Bitte versuche es erneut."
+    }
+  },
+  "search": {
+    "pageTitle": "Suche · Transkription",
+    "landmark": "Transkripte durchsuchen",
+    "title": "Suche",
+    "label": "Alle Transkripte durchsuchen",
+    "hint": "Gib ein Wort ein, um alle Transkripte zu durchsuchen.",
+    "loading": "Suche läuft…",
+    "empty": "Keine Treffer für „{{ query }}“.",
+    "resultCount": "{{ count }} Treffer"
+  }
+}

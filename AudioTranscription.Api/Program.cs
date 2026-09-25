@@ -1,10 +1,16 @@
+using AudioTranscription.Api.Auth;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Endpoints;
 using AudioTranscription.Api.Hubs;
+using AudioTranscription.Api.Storage;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,41 +26,110 @@ builder.Services.Configure<UploadOptions>(
 
 // Register transcription services
 builder.Services.AddSingleton<TranscriptionQueue>();
-builder.Services.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
+builder.Services.AddSingleton<JobCancellationRegistry>();
+builder.Services.AddSingleton<JobProgressStore>();
+builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<Audio16kHzWavConverter>();
+// Singleton: loaded Whisper models are kept and shared between jobs
+builder.Services.AddOptions<WhisperOptions>()
+    .Bind(builder.Configuration.GetSection(WhisperOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<WhisperOptions>, WhisperOptionsValidator>();
+builder.Services.AddSingleton<ITranscriptionService, WhisperTranscriptionService>();
+// Must start before JobRecoveryService/TranscriptionWorker: applies Whisper:RuntimeOrder (S15)
+// before the first model load can happen.
+builder.Services.AddHostedService<WhisperRuntimeConfigurator>();
+
+// Speaker diarization (S11, ADR 0004): optional, needs local ONNX models the operator supplies
+builder.Services.AddOptions<DiarizationOptions>()
+    .Bind(builder.Configuration.GetSection(DiarizationOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<DiarizationOptions>, DiarizationOptionsValidator>();
+if (builder.Configuration.GetValue<bool>($"{DiarizationOptions.SectionName}:Enabled"))
+{
+    builder.Services.AddSingleton<IDiarizationService, SherpaOnnxDiarizationService>();
+}
+builder.Services.AddHostedService<InitialUserSeeder>();
+builder.Services.AddHostedService<OrphanedUploadCleanupService>();
+builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
 
-// Optional: Register Ollama post-processor if connection string is present
+// Optional: Register the LLM-backed variant generator (S10; formerly ITranscriptPostProcessor/S04)
+// if an Ollama connection string is present.
 var ollamaConnectionString = builder.Configuration.GetConnectionString("llama3.2");
 if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 {
     builder.Services.AddSingleton<Microsoft.Extensions.AI.IChatClient>(new Microsoft.Extensions.AI.OllamaChatClient(new Uri(ollamaConnectionString), "llama3.2"));
-    builder.Services.AddScoped<ITranscriptPostProcessor, OllamaPostProcessor>();
+    builder.Services.Configure<PostProcessingOptions>(builder.Configuration.GetSection(PostProcessingOptions.SectionName));
+    builder.Services.AddSingleton<IPostProcessingPromptCatalog, PostProcessingPromptCatalog>();
+    builder.Services.AddScoped<IVariantGenerator, OllamaVariantGenerator>();
+    builder.Services.AddSingleton<VariantQueue>();
+    builder.Services.AddHostedService<VariantRecoveryService>(); // must start before the worker
+    builder.Services.AddHostedService<VariantWorker>();
 }
 
 // Add SignalR
 builder.Services.AddSignalR();
 
-// Configure CORS for Angular frontend (SignalR needs AllowCredentials)
-builder.Services.AddCors(options =>
+// Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+    .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    // API: answer with status codes instead of redirecting to a login page
+    options.Events.OnRedirectToLogin = context =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
 });
 
-// Configure max request body size for file uploads
+// Every endpoint requires a signed-in user unless it explicitly allows anonymous access
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+// CORS only for explicitly configured origins; the frontend normally is same-origin via proxy/nginx
+builder.Services.AddCors();
+builder.Services.AddOptions<CorsOptions>().Configure<IConfiguration>((options, configuration) =>
+{
+    var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    options.AddDefaultPolicy(policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
+});
+
+// Upload:MaxFileSizeBytes (UploadOptions) is the single source for the request size limit (S14): Kestrel
+// and the multipart form parser are both derived from it here, with a fixed margin for the multipart
+// boundaries and the other form fields (model/language/diarize).
+const long UploadRequestOverheadBytes = 1_048_576; // 1 MiB
+var maxUploadFileSizeBytes = builder.Configuration.GetValue(
+    $"{UploadOptions.SectionName}:{nameof(UploadOptions.MaxFileSizeBytes)}", 500_000_000L);
+var maxUploadRequestBodySize = maxUploadFileSizeBytes + UploadRequestOverheadBytes;
+
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 15_000_000; // ~15MB to allow overhead
+    options.Limits.MaxRequestBodySize = maxUploadRequestBodySize;
+});
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxUploadRequestBodySize;
 });
 
 var app = builder.Build();
 
-// Ensure database is created via master connection (to avoid SQL Server Error 18456 State 38) and initialize schema
+// Ensure database is created via master connection (to avoid SQL Server Error 18456 State 38) and apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -98,17 +173,25 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.MigrateWithBaselineAsync(logger);
 }
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
+app.MapAuthEndpoints();
 
 // Map SignalR hub
 app.MapHub<TranscriptionHub>("/hubs/transcription");
 
 // Map API endpoints
 app.MapAudioJobEndpoints();
+app.MapTranscriptionOptionsEndpoints();
+app.MapTranscriptOutputEndpoints();
+app.MapVariantEndpoints();
+app.MapSpeakerEndpoints();
+app.MapSearchEndpoints();
 
 app.Run();
 public partial class Program { }

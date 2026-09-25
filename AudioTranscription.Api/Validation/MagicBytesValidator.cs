@@ -22,7 +22,14 @@ public static class MagicBytesValidator
         ["audio/mp4"] = [[0x00, 0x00, 0x00]],              // ftyp box (variable offset)
         ["audio/x-m4a"] = [[0x00, 0x00, 0x00]],
         // OGG: OggS
-        ["audio/ogg"] = [[0x4F, 0x67, 0x67, 0x53]]         // OggS
+        ["audio/ogg"] = [[0x4F, 0x67, 0x67, 0x53]],        // OggS
+        // WebM (MediaRecorder default in Chrome/Firefox, S12): EBML header
+        ["audio/webm"] = [[0x1A, 0x45, 0xDF, 0xA3]],
+        // Video containers (S14); only the audio track is extracted (ffmpeg "-vn")
+        ["video/mp4"] = [[0x00, 0x00, 0x00]],              // ftyp box (variable offset), like audio/mp4
+        ["video/quicktime"] = [[0x00, 0x00, 0x00]],        // .mov: also an ftyp/moov-based container
+        ["video/webm"] = [[0x1A, 0x45, 0xDF, 0xA3]],       // EBML header, like audio/webm
+        ["video/x-matroska"] = [[0x1A, 0x45, 0xDF, 0xA3]]  // .mkv: also EBML-based (Matroska)
     };
 
     /// <summary>
@@ -49,8 +56,8 @@ public static class MagicBytesValidator
                     return true;
             }
 
-            // Special check for M4A/MP4: look for 'ftyp' at offset 4
-            if (contentType is "audio/mp4" or "audio/x-m4a" && bytesRead >= 8)
+            // Special check for M4A/MP4/MOV: look for 'ftyp' at offset 4
+            if (contentType is "audio/mp4" or "audio/x-m4a" or "video/mp4" or "video/quicktime" && bytesRead >= 8)
             {
                 var ftypSignature = "ftyp"u8;
                 if (buffer.AsSpan(4, 4).SequenceEqual(ftypSignature))

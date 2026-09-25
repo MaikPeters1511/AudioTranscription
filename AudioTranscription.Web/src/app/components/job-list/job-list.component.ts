@@ -1,15 +1,18 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { Title } from '@angular/platform-browser';
 import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJobStatus } from '../../models/audio-job.model';
+import { JobActionsComponent } from '../job-actions/job-actions.component';
+import { JobProgressComponent } from '../job-progress/job-progress.component';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { PageTitleService } from '../../i18n/page-title.service';
 
 @Component({
   selector: 'app-job-list',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobProgressComponent],
   animations: [
     trigger('listAnimation', [
       transition('* <=> *', [
@@ -24,10 +27,10 @@ import { AudioJobStatus } from '../../models/audio-job.model';
     <div class="max-w-5xl mx-auto">
       <div class="flex items-center justify-between mb-6 gap-3">
         <div>
-          <h1 class="text-3xl font-bold">Transkriptionen</h1>
+          <h1 class="text-3xl font-bold">{{ 'jobList.title' | transloco }}</h1>
           @if (!jobService.loading() && jobService.jobs().length > 0) {
             <p class="text-sm text-base-content/50 mt-1">
-              {{ jobService.jobs().length }} von {{ jobService.totalCount() }} Einträgen
+              {{ 'jobList.count' | transloco: { shown: jobService.jobs().length, total: jobService.totalCount() } }}
             </p>
           }
         </div>
@@ -36,8 +39,8 @@ import { AudioJobStatus } from '../../models/audio-job.model';
             class="btn btn-ghost btn-circle btn-sm"
             [disabled]="jobService.loading()"
             (click)="refresh()"
-            aria-label="Aktualisieren"
-            title="Aktualisieren"
+            [attr.aria-label]="'jobList.refresh' | transloco"
+            [title]="'jobList.refresh' | transloco"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" [class.animate-spin]="jobService.loading()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -47,7 +50,7 @@ import { AudioJobStatus } from '../../models/audio-job.model';
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            Neue Datei
+            {{ 'jobList.newFile' | transloco }}
           </a>
         </div>
       </div>
@@ -65,8 +68,8 @@ import { AudioJobStatus } from '../../models/audio-job.model';
           <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
           </svg>
-          <p class="mt-4 text-lg text-base-content/50">Noch keine Transkriptionen vorhanden</p>
-          <a routerLink="/upload" class="btn btn-primary mt-4">Erste Audiodatei hochladen</a>
+          <p class="mt-4 text-lg text-base-content/50">{{ 'jobList.empty' | transloco }}</p>
+          <a routerLink="/upload" class="btn btn-primary mt-4">{{ 'jobList.emptyCta' | transloco }}</a>
         </div>
       } @else {
         <!-- Job Table (desktop) -->
@@ -74,12 +77,13 @@ import { AudioJobStatus } from '../../models/audio-job.model';
           <table class="table table-zebra">
             <thead>
               <tr class="bg-base-200">
-                <th>Dateiname</th>
-                <th>Größe</th>
-                <th>Status</th>
-                <th>Sprache</th>
-                <th>Dauer</th>
-                <th>Erstellt</th>
+                <th>{{ 'jobList.columns.fileName' | transloco }}</th>
+                <th>{{ 'jobList.columns.size' | transloco }}</th>
+                <th>{{ 'jobList.columns.status' | transloco }}</th>
+                <th>{{ 'jobList.columns.language' | transloco }}</th>
+                <th>{{ 'jobList.columns.duration' | transloco }}</th>
+                <th>{{ 'jobList.columns.created' | transloco }}</th>
+                <th><span class="sr-only">{{ 'jobList.columns.actions' | transloco }}</span></th>
                 <th></th>
               </tr>
             </thead>
@@ -93,12 +97,19 @@ import { AudioJobStatus } from '../../models/audio-job.model';
                       @if (job.status === AudioJobStatus.Processing) {
                         <span class="loading loading-spinner loading-xs mr-1"></span>
                       }
-                      {{ jobService.getStatusLabel(job.status) }}
+                      {{ jobService.getStatusLabelKey(job.status) | transloco }}
                     </span>
+                    @if (job.status === AudioJobStatus.Processing) {
+                      <app-job-progress class="block w-28 mt-1" [percent]="jobService.progressOf(job.id)" />
+                    }
                   </td>
                   <td class="text-sm">{{ job.language || '-' }}</td>
                   <td class="text-sm">{{ jobService.formatDuration(job.durationSeconds) }}</td>
-                  <td class="text-sm text-base-content/70">{{ job.createdAtUtc | date:'dd.MM.yyyy HH:mm' }}</td>
+                  <td class="text-sm text-base-content/70">{{ job.createdAtUtc | date: ('format.dateTime' | transloco) }}</td>
+                  <!-- Actions must not open the job (the row itself is a link) -->
+                  <td (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                    <app-job-actions [job]="job" [compact]="true" />
+                  </td>
                   <td>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -124,15 +135,18 @@ import { AudioJobStatus } from '../../models/audio-job.model';
                     @if (job.status === AudioJobStatus.Processing) {
                       <span class="loading loading-spinner loading-xs mr-1"></span>
                     }
-                    {{ jobService.getStatusLabel(job.status) }}
+                    {{ jobService.getStatusLabelKey(job.status) | transloco }}
                   </span>
                 </div>
+                @if (job.status === AudioJobStatus.Processing) {
+                  <app-job-progress [percent]="jobService.progressOf(job.id)" />
+                }
                 <div class="flex items-center gap-3 text-xs text-base-content/60">
                   <span>{{ jobService.formatFileSize(job.fileSizeBytes) }}</span>
                   <span>•</span>
                   <span>{{ jobService.formatDuration(job.durationSeconds) }}</span>
                   <span>•</span>
-                  <span>{{ job.createdAtUtc | date:'dd.MM.yyyy HH:mm' }}</span>
+                  <span>{{ job.createdAtUtc | date: ('format.dateTime' | transloco) }}</span>
                 </div>
               </div>
             </a>
@@ -147,18 +161,22 @@ import { AudioJobStatus } from '../../models/audio-job.model';
                 class="join-item btn btn-sm"
                 [disabled]="jobService.currentPage() <= 1"
                 (click)="jobService.loadJobs(jobService.currentPage() - 1)"
+                [attr.aria-label]="'jobList.pagination.previous' | transloco"
               >«</button>
               @for (page of pages(); track page) {
                 <button
                   class="join-item btn btn-sm"
                   [class.btn-active]="page === jobService.currentPage()"
                   (click)="jobService.loadJobs(page)"
+                  [attr.aria-label]="'jobList.pagination.page' | transloco: { page }"
+                  [attr.aria-current]="page === jobService.currentPage() ? 'page' : null"
                 >{{ page }}</button>
               }
               <button
                 class="join-item btn btn-sm"
                 [disabled]="jobService.currentPage() >= jobService.totalPages()"
                 (click)="jobService.loadJobs(jobService.currentPage() + 1)"
+                [attr.aria-label]="'jobList.pagination.next' | transloco"
               >»</button>
             </div>
           </div>
@@ -169,7 +187,7 @@ import { AudioJobStatus } from '../../models/audio-job.model';
 })
 export class JobListComponent implements OnInit {
   jobService = inject(AudioJobService);
-  private titleService = inject(Title);
+  private pageTitle = inject(PageTitleService);
   AudioJobStatus = AudioJobStatus;
 
   pages = () => {
@@ -178,7 +196,7 @@ export class JobListComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    this.titleService.setTitle('Transkriptionen · Transkription');
+    this.pageTitle.set('jobList.pageTitle');
     this.jobService.loadJobs();
   }
 

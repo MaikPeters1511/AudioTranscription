@@ -5,6 +5,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Prompts\*.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -16,9 +21,20 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.0" />
     <PackageReference Include="NAudio" Version="3.1.0" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
+    <PackageReference Include="Polly.Core" Version="8.6.6" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime.CoreML" Version="1.9.1" />
+  </ItemGroup>
+
+  <!--
+    S15-T3: the CUDA native runtime is opt-in via -p:IncludeCudaRuntime=true (set by the Docker
+    "-cuda" image's publish step) rather than always referenced, so a normal CPU build/image does
+    not carry CUDA's native libraries.
+  -->
+  <ItemGroup Condition="'$(IncludeCudaRuntime)' == 'true'">
+    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.1" />
   </ItemGroup>
 
   <PropertyGroup>

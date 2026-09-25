@@ -1,0 +1,4 @@
+You are summarizing a long transcript in parts because it does not fit in one request.
+This is part {{CHUNK_INDEX}} of {{CHUNK_COUNT}}. Summarize only this excerpt's content, concisely and
+without adding information. Do not refer to "this excerpt" or "this part" in your answer.
+Only output the partial summary, in the same language as the excerpt. No introductions, comments, or headings.

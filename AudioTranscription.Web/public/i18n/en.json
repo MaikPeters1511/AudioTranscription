@@ -1,0 +1,206 @@
+{
+  "app": {
+    "name": "Transcription",
+    "nav": {
+      "upload": "Upload",
+      "jobs": "Jobs",
+      "main": "Main navigation",
+      "search": "Search"
+    },
+    "connection": {
+      "live": "Live connected",
+      "offline": "Not connected"
+    },
+    "theme": {
+      "toggle": "Toggle color theme"
+    },
+    "language": {
+      "switch": "Change language",
+      "de": "Deutsch",
+      "en": "English"
+    }
+  },
+  "format": {
+    "dateTime": "yyyy-MM-dd HH:mm",
+    "dateTimeSeconds": "yyyy-MM-dd HH:mm:ss",
+    "time": "HH:mm:ss"
+  },
+  "status": {
+    "pending": "Pending",
+    "processing": "Processing",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "jobList": {
+    "title": "Transcriptions",
+    "pageTitle": "Transcriptions · Transcription",
+    "count": "{{ shown }} of {{ total }} entries",
+    "refresh": "Refresh",
+    "newFile": "New file",
+    "empty": "No transcriptions yet",
+    "emptyCta": "Upload your first audio file",
+    "columns": {
+      "fileName": "File name",
+      "size": "Size",
+      "status": "Status",
+      "language": "Language",
+      "duration": "Duration",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {{ page }}"
+    }
+  },
+  "jobDetail": {
+    "pageTitle": "{{ fileName }} · Transcription",
+    "back": "Back to list",
+    "language": "Language",
+    "languageUnknown": "Not detected",
+    "languageRequested": "Set at upload",
+    "languageDetected": "Detected automatically",
+    "model": "Model",
+    "duration": "Duration",
+    "completedAt": "Completed",
+    "waiting": "Waiting for processing...",
+    "processing": "Transcribing...",
+    "liveHint": "The result will appear here automatically via live update.",
+    "failedTitle": "Transcription failed",
+    "unknownError": "Unknown error",
+    "transcript": "Transcript",
+    "stats": "{{ words }} words · {{ chars }} characters",
+    "download": "Download .txt",
+    "downloadStarted": "Download started",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "copiedToast": "Transcript copied to clipboard",
+    "notFound": "Job not found.",
+    "versions": {
+      "label": "Transcript version",
+      "processed": "Edited",
+      "raw": "Original",
+      "summary": "Summary",
+      "bulletPoints": "Bullet points",
+      "actionItems": "Action items",
+      "translate": "Translation ({{ language }})"
+    },
+    "cancelledInfo": "The transcription was cancelled.",
+    "subtitles": {
+      "srt": "Download subtitles as SRT",
+      "vtt": "Download subtitles as VTT"
+    },
+    "variants": {
+      "title": "More versions",
+      "translate": "Translate",
+      "translateLanguage": "Target language",
+      "failed": "Generation failed.",
+      "unknownError": "Unknown error"
+    }
+  },
+  "upload": {
+    "title": "Upload audio",
+    "pageTitle": "Upload · Transcription",
+    "dropTitle": "Drag an audio file here",
+    "dropHint": "or click to select one",
+    "formats": "MP3, WAV, M4A, OGG, WebM, MP4, MKV, MOV • Max. 500 MB",
+    "dropZone": "Select or drop an audio or video file",
+    "progress": "Upload progress",
+    "cancel": "Cancel",
+    "cancelled": "Upload cancelled",
+    "tooLarge": "File is too large ({{ size }}). Maximum: 500 MB.",
+    "invalidType": "Invalid file format. Allowed: MP3, WAV, M4A, OGG, WebM, MP4, MKV, MOV.",
+    "success": "Upload successful! Processing started.",
+    "failed": "Upload failed.",
+    "settings": {
+      "model": "Model",
+      "modelHint": "Larger models are more accurate but slower. A model is downloaded the first time it is used.",
+      "language": "Language of the recording",
+      "auto": "Detect automatically",
+      "diarize": "Detect who is speaking (speaker diarization); runs fully offline and may take longer."
+    },
+    "tabs": {
+      "file": "Upload file",
+      "record": "Record audio"
+    }
+  },
+  "toast": {
+    "close": "Close"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "pageTitle": "Sign in · Transcription",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "failed": "Sign-in failed. Please check your email and password."
+    },
+    "logout": "Sign out",
+    "signedInAs": "Signed in as {{ email }}"
+  },
+  "jobActions": {
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "delete": "Delete",
+    "cancelFor": "Cancel: {{ fileName }}",
+    "retryFor": "Retry: {{ fileName }}",
+    "deleteFor": "Delete: {{ fileName }}",
+    "cancelRequested": "Cancellation requested",
+    "retried": "Job restarted",
+    "deleted": "Job deleted",
+    "retryGone": "The uploaded file is no longer available. Please upload it again.",
+    "failed": "Action failed. Please try again.",
+    "confirmTitle": "Delete job?",
+    "confirmText": "“{{ fileName }}” will be permanently deleted along with its transcript and audio file.",
+    "confirmDelete": "Delete permanently",
+    "confirmAbort": "Keep"
+  },
+  "player": {
+    "title": "Audio and timestamps",
+    "audio": "Audio playback",
+    "segments": "Transcript with timestamps, click to jump there",
+    "loading": "Loading timestamps",
+    "noAudio": "The audio file is no longer available; by default it is deleted after a successful transcription. The timestamps are kept.",
+    "noSegments": "No timestamps are available for this transcript.",
+    "speakers": "Detected speakers, rename them here",
+    "save": "Save",
+    "cancel": "Cancel",
+    "renameSpeaker": "Rename {{ name }}",
+    "renameInputLabel": "New name for {{ name }}"
+  },
+  "progress": {
+    "label": "Transcription progress",
+    "announce": "Transcription {{ percent }} % done"
+  },
+  "recorder": {
+    "start": "Start recording",
+    "stop": "Stop recording",
+    "preview": "Preview of the recording",
+    "transcribe": "Transcribe",
+    "discard": "Discard",
+    "maxDurationHint": "Keep the recording well under the {{ size }} upload limit.",
+    "status": {
+      "recording": "Recording…",
+      "stopped": "Recording stopped. Preview it, then transcribe or discard."
+    },
+    "error": {
+      "permissionDenied": "Microphone access was denied. Allow microphone access in your browser settings and try again.",
+      "unsupported": "This browser cannot record audio. Try Chrome, Firefox or Safari, or upload a file instead.",
+      "recordingFailed": "Recording failed unexpectedly. Please try again."
+    }
+  },
+  "search": {
+    "pageTitle": "Search · Transcription",
+    "landmark": "Search transcripts",
+    "title": "Search",
+    "label": "Search all transcripts",
+    "hint": "Type a word to search across all your transcripts.",
+    "loading": "Searching…",
+    "empty": "No results for \"{{ query }}\".",
+    "resultCount": "{{ count }} result(s)"
+  }
+}

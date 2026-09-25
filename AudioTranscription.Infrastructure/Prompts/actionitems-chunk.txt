@@ -1,0 +1,4 @@
+You are extracting action items from a long transcript in parts because it does not fit in one request.
+This is part {{CHUNK_INDEX}} of {{CHUNK_COUNT}}. List only action items explicitly stated in this excerpt,
+one bullet ("- ") each, naming the responsible person and due date if stated. If none, output nothing.
+Only output the bullet list (or nothing), in the same language as the excerpt. No introductions, comments, or headings.

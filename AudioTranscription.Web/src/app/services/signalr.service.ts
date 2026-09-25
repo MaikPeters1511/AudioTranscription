@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
-import { AudioJobListItem, AudioJobStatus } from '../models/audio-job.model';
+import { AudioJobListItem, AudioJobStatus, JobProgressEvent, VariantCompletedEvent } from '../models/audio-job.model';
 import { AudioJobService } from './audio-job.service';
 
 @Injectable({ providedIn: 'root' })
@@ -10,16 +10,27 @@ export class SignalRService {
   readonly connected = signal(false);
 
   start(baseUrl: string): void {
+    // Already connected or connecting (e.g. repeated sign-in state updates)
+    if (this.hubConnection && this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
+      return;
+    }
+
     // Construct hub URL from API base
     const hubUrl = `${baseUrl}/hubs/transcription`;
 
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl)
-      .withAutomaticReconnect()
+      // Keep retrying (backoff capped at 30 s) so the UI survives longer API restarts
+      .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: (ctx) => Math.min(30_000, 1_000 * 2 ** ctx.previousRetryCount),
+      })
       .build();
 
     this.hubConnection.onreconnecting(() => this.connected.set(false));
-    this.hubConnection.onreconnected(() => this.connected.set(true));
+    this.hubConnection.onreconnected(() => {
+      this.connected.set(true);
+      this.resync();
+    });
     this.hubConnection.onclose(() => this.connected.set(false));
 
     // Listen for job status updates
@@ -39,6 +50,18 @@ export class SignalRService {
       this.audioJobService.updateJobInList(job);
     });
 
+    this.hubConnection.on('JobProgress', (event: JobProgressEvent) => {
+      this.audioJobService.setProgress(event.jobId, event.percent);
+    });
+
+    this.hubConnection.on('VariantCompleted', (event: VariantCompletedEvent) => {
+      this.audioJobService.refreshVariant(event.jobId);
+    });
+
+    this.hubConnection.on('JobDeleted', (id: string) => {
+      this.audioJobService.removeJobFromList(id);
+    });
+
     this.hubConnection
       .start()
       .then(() => {
@@ -49,6 +72,19 @@ export class SignalRService {
         console.warn('SignalR connection failed, will use polling:', err);
         this.connected.set(false);
       });
+  }
+
+  /**
+   * Status events sent while disconnected (e.g. during an API restart, when interrupted jobs
+   * are recovered) are lost, so reload the list and the open job after reconnecting.
+   */
+  private resync(): void {
+    this.audioJobService.loadJobs(this.audioJobService.currentPage());
+
+    const selected = this.audioJobService.selectedJob();
+    if (selected) {
+      this.audioJobService.loadJob(selected.id, true);
+    }
   }
 
   stop(): void {

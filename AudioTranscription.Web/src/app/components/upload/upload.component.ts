@@ -1,70 +1,176 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { PageTitleService } from '../../i18n/page-title.service';
+import { languageName } from '../../i18n/language-names';
+import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
+import { RecorderComponent } from '../recorder/recorder.component';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslocoPipe, RecorderComponent],
   template: `
     <div class="max-w-2xl mx-auto">
-      <h1 class="text-3xl font-bold mb-6">Audio hochladen</h1>
+      <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
 
-      <!-- Drop Zone -->
-      <div
-        class="border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300"
-        [class.border-primary]="isDragging()"
-        [class.bg-primary/5]="isDragging()"
-        [class.border-base-300]="!isDragging()"
-        [class.hover:border-primary]="!uploading()"
-        [class.cursor-pointer]="!uploading()"
-        [class.cursor-default]="uploading()"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="!uploading() && fileInput.click()"
-      >
-        @if (!uploading()) {
-          <div class="flex flex-col items-center gap-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <div>
-              <p class="text-lg font-medium">Audiodatei hierher ziehen</p>
-              <p class="text-sm text-base-content/60 mt-1">oder klicken zum Auswählen</p>
-            </div>
-            <p class="text-xs text-base-content/40">MP3, WAV, M4A, OGG • Max. 10 MB</p>
-          </div>
-        } @else {
-          <div class="flex flex-col items-center gap-4">
-            <span class="loading loading-spinner loading-lg text-primary"></span>
-            <div class="w-full max-w-xs">
-              <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
-              <progress
-                class="progress progress-primary w-full mt-2"
-                [value]="uploadProgress()"
-                max="100"
-              ></progress>
-              <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
-            </div>
-            <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
-              Abbrechen
-            </button>
-          </div>
-        }
+      <div class="tabs tabs-boxed mb-6 w-fit" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.tab-active]="mode() === 'file'"
+          [attr.aria-selected]="mode() === 'file'"
+          [disabled]="uploading()"
+          (click)="mode.set('file')"
+        >
+          {{ 'upload.tabs.file' | transloco }}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.tab-active]="mode() === 'record'"
+          [attr.aria-selected]="mode() === 'record'"
+          [disabled]="uploading()"
+          (click)="mode.set('record')"
+        >
+          {{ 'upload.tabs.record' | transloco }}
+        </button>
       </div>
 
-      <input
-        #fileInput
-        type="file"
-        class="hidden"
-        accept=".mp3,.wav,.m4a,.ogg,audio/mpeg,audio/wav,audio/mp4,audio/ogg"
-        (change)="onFileSelected($event)"
-      />
+      <!-- Transcription settings; without options from the server, its defaults apply -->
+      @if (options(); as opts) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="flex flex-col gap-1">
+            <label for="upload-model" class="text-sm font-medium">{{ 'upload.settings.model' | transloco }}</label>
+            <select
+              id="upload-model"
+              class="select w-full"
+              aria-describedby="upload-model-hint"
+              [disabled]="uploading()"
+              [value]="selectedModel()"
+              (change)="selectedModel.set($any($event.target).value)"
+            >
+              @for (model of opts.models; track model) {
+                <option [value]="model" [selected]="model === selectedModel()">{{ model }}</option>
+              }
+            </select>
+            <p id="upload-model-hint" class="text-xs text-base-content/60">{{ 'upload.settings.modelHint' | transloco }}</p>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="upload-language" class="text-sm font-medium">{{ 'upload.settings.language' | transloco }}</label>
+            <select
+              id="upload-language"
+              class="select w-full"
+              [disabled]="uploading()"
+              [value]="selectedLanguage()"
+              (change)="selectedLanguage.set($any($event.target).value)"
+            >
+              <option [value]="autoLanguage" [selected]="selectedLanguage() === autoLanguage">
+                {{ 'upload.settings.auto' | transloco }}
+              </option>
+              @for (language of languageOptions(); track language.code) {
+                <option [value]="language.code" [selected]="language.code === selectedLanguage()">{{ language.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        @if (opts.diarizationEnabled) {
+          <div class="form-control mb-6">
+            <label for="upload-diarize" class="label cursor-pointer justify-start gap-3 w-fit">
+              <input
+                id="upload-diarize"
+                type="checkbox"
+                class="checkbox"
+                [disabled]="uploading()"
+                [checked]="diarize()"
+                (change)="diarize.set($any($event.target).checked)"
+              />
+              <span class="label-text">{{ 'upload.settings.diarize' | transloco }}</span>
+            </label>
+          </div>
+        }
+      }
+
+      @if (mode() === 'file') {
+        <!-- Drop Zone -->
+        <div
+          class="border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300"
+          [class.border-primary]="isDragging()"
+          [class.bg-primary/5]="isDragging()"
+          [class.border-base-300]="!isDragging()"
+          [class.hover:border-primary]="!uploading()"
+          [class.cursor-pointer]="!uploading()"
+          [class.cursor-default]="uploading()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="!uploading() && fileInput.click()"
+        >
+          @if (!uploading()) {
+            <div class="flex flex-col items-center gap-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <div>
+                <p class="text-lg font-medium">{{ 'upload.dropTitle' | transloco }}</p>
+                <p class="text-sm text-base-content/60 mt-1">{{ 'upload.dropHint' | transloco }}</p>
+              </div>
+              <p class="text-xs text-base-content/40">{{ 'upload.formats' | transloco }}</p>
+            </div>
+          } @else {
+            <div class="flex flex-col items-center gap-4">
+              <span class="loading loading-spinner loading-lg text-primary"></span>
+              <div class="w-full max-w-xs">
+                <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
+                <progress
+                  class="progress progress-primary w-full mt-2"
+                  [value]="uploadProgress()"
+                  max="100"
+                  [attr.aria-label]="'upload.progress' | transloco"
+                ></progress>
+                <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
+              </div>
+              <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+                {{ 'upload.cancel' | transloco }}
+              </button>
+            </div>
+          }
+        </div>
+
+        <input
+          #fileInput
+          type="file"
+          class="hidden"
+          [attr.aria-label]="'upload.dropZone' | transloco"
+          accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mkv,.mov,audio/mpeg,audio/wav,audio/mp4,audio/ogg,video/mp4,video/webm,video/x-matroska,video/quicktime"
+          (change)="onFileSelected($event)"
+        />
+      } @else if (uploading()) {
+        <div class="flex flex-col items-center gap-4 p-12">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+          <div class="w-full max-w-xs">
+            <p class="text-lg font-medium truncate text-center">{{ selectedFileName() }}</p>
+            <progress
+              class="progress progress-primary w-full mt-2"
+              [value]="uploadProgress()"
+              max="100"
+              [attr.aria-label]="'upload.progress' | transloco"
+            ></progress>
+          </div>
+          <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+            {{ 'upload.cancel' | transloco }}
+          </button>
+        </div>
+      } @else {
+        <app-recorder (recorded)="onRecorded($event)" />
+      }
 
       <!-- Error Message -->
       @if (errorMessage()) {
@@ -92,9 +198,11 @@ export class UploadComponent implements OnInit {
   private audioJobService = inject(AudioJobService);
   private router = inject(Router);
   private toastService = inject(ToastService);
-  private titleService = inject(Title);
+  private pageTitle = inject(PageTitleService);
+  private transloco = inject(TranslocoService);
   private uploadSubscription?: Subscription;
 
+  mode = signal<'file' | 'record'>('file');
   isDragging = signal(false);
   uploading = signal(false);
   uploadProgress = signal(0);
@@ -102,14 +210,35 @@ export class UploadComponent implements OnInit {
   successMessage = signal('');
   selectedFileName = signal('');
 
-  private readonly maxSize = 10_485_760; // 10 MB
+  readonly autoLanguage = AUTO_LANGUAGE;
+  options = signal<TranscriptionOptions | null>(null);
+  selectedModel = signal('');
+  selectedLanguage = signal(AUTO_LANGUAGE);
+  diarize = signal(false);
+  private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
+  /** Selectable languages in the configured order, named in the UI language. */
+  languageOptions = computed(() => {
+    const uiLanguage = this.activeLang();
+    return (this.options()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
+  });
+
+  private readonly maxSize = 500_000_000; // S14: matches the API's Upload:MaxFileSizeBytes default
   private readonly allowedTypes = [
     'audio/mpeg', 'audio/wav', 'audio/x-wav',
-    'audio/mp4', 'audio/x-m4a', 'audio/ogg',
+    'audio/mp4', 'audio/x-m4a', 'audio/ogg', 'audio/webm',
+    'video/mp4', 'video/webm', 'video/x-matroska', 'video/quicktime',
   ];
 
   ngOnInit(): void {
-    this.titleService.setTitle('Upload · Transkription');
+    this.pageTitle.set('upload.pageTitle');
+    this.audioJobService.loadTranscriptionOptions().subscribe({
+      next: (options) => {
+        this.options.set(options);
+        this.selectedModel.set(options.defaultModel);
+      },
+      // Uploads still work without the selects: the server uses its default model and detection
+      error: () => this.options.set(null),
+    });
   }
 
   onDragOver(event: DragEvent): void {
@@ -145,12 +274,17 @@ export class UploadComponent implements OnInit {
     }
   }
 
+  /** A take recorded directly in the browser (S12) is uploaded exactly like a picked file. */
+  onRecorded(file: File): void {
+    this.processFile(file);
+  }
+
   cancelUpload(event: Event): void {
     event.stopPropagation();
     this.uploadSubscription?.unsubscribe();
     this.uploading.set(false);
     this.uploadProgress.set(0);
-    this.toastService.show('Upload abgebrochen', 'info');
+    this.toastService.show(this.transloco.translate('upload.cancelled'), 'info');
   }
 
   private processFile(file: File): void {
@@ -160,15 +294,13 @@ export class UploadComponent implements OnInit {
     // Client-side validation
     if (file.size > this.maxSize) {
       this.errorMessage.set(
-        `Datei ist zu groß (${this.audioJobService.formatFileSize(file.size)}). Maximum: 10 MB.`
+        this.transloco.translate('upload.tooLarge', { size: this.audioJobService.formatFileSize(file.size) })
       );
       return;
     }
 
     if (!this.allowedTypes.includes(file.type) && !this.isAllowedExtension(file.name)) {
-      this.errorMessage.set(
-        'Ungültiges Dateiformat. Erlaubt: MP3, WAV, M4A, OGG.'
-      );
+      this.errorMessage.set(this.transloco.translate('upload.invalidType'));
       return;
     }
 
@@ -176,26 +308,32 @@ export class UploadComponent implements OnInit {
     this.uploading.set(true);
     this.uploadProgress.set(0);
 
-    this.uploadSubscription = this.audioJobService.uploadFile(file).subscribe({
+    this.uploadSubscription = this.audioJobService.uploadFile(file, this.transcriptionSettings()).subscribe({
       next: (event) => {
         this.uploadProgress.set(event.progress);
         if (event.jobId) {
           this.uploading.set(false);
-          this.toastService.success('Upload erfolgreich! Verarbeitung gestartet.');
+          this.toastService.success(this.transloco.translate('upload.success'));
           this.router.navigate(['/jobs', event.jobId]);
         }
       },
       error: (err) => {
         this.uploading.set(false);
-        const detail = err.error?.detail || err.error?.title || 'Upload fehlgeschlagen.';
+        const detail = err.error?.detail || err.error?.title || this.transloco.translate('upload.failed');
         this.errorMessage.set(detail);
         this.toastService.error(detail);
       },
     });
   }
 
+  private transcriptionSettings() {
+    return this.options()
+      ? { model: this.selectedModel(), language: this.selectedLanguage(), diarize: this.diarize() }
+      : {};
+  }
+
   private isAllowedExtension(name: string): boolean {
     const ext = name.toLowerCase().split('.').pop();
-    return ['mp3', 'wav', 'm4a', 'ogg'].includes(ext || '');
+    return ['mp3', 'wav', 'm4a', 'ogg', 'webm', 'mp4', 'mkv', 'mov'].includes(ext || '');
   }
 }

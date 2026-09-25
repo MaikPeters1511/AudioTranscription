@@ -29,7 +29,7 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
             .IsRequired()
             .HasConversion<int>();
 
-        builder.Property(x => x.TranscriptText)
+        builder.Property(x => x.RawTranscript)
             .HasColumnType("nvarchar(max)");
 
         builder.Property(x => x.ErrorMessage)
@@ -37,6 +37,17 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
 
         builder.Property(x => x.Language)
             .HasMaxLength(10);
+
+        builder.Property(x => x.Model)
+            .IsRequired()
+            .HasMaxLength(20);
+
+        builder.Property(x => x.RequestedLanguage)
+            .HasMaxLength(10);
+
+        builder.Property(x => x.DiarizationRequested)
+            .IsRequired()
+            .HasDefaultValue(false);
 
         builder.Property(x => x.DurationSeconds);
 
