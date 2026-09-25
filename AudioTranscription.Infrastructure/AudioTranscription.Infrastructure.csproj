@@ -28,6 +28,15 @@
     <PackageReference Include="Whisper.net.Runtime.CoreML" Version="1.9.1" />
   </ItemGroup>
 
+  <!--
+    S15-T3: the CUDA native runtime is opt-in via -p:IncludeCudaRuntime=true (set by the Docker
+    "-cuda" image's publish step) rather than always referenced, so a normal CPU build/image does
+    not carry CUDA's native libraries.
+  -->
+  <ItemGroup Condition="'$(IncludeCudaRuntime)' == 'true'">
+    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
