@@ -57,14 +57,14 @@ jobs:
         run: dotnet build AudioTranscription.slnx --no-restore -c Release
 
       - name: Test
-        run: dotnet test AudioTranscription.slnx --no-build -c Release --logger trx --results-directory TestResults
+        run: dotnet test AudioTranscription.slnx --no-build -c Release --logger "html;LogFileName=test-results.html" --results-directory TestResults
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
-          path: TestResults/*.trx
+          path: TestResults/**/test-results.html
           if-no-files-found: warn
 
   frontend:
