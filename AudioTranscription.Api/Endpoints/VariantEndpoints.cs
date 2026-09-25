@@ -20,10 +20,12 @@ public static class VariantEndpoints
 
         group.MapPost("/variants", CreateVariant)
             .WithName("CreateTranscriptVariant")
+            .WithSummary("Generate a transcript variant")
             .WithDescription("Generate (or regenerate) a transcript variant; requires a completed job and a configured LLM");
 
         group.MapGet("/variants", GetVariants)
             .WithName("GetTranscriptVariants")
+            .WithSummary("List transcript variants")
             .WithDescription("List the transcript variants generated for a job");
     }
 

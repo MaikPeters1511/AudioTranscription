@@ -227,6 +227,8 @@ Whisper.net kann Modelle über CUDA (NVIDIA) oder CoreML (Apple Silicon) statt a
 
 Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `401`.
 
+**OpenAPI-Spezifikation:** `GET /openapi/v1.json` liefert die vollständige, maschinenlesbare Beschreibung aller Endpunkte (ASP.NET Cores eingebaute `AddOpenApi`/`MapOpenApi`-Unterstützung), ebenfalls hinter der Standard-Auth-Policy.
+
 | Methode | Endpunkt | Beschreibung |
 |---|---|---|
 | `POST` | `/api/auth/login?useCookies=true` | Anmelden (`{ email, password }`), setzt das Session-Cookie |

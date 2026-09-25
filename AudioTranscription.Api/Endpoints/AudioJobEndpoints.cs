@@ -26,26 +26,32 @@ public static class AudioJobEndpoints
         group.MapPost("/", UploadAudioJob)
             .DisableAntiforgery()
             .WithName("UploadAudioJob")
+            .WithSummary("Upload an audio file for transcription")
             .WithDescription("Upload an audio file for transcription");
 
         group.MapGet("/", GetAudioJobs)
             .WithName("GetAudioJobs")
+            .WithSummary("Get paginated list of audio jobs")
             .WithDescription("Get paginated list of audio jobs");
 
         group.MapGet("/{id:guid}", GetAudioJob)
             .WithName("GetAudioJob")
+            .WithSummary("Get a specific audio job by ID")
             .WithDescription("Get a specific audio job by ID");
 
         group.MapDelete("/{id:guid}", DeleteAudioJob)
             .WithName("DeleteAudioJob")
+            .WithSummary("Delete a job with its transcript and upload")
             .WithDescription("Delete a job with its transcript and uploaded file; cancels it first if it is running");
 
         group.MapPost("/{id:guid}/cancel", CancelAudioJob)
             .WithName("CancelAudioJob")
+            .WithSummary("Cancel a pending or running job")
             .WithDescription("Cancel a pending or running job");
 
         group.MapPost("/{id:guid}/retry", RetryAudioJob)
             .WithName("RetryAudioJob")
+            .WithSummary("Re-queue a failed or cancelled job")
             .WithDescription("Re-queue a failed or cancelled job using its kept upload");
     }
 
