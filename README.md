@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/MaikPeters1511/AudioTranscription/actions/workflows/ci.yml/badge.svg)](https://github.com/MaikPeters1511/AudioTranscription/actions/workflows/ci.yml)
 
+📝 [Changelog](CHANGELOG.md)
+
 Lokale, private Audio-Transkription auf Basis von [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp) — läuft komplett offline, ohne dass Audiodaten an einen externen Dienst gesendet werden.
 
 Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR und erhalte das fertige Transkript direkt im Browser — mit optionaler Nachbearbeitung durch ein lokales Ollama-LLM.
@@ -20,6 +22,20 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
+
+## 🖼️ Screenshots
+
+| Anmeldung | Upload |
+|---|---|
+| ![Anmeldeseite](docs/screenshots/login.png) | ![Upload-Seite mit Modell-/Sprachauswahl](docs/screenshots/upload.png) |
+
+| Job-Übersicht | Job-Details mit Sprechern und Fassungen |
+|---|---|
+| ![Liste der Transkriptions-Jobs](docs/screenshots/jobs.png) | ![Job-Detailansicht mit Transkript, Sprechererkennung und Zeitstempeln](docs/screenshots/job-detail.png) |
+
+| Volltextsuche |
+|---|
+| ![Volltextsuche mit hervorgehobenen Treffern](docs/screenshots/search.png) |
 
 ## 🔐 Datenschutz
 
@@ -262,6 +278,10 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 
 **Backend:** ASP.NET Core (.NET 10) · EF Core · SQL Server · SignalR · Whisper.net · ffmpeg · .NET Aspire
 **Frontend:** Angular 22 (zoneless, Standalone Components, Signals) · Tailwind CSS 4 · DaisyUI 5
+
+## 📝 Changelog
+
+Nennenswerte Änderungen werden in [CHANGELOG.md](CHANGELOG.md) festgehalten.
 
 ## 📄 Lizenz
 
