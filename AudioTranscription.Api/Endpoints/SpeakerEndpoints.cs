@@ -18,10 +18,12 @@ public static class SpeakerEndpoints
 
         group.MapGet("/", GetSpeakers)
             .WithName("GetJobSpeakers")
+            .WithSummary("Speakers detected for a job")
             .WithDescription("Speakers detected by diarization for a job, with their resolved display names");
 
         group.MapPut("/{index:int}", RenameSpeaker)
             .WithName("RenameJobSpeaker")
+            .WithSummary("Rename a detected speaker")
             .WithDescription("Rename a detected speaker (e.g. 'Sprecher 1' -> 'Anna')");
     }
 

@@ -11,6 +11,7 @@ public static class TranscriptionOptionsEndpoints
     {
         app.MapGet("/api/transcription-options", GetTranscriptionOptions)
             .WithName("GetTranscriptionOptions")
+            .WithSummary("Selectable transcription models and languages")
             .WithDescription("Models and languages that can be chosen for an upload; 'auto' (language detection) is always available");
     }
 

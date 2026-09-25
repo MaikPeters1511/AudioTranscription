@@ -21,14 +21,17 @@ public static class TranscriptOutputEndpoints
 
         group.MapGet("/segments", GetSegments)
             .WithName("GetTranscriptSegments")
+            .WithSummary("Timed transcript segments")
             .WithDescription("Timed segments of the raw transcript of a completed job");
 
         group.MapGet("/subtitles", GetSubtitles)
             .WithName("GetSubtitles")
+            .WithSummary("Download subtitles (SRT/VTT)")
             .WithDescription("Download the transcript of a completed job as subtitles (format=srt or vtt)");
 
         group.MapGet("/audio", GetAudio)
             .WithName("GetAudio")
+            .WithSummary("Stream the uploaded audio")
             .WithDescription("Stream the uploaded audio (supports HTTP range requests); 410 if the upload was already removed");
     }
 

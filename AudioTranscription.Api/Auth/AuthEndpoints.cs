@@ -40,6 +40,7 @@ public static class AuthEndpoints
         group.MapGet("/me", (ClaimsPrincipal user) =>
                 TypedResults.Ok(new MeResponse(user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name ?? string.Empty)))
             .WithName("GetCurrentUser")
+            .WithSummary("Get the signed-in user")
             .WithDescription("Returns the signed-in user");
 
         group.MapPost("/logout", async Task<NoContent> (SignInManager<IdentityUser> signInManager) =>
@@ -48,6 +49,7 @@ public static class AuthEndpoints
                 return TypedResults.NoContent();
             })
             .WithName("Logout")
+            .WithSummary("End the session")
             .WithDescription("Ends the cookie session");
     }
 }

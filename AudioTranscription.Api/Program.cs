@@ -72,6 +72,10 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 // Add SignalR
 builder.Services.AddSignalR();
 
+// OpenAPI (EN-3): describes every mapped endpoint, served under the same auth policy as the rest
+// of the API (the fallback policy below), not anonymously.
+builder.Services.AddOpenApi();
+
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
@@ -181,6 +185,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
+app.MapOpenApi(); // GET /openapi/v1.json, behind the same fallback auth policy as everything else
 
 // Map SignalR hub
 app.MapHub<TranscriptionHub>("/hubs/transcription");

@@ -16,6 +16,7 @@ public static class SearchEndpoints
     {
         app.MapGet("/api/search", Search)
             .WithName("Search")
+            .WithSummary("Full-text search across all transcripts")
             .WithDescription("Full-text search across all transcripts, paginated");
     }
 
