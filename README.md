@@ -23,6 +23,20 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
+## 🖼️ Screenshots
+
+| Anmeldung | Upload |
+|---|---|
+| ![Anmeldeseite](docs/screenshots/login.png) | ![Upload-Seite mit Modell-/Sprachauswahl](docs/screenshots/upload.png) |
+
+| Job-Übersicht | Job-Details mit Sprechern und Fassungen |
+|---|---|
+| ![Liste der Transkriptions-Jobs](docs/screenshots/jobs.png) | ![Job-Detailansicht mit Transkript, Sprechererkennung und Zeitstempeln](docs/screenshots/job-detail.png) |
+
+| Volltextsuche |
+|---|
+| ![Volltextsuche mit hervorgehobenen Treffern](docs/screenshots/search.png) |
+
 ## 🔐 Datenschutz
 
 - Hochgeladene Dateien werden nur lokal im Ordner `temp-uploads/` der API gespeichert (`Upload:TempStoragePath`) und standardmäßig nach erfolgreicher Transkription gelöscht (`Upload:DeleteAfterTranscription`).
