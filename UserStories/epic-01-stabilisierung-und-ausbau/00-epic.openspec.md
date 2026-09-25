@@ -2,6 +2,11 @@
 
 > GitHub: Epic #2, Stories #4–#19, Tasks #20–#92 (als Sub-Issues verknüpft)
 
+## 0. 🔴 Blocker (höchste Priorität)
+| Issue | Beschreibung | Betrifft |
+|---|---|---|
+| [#108](https://github.com/MaikPeters1511/AudioTranscription/issues/108) | Backend-Tests schlagen auf `main` fehl (Datei nach Job-Abschluss/Retry nicht gelöscht), Regression seit `da15e13`. Verhindert grüne CI auf `main` und blockiert damit Epic-DoD Punkt 2. | alle offenen/künftigen PRs, Epic-DoD |
+
 ## 1. Description
 AudioTranscription wirbt mit „privat & offline“. Die Analyse des aktuellen Stands (Commit `9b0a5d9`) zeigt Lücken bei Datenschutz, Robustheit und Nutzwert:
 
