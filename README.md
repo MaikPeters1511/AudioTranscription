@@ -207,6 +207,22 @@ Beim Upload wählt man ein Modell aus `Whisper:AllowedModels` (Standard: `Whispe
 - **Namen:** Erlaubt sind alle Namen von Whisper.nets `GgmlType`, z. B. `SmallEn` oder `LargeV3Turbo`.
 - **Prüfung beim Start:** Eine ungültige Konfiguration verhindert den Start der API und nennt den Grund, z. B. ein unbekanntes Modell oder ein `DefaultModel`, das nicht in `AllowedModels` steht.
 
+## 🚀 GPU-Beschleunigung
+
+Whisper.net kann Modelle über CUDA (NVIDIA) oder CoreML (Apple Silicon) statt auf der CPU laufen lassen — besonders bei `Medium`/`LargeV3` ein deutlicher Geschwindigkeitsgewinn. Ohne passende GPU/Treiber fällt die App automatisch auf die CPU zurück; das ist keine Sonderbehandlung, sondern Whisper.nets eigene Standard-Ladereihenfolge (`Cuda → Cuda12 → Vulkan → CoreML → OpenVino → Cpu → CpuNoAvx`), die zuletzt immer die CPU versucht.
+
+**Reihenfolge konfigurieren** (`Whisper:RuntimeOrder`, z. B. `["Cuda12", "Cuda", "Cpu"]`): schränkt ein, welche Runtimes in welcher Reihenfolge versucht werden, statt der eingebauten Liste. Wird beim Start geloggt (`Whisper native runtime order: [...]`); welche Runtime tatsächlich lädt, erscheint erst beim ersten genutzten Modell im Log (`Whisper native runtime in use: ...`), weil Modelle je Job lazy geladen werden.
+
+**NVIDIA/CUDA (Docker):**
+- Voraussetzungen auf dem Host: ein aktueller NVIDIA-Treiber und das [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) (stellt Docker den `nvidia`-Device-Treiber bereit).
+- Das `-cuda`-Image (`docker build --target final-cuda ...`) basiert auf `nvidia/cuda:12.4.1-runtime-ubuntu22.04` statt dem normalen .NET-Runtime-Image, damit die von Whisper.net.Runtime.Cuda genutzten CUDA-Bibliotheken (`libcudart`, `libcublas`) vorhanden sind. Das Standard-Image bleibt CPU-only und dadurch klein — die CUDA-Pakete werden nur für dieses Ziel gebaut (`IncludeCudaRuntime=true`).
+- Start: `docker compose --profile gpu up api-gpu` (läuft neben dem normalen `api`-Dienst auf Port 8081, statt ihn zu ersetzen). `nvidia-smi` im Container (`docker compose exec api-gpu nvidia-smi`) zeigt die GPU-Auslastung während einer Transkription.
+- Welche CUDA-Version zum Treiber passt, hängt von der Whisper.net.Runtime.Cuda-Version ab; im Zweifel die vom NVIDIA Container Toolkit installierte CUDA-Version prüfen.
+
+**Apple Silicon/CoreML:** Läuft nativ (kein Docker) auf macOS mit Apple Silicon; die CoreML-Runtime ist bereits Teil des Standard-Pakets. Erfordert eine unterstützte macOS-Version für Whisper.net.Runtime.CoreML (siehe dessen Release-Hinweise) — auf Linux/Windows wird diese Runtime automatisch übersprungen.
+
+**Bekannte Einschränkung:** In dieser Entwicklungsumgebung ohne GPU-Hardware und ohne laufenden Docker-Daemon konnte weder ein echter CPU-vs-GPU-Benchmark noch der `-cuda`-Image-Build durchgeführt werden (siehe Story S15 in `UserStories/`); der CPU-Fallback selbst wurde aber per Test verifiziert (`WhisperRuntimeConfiguratorTests`).
+
 ## 📡 API-Übersicht
 
 Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `401`.
