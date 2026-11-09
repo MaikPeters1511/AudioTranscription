@@ -8,7 +8,7 @@ import { translocoTesting } from '../i18n/transloco-testing';
 describe('LoginComponent', () => {
   const login = vi.fn<(email: string, password: string) => Promise<boolean>>();
 
-  function setup(returnUrl: string | null = null, language: 'de' | 'en' = 'de') {
+  function setup(returnUrl: string | null = null, language: 'de' | 'en' = 'de', passwordChanged = false) {
     login.mockReset();
     TestBed.configureTestingModule({
       imports: [LoginComponent, translocoTesting(language)],
@@ -18,7 +18,7 @@ describe('LoginComponent', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            snapshot: { queryParamMap: convertToParamMap(returnUrl ? { returnUrl } : {}) },
+            snapshot: { queryParamMap: convertToParamMap({ ...(returnUrl ? { returnUrl } : {}), ...(passwordChanged ? { passwordChanged: '1' } : {}) }) },
           },
         },
       ],
@@ -101,5 +101,16 @@ describe('LoginComponent', () => {
     await fixture.whenStable();
 
     expect(login).not.toHaveBeenCalled();
+  });
+  it('tells the user to sign in again after a password change', () => {
+    const { el } = setup(null, 'en', true);
+
+    expect(el.querySelector('[role=status]')?.textContent).toContain('password has been changed');
+  });
+
+  it('shows no password-changed notice by default', () => {
+    const { el } = setup(null, 'en');
+
+    expect(el.querySelector('[role=status]')).toBeNull();
   });
 });

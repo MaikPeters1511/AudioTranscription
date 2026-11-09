@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ChangePasswordComponent } from './change-password.component';
+import { Router, provideRouter } from '@angular/router';
+import { AuthService } from './auth.service';
 import { translocoTesting } from '../i18n/transloco-testing';
 
 describe('ChangePasswordComponent', () => {
@@ -10,7 +12,7 @@ describe('ChangePasswordComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ChangePasswordComponent, translocoTesting('en')],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -41,8 +43,10 @@ describe('ChangePasswordComponent', () => {
     expect(el.querySelector('#new-password')?.getAttribute('autocomplete')).toBe('new-password');
   });
 
-  it('sends old and new password and confirms success', async () => {
+  it('sends old and new password, then ends the session and goes to the login', async () => {
     const { fixture, el } = await render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const logout = vi.spyOn(TestBed.inject(AuthService), 'markLoggedOut');
     fill(el, 'old-secret', 'new-secret');
     (el.querySelector('button[type=submit]') as HTMLButtonElement).click();
 
@@ -50,9 +54,9 @@ describe('ChangePasswordComponent', () => {
     expect(req.request.body).toEqual({ oldPassword: 'old-secret', newPassword: 'new-secret' });
     req.flush({});
     await fixture.whenStable();
-    fixture.detectChanges();
 
-    expect(el.querySelector('[role=status]')?.textContent).toContain('has been changed');
+    expect(logout).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { passwordChanged: '1' } });
     expect(fixture.componentInstance.oldPassword).toBe('');
     expect(fixture.componentInstance.newPassword).toBe('');
   });

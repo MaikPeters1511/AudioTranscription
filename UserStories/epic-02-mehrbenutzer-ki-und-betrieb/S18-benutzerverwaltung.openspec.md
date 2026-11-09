@@ -41,6 +41,13 @@ Der Initial-Account erhält die Rolle `Admin` (siehe README), es gibt aber keine
 - **AC:**
   - [ ] Formular mit Validierung, Erfolgs- und Fehlerhinweis, DE/EN.
 
+## 4a. Ergebnis des Security-Reviews (PR #204)
+- Nur Cookie-Sitzungen: `/api/auth/login` ohne `useCookies=true` und `/api/auth/refresh` sind abgeschaltet, damit Bearer-Tokens eine Deaktivierung nicht umgehen.
+- Login-Fehler sind einheitlich (401), auch für deaktivierte Konten.
+- Der Last-Admin-Schutz ist pro API-Instanz serialisiert (Mehrinstanzbetrieb bräuchte eine DB-Sperre). Als „deaktiviert“ gilt nur die Admin-Deaktivierung, nicht die kurze Sperre nach Fehlversuchen.
+- Eine Passwortänderung beendet alle Sitzungen; die E-Mail-Adresse lässt sich über `/manage/info` nicht ändern.
+- Bewusst offen (Folge-Tickets): Rate-Limiting und Lockout-Konfiguration, Mindestlänge 12, Rollen ohne N+1 laden.
+
 ## 5. Acceptance Criteria (DoD)
 - [ ] Admin kann Benutzer verwalten, normale Benutzer erhalten auf allen Admin-Endpoints 403.
 - [ ] OWASP-Prüfung durch `sec-agent` (Brute-Force-Schutz, Enumeration-Schutz bei Login).

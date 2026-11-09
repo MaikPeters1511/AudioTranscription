@@ -234,7 +234,7 @@ public class AdminUserIntegrationTests(WebApplicationFactory<Program> baseFactor
     }
 
     [Fact]
-    public async Task ChangePassword_ViaIdentityManageEndpoint_RequiresOldPassword()
+    public async Task ChangePassword_ViaIdentityManageEndpoint_RequiresOldPassword_AndEndsTheCurrentSession()
     {
         using var factory = CreateFactory();
         await SeedAsync(factory);
@@ -246,6 +246,87 @@ public class AdminUserIntegrationTests(WebApplicationFactory<Program> baseFactor
         (await user.PostAsJsonAsync("/api/auth/manage/info", new { oldPassword = _userPassword, newPassword }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
+        // The security stamp changes with the password, so every existing session has to sign in again
+        (await user.GetAsync("/api/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         await LoginAsync(factory, UserEmail, newPassword);
+    }
+
+    [Fact]
+    public async Task ManageInfo_CannotChangeTheEmailAddress()
+    {
+        using var factory = CreateFactory();
+        await SeedAsync(factory);
+        var user = await LoginAsync(factory, UserEmail, _userPassword);
+
+        var response = await user.PostAsJsonAsync("/api/auth/manage/info", new { newEmail = "other@example.com" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task BearerLogin_AndRefresh_AreNotAvailable()
+    {
+        using var factory = CreateFactory();
+        await SeedAsync(factory);
+        var client = CreateClient(factory);
+
+        // Bearer tokens would outlive deactivation and role changes, only cookie sessions are supported
+        (await client.PostAsJsonAsync("/api/auth/login", new { email = UserEmail, password = _userPassword }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = "x" }))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Login_FailureResponses_DoNotRevealWhetherTheAccountIsDeactivated()
+    {
+        using var factory = CreateFactory();
+        await SeedAsync(factory);
+        var admin = await LoginAsync(factory, AdminEmail, _adminPassword);
+        var target = await FindAsync(admin, UserEmail);
+        await admin.PostAsync($"/api/admin/users/{target.Id}/deactivate", null);
+
+        var deactivated = await CreateClient(factory).PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = UserEmail, password = _userPassword });
+        var unknown = await CreateClient(factory).PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = "nobody@example.com", password = _userPassword });
+
+        deactivated.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        unknown.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await deactivated.Content.ReadAsStringAsync()).Should().Be(await unknown.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task ConcurrentDemotions_NeverLeaveTheSystemWithoutAnActiveAdmin()
+    {
+        using var factory = CreateFactory();
+        await SeedAsync(factory);
+        var first = await LoginAsync(factory, AdminEmail, _adminPassword);
+        var user = await FindAsync(first, UserEmail);
+        await first.PutAsJsonAsync($"/api/admin/users/{user.Id}/roles", new { roles = new[] { Roles.Admin } });
+        var second = await LoginAsync(factory, UserEmail, _userPassword);
+        var firstId = (await FindAsync(first, AdminEmail)).Id;
+
+        var results = await Task.WhenAll(
+            first.PutAsJsonAsync($"/api/admin/users/{user.Id}/roles", new { roles = Array.Empty<string>() }),
+            second.PutAsJsonAsync($"/api/admin/users/{firstId}/roles", new { roles = Array.Empty<string>() }));
+
+        results.Count(r => r.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
+        results.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task TemporarilyLockedAdmin_StillCountsAsActive()
+    {
+        using var factory = CreateFactory();
+        await SeedAsync(factory);
+        var admin = await LoginAsync(factory, AdminEmail, _adminPassword);
+        var user = await FindAsync(admin, UserEmail);
+        await admin.PutAsJsonAsync($"/api/admin/users/{user.Id}/roles", new { roles = new[] { Roles.Admin } });
+        // Brute-force lockout on the second admin must not turn the first into the "last" admin
+        for (var i = 0; i < 6; i++)
+            await CreateClient(factory).PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = UserEmail, password = TestCredentials.NewPassword() });
+        var self = await FindAsync(admin, AdminEmail);
+
+        (await admin.PutAsJsonAsync($"/api/admin/users/{self.Id}/roles", new { roles = Array.Empty<string>() }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 }

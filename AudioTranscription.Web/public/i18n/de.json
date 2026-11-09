@@ -139,7 +139,8 @@
       "password": "Passwort",
       "submit": "Anmelden",
       "submitting": "Anmeldung läuft...",
-      "failed": "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen."
+      "failed": "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.",
+      "passwordChanged": "Dein Passwort wurde geändert. Bitte melde dich mit dem neuen Passwort an."
     },
     "logout": "Abmelden",
     "signedInAs": "Angemeldet als {{ email }}",
@@ -150,7 +151,6 @@
       "new": "Neues Passwort",
       "hint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
       "submit": "Passwort ändern",
-      "done": "Dein Passwort wurde geändert.",
       "failed": "Das Passwort konnte nicht geändert werden. Prüfe das aktuelle Passwort und die Regeln für das neue."
     }
   },

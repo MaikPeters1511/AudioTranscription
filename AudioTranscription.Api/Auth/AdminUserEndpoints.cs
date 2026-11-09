@@ -17,6 +17,13 @@ public static class AdminUserEndpoints
 {
     private const int MaxPageSize = 100;
 
+    /// <summary>
+    /// Serializes every change that can affect the number of active admins, so the "last active admin"
+    /// check and the change that follows it cannot interleave. Covers a single API instance; a scaled-out
+    /// deployment would need a database-level lock instead.
+    /// </summary>
+    private static readonly SemaphoreSlim AdminChangeLock = new(1, 1);
+
     public static void MapAdminUserEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/admin/users")
@@ -45,8 +52,11 @@ public static class AdminUserEndpoints
             .WithDescription("Allows the user to log in again");
     }
 
-    private static bool IsActive(IdentityUser user) =>
-        user.LockoutEnd is null || user.LockoutEnd <= DateTimeOffset.UtcNow;
+    /// <summary>
+    /// An account is deactivated only by an admin (lockout until the end of time). A temporary lockout from
+    /// failed sign-ins is not a deactivation, so it must not make an admin look inactive.
+    /// </summary>
+    private static bool IsActive(IdentityUser user) => user.LockoutEnd != DateTimeOffset.MaxValue;
 
     private static async Task<AdminUserDto> ToDtoAsync(IdentityUser user, UserManager<IdentityUser> users) =>
         new(user.Id, user.Email ?? user.UserName ?? string.Empty, (await users.GetRolesAsync(user)).ToArray(), IsActive(user));
@@ -64,7 +74,7 @@ public static class AdminUserEndpoints
         return TypedResults.Ok(new AdminUserPage(items, total));
     }
 
-    private static async Task<Results<Created<AdminUserDto>, ValidationProblem, Conflict<string>>> CreateAsync(
+    private static async Task<Results<Created<AdminUserDto>, ValidationProblem, Conflict<string>, ProblemHttpResult>> CreateAsync(
         CreateUserRequest request, UserManager<IdentityUser> users, RoleManager<IdentityRole> roleManager)
     {
         var errors = new Dictionary<string, string[]>();
@@ -88,66 +98,88 @@ public static class AdminUserEndpoints
 
         foreach (var role in roles.Distinct())
         {
-            if (!await roleManager.RoleExistsAsync(role))
-                await roleManager.CreateAsync(new IdentityRole(role));
-            await users.AddToRoleAsync(user, role);
+            if (!await EnsureRoleAsync(roleManager, role) || !(await users.AddToRoleAsync(user, role)).Succeeded)
+            {
+                // Do not leave a half-created account behind
+                await users.DeleteAsync(user);
+                return TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError);
+            }
         }
 
         return TypedResults.Created($"/api/admin/users/{user.Id}", await ToDtoAsync(user, users));
     }
 
-    private static async Task<Results<NoContent, NotFound, ValidationProblem, Conflict<string>>> SetRolesAsync(
+    private static async Task<Results<NoContent, NotFound, ValidationProblem, Conflict<string>, ProblemHttpResult>> SetRolesAsync(
         string id, SetRolesRequest request, UserManager<IdentityUser> users, RoleManager<IdentityRole> roleManager)
     {
         var wanted = (request.Roles ?? []).Distinct().ToArray();
         if (wanted.Any(r => !Roles.Assignable.Contains(r)))
             return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["roles"] = ["Unknown role."] });
 
-        var user = await users.FindByIdAsync(id);
-        if (user is null)
-            return TypedResults.NotFound();
-
-        var current = await users.GetRolesAsync(user);
-        if (current.Contains(Roles.Admin) && !wanted.Contains(Roles.Admin) && IsActive(user) && await CountOtherActiveAdminsAsync(user, users) == 0)
-            return TypedResults.Conflict("The last active admin cannot be demoted.");
-
-        await users.RemoveFromRolesAsync(user, current.Except(wanted));
-        foreach (var role in wanted.Except(current))
+        await AdminChangeLock.WaitAsync();
+        try
         {
-            if (!await roleManager.RoleExistsAsync(role))
-                await roleManager.CreateAsync(new IdentityRole(role));
-            await users.AddToRoleAsync(user, role);
-        }
+            var user = await users.FindByIdAsync(id);
+            if (user is null)
+                return TypedResults.NotFound();
 
-        // Role claims live in the cookie, so existing sessions must be refreshed
-        await users.UpdateSecurityStampAsync(user);
-        return TypedResults.NoContent();
+            var current = await users.GetRolesAsync(user);
+            if (current.Contains(Roles.Admin) && !wanted.Contains(Roles.Admin) && IsActive(user) && await CountOtherActiveAdminsAsync(user, users) == 0)
+                return TypedResults.Conflict("The last active admin cannot be demoted.");
+
+            var remove = await users.RemoveFromRolesAsync(user, current.Except(wanted));
+            if (!remove.Succeeded)
+                return TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError);
+
+            foreach (var role in wanted.Except(current))
+            {
+                if (!await EnsureRoleAsync(roleManager, role) || !(await users.AddToRoleAsync(user, role)).Succeeded)
+                    return TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            // Role claims live in the cookie, so existing sessions must be refreshed
+            await users.UpdateSecurityStampAsync(user);
+            return TypedResults.NoContent();
+        }
+        finally
+        {
+            AdminChangeLock.Release();
+        }
     }
 
-    private static async Task<Results<NoContent, NotFound, Conflict<string>>> SetActiveAsync(
+    private static async Task<Results<NoContent, NotFound, Conflict<string>, ProblemHttpResult>> SetActiveAsync(
         string id, bool active, UserManager<IdentityUser> users)
     {
-        var user = await users.FindByIdAsync(id);
-        if (user is null)
-            return TypedResults.NotFound();
-
-        if (!active)
+        await AdminChangeLock.WaitAsync();
+        try
         {
-            if (await users.IsInRoleAsync(user, Roles.Admin) && IsActive(user) && await CountOtherActiveAdminsAsync(user, users) == 0)
-                return TypedResults.Conflict("The last active admin cannot be deactivated.");
+            var user = await users.FindByIdAsync(id);
+            if (user is null)
+                return TypedResults.NotFound();
 
-            await users.SetLockoutEnabledAsync(user, true);
-            await users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-            await users.UpdateSecurityStampAsync(user); // ends existing sessions
+            if (!active)
+            {
+                if (await users.IsInRoleAsync(user, Roles.Admin) && IsActive(user) && await CountOtherActiveAdminsAsync(user, users) == 0)
+                    return TypedResults.Conflict("The last active admin cannot be deactivated.");
+
+                var ok = (await users.SetLockoutEnabledAsync(user, true)).Succeeded
+                    && (await users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue)).Succeeded
+                    && (await users.UpdateSecurityStampAsync(user)).Succeeded; // ends existing sessions
+                return ok ? TypedResults.NoContent() : TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            var reactivated = (await users.SetLockoutEndDateAsync(user, null)).Succeeded
+                && (await users.ResetAccessFailedCountAsync(user)).Succeeded;
+            return reactivated ? TypedResults.NoContent() : TypedResults.Problem(statusCode: StatusCodes.Status500InternalServerError);
         }
-        else
+        finally
         {
-            await users.SetLockoutEndDateAsync(user, null);
-            await users.ResetAccessFailedCountAsync(user);
+            AdminChangeLock.Release();
         }
-
-        return TypedResults.NoContent();
     }
+
+    private static async Task<bool> EnsureRoleAsync(RoleManager<IdentityRole> roleManager, string role) =>
+        await roleManager.RoleExistsAsync(role) || (await roleManager.CreateAsync(new IdentityRole(role))).Succeeded;
 
     private static async Task<int> CountOtherActiveAdminsAsync(IdentityUser user, UserManager<IdentityUser> users) =>
         (await users.GetUsersInRoleAsync(Roles.Admin)).Count(u => u.Id != user.Id && IsActive(u));

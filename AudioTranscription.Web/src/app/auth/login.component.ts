@@ -16,6 +16,12 @@ import { PageTitleService } from '../i18n/page-title.service';
 
       <form class="card bg-base-200 shadow-sm" (ngSubmit)="submit()" novalidate>
         <div class="card-body gap-4">
+          @if (passwordChanged) {
+            <div class="alert alert-success" role="status">
+              <span>{{ 'auth.login.passwordChanged' | transloco }}</span>
+            </div>
+          }
+
           @if (failed()) {
             <div class="alert alert-error" role="alert">
               <span>{{ 'auth.login.failed' | transloco }}</span>
@@ -82,6 +88,8 @@ export class LoginComponent implements OnInit {
   password = '';
   submitting = signal(false);
   failed = signal(false);
+  /** Set when the user was sent here after changing their password (all sessions end then). */
+  readonly passwordChanged = this.route.snapshot.queryParamMap.get('passwordChanged') === '1';
 
   ngOnInit(): void {
     this.pageTitle.set('auth.login.pageTitle');

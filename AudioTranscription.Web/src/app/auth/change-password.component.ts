@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { AuthService } from './auth.service';
 import { PageTitleService } from '../i18n/page-title.service';
@@ -15,13 +16,9 @@ import { PageTitleService } from '../i18n/page-title.service';
 
       <form class="card bg-base-200 shadow-sm" (ngSubmit)="submit()" novalidate>
         <div class="card-body gap-4">
-          @if (status() === 'failed') {
+          @if (failed()) {
             <div class="alert alert-error" role="alert">
               <span>{{ 'auth.changePassword.failed' | transloco }}</span>
-            </div>
-          } @else if (status() === 'done') {
-            <div class="alert alert-success" role="status">
-              <span>{{ 'auth.changePassword.done' | transloco }}</span>
             </div>
           }
 
@@ -65,12 +62,13 @@ import { PageTitleService } from '../i18n/page-title.service';
 })
 export class ChangePasswordComponent implements OnInit {
   private auth = inject(AuthService);
+  private router = inject(Router);
   private pageTitle = inject(PageTitleService);
 
   oldPassword = '';
   newPassword = '';
   readonly submitting = signal(false);
-  readonly status = signal<'idle' | 'done' | 'failed'>('idle');
+  readonly failed = signal(false);
 
   ngOnInit(): void {
     this.pageTitle.set('auth.changePassword.pageTitle');
@@ -83,10 +81,13 @@ export class ChangePasswordComponent implements OnInit {
     this.submitting.set(true);
     const ok = await this.auth.changePassword(this.oldPassword, this.newPassword);
     this.submitting.set(false);
-    this.status.set(ok ? 'done' : 'failed');
+    this.failed.set(!ok);
     if (ok) {
       this.oldPassword = '';
       this.newPassword = '';
+      // A new password ends every session of this user, so sign in again with it
+      this.auth.markLoggedOut();
+      await this.router.navigate(['/login'], { queryParams: { passwordChanged: '1' } });
     }
   }
 }

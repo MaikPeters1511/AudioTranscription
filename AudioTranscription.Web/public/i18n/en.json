@@ -139,7 +139,8 @@
       "password": "Password",
       "submit": "Sign in",
       "submitting": "Signing in...",
-      "failed": "Sign-in failed. Please check your email and password."
+      "failed": "Sign-in failed. Please check your email and password.",
+      "passwordChanged": "Your password has been changed. Please sign in with the new password."
     },
     "logout": "Sign out",
     "signedInAs": "Signed in as {{ email }}",
@@ -150,7 +151,6 @@
       "new": "New password",
       "hint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
       "submit": "Change password",
-      "done": "Your password has been changed.",
       "failed": "The password could not be changed. Check the current password and the rules for the new one."
     }
   },
