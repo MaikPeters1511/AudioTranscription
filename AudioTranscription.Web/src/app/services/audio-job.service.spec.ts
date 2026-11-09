@@ -87,6 +87,25 @@ describe('AudioJobService', () => {
   });
 });
 
+describe('AudioJobService retention lock (S30)', () => {
+  it('locks a job and reloads it', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(AudioJobService);
+    const http = TestBed.inject(HttpTestingController);
+
+    const result = service.setRetentionLock('job-1', true);
+    const put = http.expectOne('/api/audio-jobs/job-1/retention-lock');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body).toEqual({ locked: true });
+    put.flush(null, { status: 204, statusText: 'No Content' });
+    await Promise.resolve();
+    http.expectOne('/api/audio-jobs/job-1').flush({ id: 'job-1', status: AudioJobStatus.Completed, retentionLocked: true });
+    await result;
+
+    http.verify();
+  });
+});
+
 describe('AudioJobService sharing (S19)', () => {
   let service: AudioJobService;
   let http: HttpTestingController;

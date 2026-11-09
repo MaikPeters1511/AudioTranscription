@@ -304,6 +304,12 @@ export class AudioJobService {
     });
   }
 
+  /** Locks a job against automatic deletion (S30) or unlocks it, then reloads it to show the new deletion date. */
+  async setRetentionLock(id: string, locked: boolean): Promise<void> {
+    await firstValueFrom(this.http.put(`${this.baseUrl}/${id}/retention-lock`, { locked }));
+    await this.refreshJob(id);
+  }
+
   // --- sharing (S19) -------------------------------------------------------------
 
   /** Users the job is shared with; only the owner may ask. */

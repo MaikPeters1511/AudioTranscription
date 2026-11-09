@@ -32,6 +32,10 @@ export interface AudioJob {
   isOwner?: boolean;
   /** E-mail of the owner when the job was shared with the user; undefined for own jobs. */
   sharedByEmail?: string;
+  /** Excluded from automatic deletion by its owner (S30). */
+  retentionLocked?: boolean;
+  /** When retention will delete the job; undefined when retention is off, or the job is locked or still open. */
+  deleteAtUtc?: string;
 }
 
 export interface AudioJobListItem {

@@ -34,6 +34,14 @@ Das Projekt wirbt mit Datenschutz. Neben dem Löschen der Audiodatei nach der Tr
 - **AC:**
   - [ ] Automatische Löschungen werden mit Job-ID und Zeitpunkt geloggt, ohne Inhalte.
 
+## 4a. Umsetzung
+- `RetentionService` (BackgroundService) mit `RunOnceAsync` für Tests mit simulierter Uhr; Optionen `Retention:TranscriptDays`, `Retention:AudioDays`, `Retention:RunIntervalHours`, alles standardmäßig aus.
+- Maßgeblich ist `CompletedAtUtc`, ersatzweise `CreatedAtUtc`. Nur fertige, fehlgeschlagene und abgebrochene Jobs verfallen, offene nie.
+- Folge-Dateien (Segmente, Fassungen, Sprecher, Freigaben) entfernt die Datenbank per Cascade. Betroffene Benutzer erhalten `JobDeleted`.
+- Sperre: `PUT /api/audio-jobs/{id}/retention-lock` (nur Eigentümer, `AudioJobs.RetentionLocked`, Migration `AddRetentionLock` von Hand geschrieben, da `dotnet ef` in der Sandbox nicht läuft). Die Detailansicht nennt das Löschdatum (`deleteAtUtc`).
+- T2 (Suche): Gelöschte Jobs verschwinden aus der Suche, weil die Volltextindizes auf den gelöschten Zeilen liegen. Ein eigener Suchtest braucht den SQL-Server-Container und läuft nur in der CI (offen).
+- Hinweis zu mehreren Instanzen: Läuft die API mehrfach, laufen mehrere Retention-Dienste parallel; das Löschen ist idempotent, ein Job wird höchstens zweimal versucht.
+
 ## 5. Acceptance Criteria (DoD)
 - [ ] Standard bleibt „keine automatische Löschung“, Dokumentation in README.
 - [ ] Löschvorgang ist durch Tests abgesichert, Swagger aktualisiert.

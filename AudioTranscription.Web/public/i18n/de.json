@@ -102,7 +102,13 @@
       "failed": "Erstellung fehlgeschlagen.",
       "unknownError": "Unbekannter Fehler"
     },
-    "sharedBy": "Geteilt von {{ email }}"
+    "sharedBy": "Geteilt von {{ email }}",
+    "retention": {
+      "deleteAt": "Wird am {{ date }} automatisch gelöscht.",
+      "lock": "Vor automatischem Löschen schützen",
+      "lockedByOwner": "Vom Eigentümer vor automatischem Löschen geschützt.",
+      "failed": "Der Schutz konnte nicht geändert werden. Bitte versuche es erneut."
+    }
   },
   "upload": {
     "title": "Audio hochladen",

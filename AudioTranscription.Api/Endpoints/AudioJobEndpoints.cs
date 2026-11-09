@@ -51,6 +51,12 @@ public static class AudioJobEndpoints
             .WithSummary("Cancel a pending or running job")
             .WithDescription("Cancel a pending or running job");
 
+        group.MapPut("/{id:guid}/retention-lock", SetRetentionLock)
+            .RequireJobAccess()
+            .WithName("SetRetentionLock")
+            .WithSummary("Exclude a job from automatic deletion")
+            .WithDescription("Locks or unlocks a job against automatic deletion by the retention service; owner only");
+
         group.MapPost("/{id:guid}/retry", RetryAudioJob)
             .RequireJobAccess()
             .WithName("RetryAudioJob")
@@ -148,6 +154,15 @@ public static class AudioJobEndpoints
         await queue.EnqueueAsync(new TranscriptionJobRequest(job.Id, filePath));
 
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
+    }
+
+    private static async Task<NoContent> SetRetentionLock(Guid id, SetRetentionLockRequest request, AppDbContext dbContext)
+    {
+        // The access filter already made sure the job exists and belongs to the caller
+        var job = await dbContext.AudioJobs.FindAsync(id);
+        job!.RetentionLocked = request.Locked;
+        await dbContext.SaveChangesAsync();
+        return TypedResults.NoContent();
     }
 
     internal static NotFound<ProblemDetails> JobNotFound(Guid id) =>
@@ -347,6 +362,14 @@ public static class AudioJobEndpoints
         return TypedResults.Ok(new PaginatedResult<AudioJobListDto>(items, totalCount, page, pageSize));
     }
 
+    /// <summary>When retention will delete the job, or null: retention is off, the job is open or locked.</summary>
+    private static DateTime? DeleteAt(AudioJob job, RetentionOptions retention) =>
+        retention.TranscriptDays > 0
+        && !job.RetentionLocked
+        && job.Status is AudioJobStatus.Completed or AudioJobStatus.Failed or AudioJobStatus.Cancelled
+            ? (job.CompletedAtUtc ?? job.CreatedAtUtc).AddDays(retention.TranscriptDays)
+            : null;
+
     private static async Task<Dictionary<string, string>> OwnerEmailsAsync(AppDbContext dbContext, IEnumerable<string?> ownerIds)
     {
         var ids = ownerIds.Where(id => id is not null).Distinct().ToList();
@@ -359,7 +382,8 @@ public static class AudioJobEndpoints
         Guid id,
         HttpContext http,
         AppDbContext dbContext,
-        JobProgressStore progressStore)
+        JobProgressStore progressStore,
+        IOptions<RetentionOptions> retention)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
 
@@ -379,6 +403,7 @@ public static class AudioJobEndpoints
             job.CreatedAtUtc, job.CompletedAtUtc,
             job.Model, job.RequestedLanguage, job.DiarizationRequested,
             job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null,
-            isOwner, sharedBy));
+            isOwner, sharedBy,
+            job.RetentionLocked, DeleteAt(job, retention.Value)));
     }
 }
