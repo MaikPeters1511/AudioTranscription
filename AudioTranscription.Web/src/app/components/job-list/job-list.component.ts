@@ -90,7 +90,12 @@ import { PageTitleService } from '../../i18n/page-title.service';
             <tbody [@listAnimation]="jobService.jobs().length">
               @for (job of jobService.jobs(); track job.id) {
                 <tr class="hover:bg-base-200/50 cursor-pointer" [routerLink]="['/jobs', job.id]">
-                  <td class="font-medium max-w-[200px] truncate">{{ job.fileName }}</td>
+                  <td class="font-medium max-w-[200px] truncate">
+                    {{ job.fileName }}
+                    @if (job.isOwner === false && job.sharedByEmail) {
+                      <span class="block text-xs font-normal text-base-content/60 truncate">{{ 'jobList.sharedBy' | transloco: { email: job.sharedByEmail } }}</span>
+                    }
+                  </td>
                   <td class="text-sm text-base-content/70">{{ jobService.formatFileSize(job.fileSizeBytes) }}</td>
                   <td>
                     <span class="badge badge-sm" [ngClass]="jobService.getStatusBadgeClass(job.status)">
@@ -130,7 +135,12 @@ import { PageTitleService } from '../../i18n/page-title.service';
             >
               <div class="card-body p-4 gap-2">
                 <div class="flex items-start justify-between gap-2">
-                  <p class="font-medium truncate">{{ job.fileName }}</p>
+                  <div class="min-w-0">
+                    <p class="font-medium truncate">{{ job.fileName }}</p>
+                    @if (job.isOwner === false && job.sharedByEmail) {
+                      <p class="text-xs text-base-content/60 truncate">{{ 'jobList.sharedBy' | transloco: { email: job.sharedByEmail } }}</p>
+                    }
+                  </div>
                   <span class="badge badge-sm shrink-0" [ngClass]="jobService.getStatusBadgeClass(job.status)">
                     @if (job.status === AudioJobStatus.Processing) {
                       <span class="loading loading-spinner loading-xs mr-1"></span>

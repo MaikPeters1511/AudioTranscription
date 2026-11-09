@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Domain.Entities;
@@ -16,7 +17,8 @@ public static class VariantEndpoints
 {
     public static void MapVariantEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/audio-jobs/{id:guid}");
+        var group = app.MapGroup("/api/audio-jobs/{id:guid}")
+            .RequireJobAccess();
 
         group.MapPost("/variants", CreateVariant)
             .WithName("CreateTranscriptVariant")

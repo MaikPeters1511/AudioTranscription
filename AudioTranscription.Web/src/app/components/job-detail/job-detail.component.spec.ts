@@ -160,4 +160,15 @@ describe('JobDetailComponent', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/jobs']);
   });
+
+  it('offers sharing to the owner only and names the owner of a shared job (S19)', () => {
+    const own = render(completedJob({ rawTranscript: 'x', isOwner: true }));
+    expect(own.nativeElement.querySelector('app-job-share')).not.toBeNull();
+    expect(own.nativeElement.querySelector('[data-testid=shared-by]')).toBeNull();
+    own.destroy();
+
+    const shared = render(completedJob({ rawTranscript: 'x', isOwner: false, sharedByEmail: 'alice@example.com' }));
+    expect(shared.nativeElement.querySelector('app-job-share')).toBeNull();
+    expect(shared.nativeElement.querySelector('[data-testid=shared-by]').textContent).toContain('Geteilt von alice@example.com');
+  });
 });

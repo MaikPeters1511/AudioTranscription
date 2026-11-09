@@ -6,6 +6,7 @@ using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Tests.Data;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -22,6 +23,7 @@ namespace AudioTranscription.Tests.Integration;
 /// </summary>
 public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
 {
+    private const string OtherUserId = "other-user-id";
     private readonly SearchSqlServerFixture _sqlServer;
     private readonly WebApplicationFactory<Program> _baseFactory;
     private WebApplicationFactory<Program> _factory = null!;
@@ -39,6 +41,11 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
         await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(_connectionString).Options))
         {
             await db.Database.MigrateWithBaselineAsync(NullLogger.Instance);
+
+            // Jobs belong to a user (S19): the test auth handler's user has to exist for the foreign key
+            foreach (var userId in new[] { TestAuthHandler.DefaultUserId, OtherUserId })
+                db.Users.Add(new IdentityUser { Id = userId, UserName = userId, NormalizedUserName = userId.ToUpperInvariant() });
+            await db.SaveChangesAsync();
         }
 
         _factory = _baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
@@ -62,16 +69,19 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
         return Task.CompletedTask;
     }
 
-    private async Task<Guid> SeedJobAsync(string fileName, string? rawTranscript, (int Index, string Text)? segment = null, string? variantText = null)
+    private async Task<Guid> SeedJobAsync(string fileName, string? rawTranscript, (int Index, string Text)? segment = null, string? variantText = null, string? ownerId = null, bool sharedWithTestUser = false)
     {
         var jobId = Guid.NewGuid();
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.AudioJobs.Add(new AudioJob
         {
+            OwnerId = ownerId ?? TestAuthHandler.DefaultUserId,
             Id = jobId, FileName = fileName, ContentType = "audio/mpeg", Model = "Base",
             Status = AudioJobStatus.Completed, RawTranscript = rawTranscript, CreatedAtUtc = DateTime.UtcNow,
         });
+        if (sharedWithTestUser)
+            db.JobShares.Add(new JobShare { AudioJobId = jobId, UserId = TestAuthHandler.DefaultUserId });
         if (segment is { } s)
         {
             db.TranscriptSegments.Add(new TranscriptSegment
@@ -106,6 +116,19 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
             await Task.Delay(200);
         }
         throw new TimeoutException($"Full-text population on {tableName} did not finish in time.");
+    }
+
+    [Fact]
+    public async Task Search_OnlyReturnsOwnAndSharedJobs()
+    {
+        var own = await SeedJobAsync("own.mp3", "Der Zauberer im eigenen Job.");
+        var shared = await SeedJobAsync("shared.mp3", "Der Zauberer im geteilten Job.", ownerId: OtherUserId, sharedWithTestUser: true);
+        await SeedJobAsync("foreign.mp3", "Der Zauberer im fremden Job.", (0, "Der Zauberer im fremden Segment."), "Der Zauberer in der fremden Variante.", ownerId: OtherUserId);
+
+        var result = await _factory.CreateClient().GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Zauberer");
+
+        result!.Items.Select(h => h.JobId).Should().BeEquivalentTo([own, shared]);
+        result.TotalCount.Should().Be(2);
     }
 
     [Fact]

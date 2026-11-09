@@ -41,6 +41,12 @@ Bisher sehen alle angemeldeten Benutzer dieselben Jobs (ADR 0003). Künftig besi
 - **AC:**
   - [ ] „Geteilt von …“ und „Geteilt mit …“ sind sichtbar, Dialog zum Hinzufügen/Entfernen, DE/EN, Tastatur und ARIA.
 
+## 4a. Umsetzung (PR zu S19)
+- ADR: [ADR 0007](../../docs/adr/0007-jobs-pro-benutzer.md). Freigabe bedeutet nur Lesen, es gibt keine `Permission`-Spalte (YAGNI, später erweiterbar).
+- Admins sehen keine fremden Jobs; sie können nur Jobs **ohne** Eigentümer auflisten (`GET /api/admin/jobs/unassigned`) und zuordnen (`POST /api/admin/jobs/{id}/owner`). Eine Oberfläche dafür gibt es noch nicht (Folge-Ticket).
+- Zentrale Prüfung: `JobAccessService` und Endpoint-Filter `RequireJobAccess`; Live-Updates über `IJobNotifier` statt `Clients.All`.
+- Offen: Der E2E-Test mit zwei Benutzern, ein Security-Review durch den `sec-agent` und die Oberfläche zum Zuordnen unassignierter Jobs.
+
 ## 5. Acceptance Criteria (DoD)
 - [ ] Ein Benutzer kann keine fremden, nicht freigegebenen Jobs lesen oder erraten (IDOR-Tests grün).
 - [ ] Security-Review durch `sec-agent` ist abgeschlossen, E2E-Test mit zwei Benutzern ist grün.

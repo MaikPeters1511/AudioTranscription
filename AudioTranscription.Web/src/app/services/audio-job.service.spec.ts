@@ -87,6 +87,50 @@ describe('AudioJobService', () => {
   });
 });
 
+describe('AudioJobService sharing (S19)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('keeps the known owner when a live event does not carry it', () => {
+    service.jobs.set([{ ...listItem('a'), isOwner: false, sharedByEmail: 'alice@example.com' }]);
+
+    service.updateJobInList({ ...listItem('a', AudioJobStatus.Completed), isOwner: null, sharedByEmail: null });
+
+    expect(service.jobs()[0]).toMatchObject({
+      status: AudioJobStatus.Completed,
+      isOwner: false,
+      sharedByEmail: 'alice@example.com',
+    });
+  });
+
+  it('lists, adds and removes shares', async () => {
+    const list = service.getShares('job-1');
+    http.expectOne('/api/audio-jobs/job-1/shares').flush([{ userId: 'u1', email: 'bob@example.com' }]);
+    expect(await list).toEqual([{ userId: 'u1', email: 'bob@example.com' }]);
+
+    const add = service.addShare('job-1', 'bob@example.com');
+    const addReq = http.expectOne('/api/audio-jobs/job-1/shares');
+    expect(addReq.request.method).toBe('POST');
+    expect(addReq.request.body).toEqual({ email: 'bob@example.com' });
+    addReq.flush(null, { status: 204, statusText: 'No Content' });
+    await add;
+
+    const remove = service.removeShare('job-1', 'u/1');
+    const delReq = http.expectOne('/api/audio-jobs/job-1/shares/u%2F1');
+    expect(delReq.request.method).toBe('DELETE');
+    delReq.flush(null, { status: 204, statusText: 'No Content' });
+    await remove;
+  });
+});
+
 describe('AudioJobService job actions (S09)', () => {
   let service: AudioJobService;
   let http: HttpTestingController;

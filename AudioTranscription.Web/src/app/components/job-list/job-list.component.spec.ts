@@ -90,4 +90,14 @@ describe('JobListComponent', () => {
     expect(bars[0].getAttribute('value')).toBe('25');
     expect(fixture.nativeElement.querySelector('[aria-live]')).toBeNull();
   });
+
+  it('marks a job shared by someone else and shows no actions for it (S19)', () => {
+    const shared = { ...job, id: 'shared', fileName: 'fremd.mp3', isOwner: false, sharedByEmail: 'alice@example.com' };
+    const fixture = render('de', [{ ...job, isOwner: true }, shared]);
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Geteilt von alice@example.com');
+    expect(text?.match(/Geteilt von/g)).toHaveLength(2); // table row and mobile card of the shared job only
+    expect(fixture.nativeElement.querySelector('[data-action=delete][aria-label*="fremd.mp3"]')).toBeNull();
+  });
 });

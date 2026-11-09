@@ -1,7 +1,7 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
-using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Api.Uploads;
 using AudioTranscription.Api.Validation;
@@ -11,7 +11,6 @@ using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -35,21 +34,25 @@ public static class AudioJobEndpoints
             .WithDescription("Get paginated list of audio jobs");
 
         group.MapGet("/{id:guid}", GetAudioJob)
+            .RequireJobAccess()
             .WithName("GetAudioJob")
             .WithSummary("Get a specific audio job by ID")
             .WithDescription("Get a specific audio job by ID");
 
         group.MapDelete("/{id:guid}", DeleteAudioJob)
+            .RequireJobAccess()
             .WithName("DeleteAudioJob")
             .WithSummary("Delete a job with its transcript and upload")
             .WithDescription("Delete a job with its transcript and uploaded file; cancels it first if it is running");
 
         group.MapPost("/{id:guid}/cancel", CancelAudioJob)
+            .RequireJobAccess()
             .WithName("CancelAudioJob")
             .WithSummary("Cancel a pending or running job")
             .WithDescription("Cancel a pending or running job");
 
         group.MapPost("/{id:guid}/retry", RetryAudioJob)
+            .RequireJobAccess()
             .WithName("RetryAudioJob")
             .WithSummary("Re-queue a failed or cancelled job")
             .WithDescription("Re-queue a failed or cancelled job using its kept upload");
@@ -60,12 +63,15 @@ public static class AudioJobEndpoints
         AppDbContext dbContext,
         JobCancellationRegistry cancellations,
         ITempFileStore tempFileStore,
-        IHubContext<TranscriptionHub> hubContext,
+        IJobNotifier notifier,
         ILogger<AudioJob> logger)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
         if (job is null)
             return JobNotFound(id);
+
+        // Who to tell has to be looked up before the job and its shares are gone
+        var recipients = await notifier.GetRecipientsAsync(id);
 
         // A running job is stopped first; the worker notices the deletion and ends quietly
         cancellations.Cancel(id);
@@ -76,7 +82,7 @@ public static class AudioJobEndpoints
 
         // Only the id is logged: file names can contain personal data
         logger.LogInformation("Audio job {JobId} deleted", id);
-        await hubContext.Clients.All.SendAsync("JobDeleted", id);
+        await notifier.SendAsync(recipients, "JobDeleted", id);
 
         return TypedResults.NoContent();
     }
@@ -85,7 +91,7 @@ public static class AudioJobEndpoints
         Guid id,
         AppDbContext dbContext,
         JobCancellationRegistry cancellations,
-        IHubContext<TranscriptionHub> hubContext)
+        IJobNotifier notifier)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
         if (job is null)
@@ -102,7 +108,7 @@ public static class AudioJobEndpoints
         job.Status = AudioJobStatus.Cancelled;
         job.CompletedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync();
-        await hubContext.Clients.All.SendAsync("JobStatusChanged", ToListDto(job));
+        await notifier.NotifyAsync(job.Id, "JobStatusChanged", ToListDto(job));
 
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
     }
@@ -112,7 +118,7 @@ public static class AudioJobEndpoints
         AppDbContext dbContext,
         TranscriptionQueue queue,
         ITempFileStore tempFileStore,
-        IHubContext<TranscriptionHub> hubContext)
+        IJobNotifier notifier)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
         if (job is null)
@@ -138,7 +144,7 @@ public static class AudioJobEndpoints
         dbContext.TranscriptVariants.RemoveRange(dbContext.TranscriptVariants.Where(v => v.AudioJobId == id));
         await dbContext.SaveChangesAsync();
 
-        await hubContext.Clients.All.SendAsync("JobStatusChanged", ToListDto(job));
+        await notifier.NotifyAsync(job.Id, "JobStatusChanged", ToListDto(job));
         await queue.EnqueueAsync(new TranscriptionJobRequest(job.Id, filePath));
 
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
@@ -172,7 +178,7 @@ public static class AudioJobEndpoints
         IOptions<UploadOptions> uploadOptions,
         IOptions<WhisperOptions> whisperOptions,
         IOptions<DiarizationOptions> diarizationOptions,
-        IHubContext<TranscriptionHub> hubContext,
+        IJobNotifier notifier,
         ITempFileStore tempFileStore,
         ILogger<AudioJob> logger,
         CancellationToken cancellationToken)
@@ -264,6 +270,7 @@ public static class AudioJobEndpoints
             Model = resolvedModel,
             RequestedLanguage = resolvedLanguage,
             DiarizationRequested = upload.Diarize,
+            OwnerId = JobAccessService.GetUserId(request.HttpContext.User),
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -273,8 +280,8 @@ public static class AudioJobEndpoints
         logger.LogInformation("Audio job {JobId} created for file '{FileName}' ({FileSize} bytes)",
             jobId, upload.FileName, upload.FileSizeBytes);
 
-        // Notify connected clients about new job
-        await hubContext.Clients.All.SendAsync("JobCreated", new AudioJobListDto(
+        // Notify the owner's connected clients about the new job
+        await notifier.NotifyAsync(audioJob.Id, "JobCreated", new AudioJobListDto(
             audioJob.Id, audioJob.FileName, audioJob.FileSizeBytes,
             audioJob.Status, audioJob.Language, audioJob.DurationSeconds,
             audioJob.CreatedAtUtc, audioJob.CompletedAtUtc));
@@ -286,7 +293,9 @@ public static class AudioJobEndpoints
     }
 
     private static async Task<Ok<PaginatedResult<AudioJobListDto>>> GetAudioJobs(
+        HttpContext http,
         AppDbContext dbContext,
+        JobAccessService access,
         JobProgressStore progressStore,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -294,40 +303,64 @@ public static class AudioJobEndpoints
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var totalCount = await dbContext.AudioJobs.CountAsync();
+        // Only the user's own jobs and those shared with them
+        var userId = JobAccessService.GetUserId(http.User) ?? string.Empty;
+        var visibleIds = access.VisibleJobIds(userId);
+        var visible = dbContext.AudioJobs.Where(j => visibleIds.Contains(j.Id));
 
-        var items = await dbContext.AudioJobs
+        var totalCount = await visible.CountAsync();
+
+        var rows = await visible
             .OrderByDescending(j => j.CreatedAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(j => new AudioJobListDto(
-                j.Id, j.FileName, j.FileSizeBytes,
-                j.Status, j.Language, j.DurationSeconds,
-                j.CreatedAtUtc, j.CompletedAtUtc))
+            .Select(j => new
+            {
+                Dto = new AudioJobListDto(
+                    j.Id, j.FileName, j.FileSizeBytes,
+                    j.Status, j.Language, j.DurationSeconds,
+                    j.CreatedAtUtc, j.CompletedAtUtc, null, null, null),
+                j.OwnerId,
+            })
             .ToListAsync();
 
+        var ownerEmails = await OwnerEmailsAsync(dbContext, rows.Select(r => r.OwnerId));
+
         // Progress lives in memory, not in the database
-        items = items.Select(j => j.Status == AudioJobStatus.Processing ? j with { ProgressPercent = progressStore.Get(j.Id) } : j).ToList();
+        var items = rows.Select(r => r.Dto with
+        {
+            ProgressPercent = r.Dto.Status == AudioJobStatus.Processing ? progressStore.Get(r.Dto.Id) : null,
+            IsOwner = r.OwnerId == userId,
+            SharedByEmail = r.OwnerId == userId || r.OwnerId is null ? null : ownerEmails.GetValueOrDefault(r.OwnerId),
+        }).ToList();
 
         return TypedResults.Ok(new PaginatedResult<AudioJobListDto>(items, totalCount, page, pageSize));
     }
 
+    private static async Task<Dictionary<string, string>> OwnerEmailsAsync(AppDbContext dbContext, IEnumerable<string?> ownerIds)
+    {
+        var ids = ownerIds.Where(id => id is not null).Distinct().ToList();
+        return await dbContext.Users
+            .Where(u => ids.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? string.Empty);
+    }
+
     private static async Task<Results<Ok<AudioJobDto>, NotFound<ProblemDetails>>> GetAudioJob(
         Guid id,
+        HttpContext http,
         AppDbContext dbContext,
         JobProgressStore progressStore)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
 
         if (job is null)
-        {
-            return TypedResults.NotFound(new ProblemDetails
-            {
-                Title = "Job not found",
-                Detail = $"No audio job with ID '{id}' was found.",
-                Status = StatusCodes.Status404NotFound
-            });
-        }
+            return JobNotFound(id);
+
+        var userId = JobAccessService.GetUserId(http.User);
+        var isOwner = job.OwnerId == userId;
+        var sharedBy = isOwner || job.OwnerId is null
+            ? null
+            : (await OwnerEmailsAsync(dbContext, [job.OwnerId])).GetValueOrDefault(job.OwnerId);
 
         return TypedResults.Ok(new AudioJobDto(
             job.Id, job.FileName, job.FileSizeBytes, job.ContentType,
@@ -335,6 +368,7 @@ public static class AudioJobEndpoints
             job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc,
             job.Model, job.RequestedLanguage, job.DiarizationRequested,
-            job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null));
+            job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null,
+            isOwner, sharedBy));
     }
 }

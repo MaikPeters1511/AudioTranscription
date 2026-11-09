@@ -1,9 +1,8 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
-using AudioTranscription.Api.Hubs;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace AudioTranscription.Api.BackgroundServices;
@@ -47,7 +46,7 @@ public class VariantWorker(
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var generator = scope.ServiceProvider.GetRequiredService<IVariantGenerator>();
-        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<TranscriptionHub>>();
+        var notifier = scope.ServiceProvider.GetRequiredService<IJobNotifier>();
 
         var variant = await dbContext.TranscriptVariants.FindAsync([request.VariantId], stoppingToken);
         if (variant is null)
@@ -69,7 +68,7 @@ public class VariantWorker(
             variant.ErrorMessage = "Job hat kein Transkript.";
             variant.CompletedAtUtc = DateTime.UtcNow;
             await dbContext.SaveChangesAsync(stoppingToken);
-            await NotifyCompleted(hubContext, variant);
+            await NotifyCompleted(notifier, variant);
             return;
         }
 
@@ -92,12 +91,12 @@ public class VariantWorker(
 
         variant.CompletedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(stoppingToken);
-        await NotifyCompleted(hubContext, variant);
+        await NotifyCompleted(notifier, variant);
     }
 
-    private static async Task NotifyCompleted(IHubContext<TranscriptionHub> hubContext, Domain.Entities.TranscriptVariant variant)
+    private static async Task NotifyCompleted(IJobNotifier notifier, Domain.Entities.TranscriptVariant variant)
     {
-        await hubContext.Clients.All.SendAsync("VariantCompleted",
+        await notifier.NotifyAsync(variant.AudioJobId, "VariantCompleted",
             new VariantCompletedDto(variant.AudioJobId, variant.Id, variant.Mode, variant.Status));
     }
 }

@@ -1,12 +1,11 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
-using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Diarization;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace AudioTranscription.Api.BackgroundServices;
@@ -95,7 +94,7 @@ public class TranscriptionWorker : BackgroundService
     {
         var dbContext = services.GetRequiredService<AppDbContext>();
         var transcriptionService = services.GetRequiredService<ITranscriptionService>();
-        var hubContext = services.GetRequiredService<IHubContext<TranscriptionHub>>();
+        var notifier = services.GetRequiredService<IJobNotifier>();
 
         var job = await dbContext.AudioJobs.FindAsync([request.JobId], cancellationToken);
         if (job is null)
@@ -114,13 +113,14 @@ public class TranscriptionWorker : BackgroundService
         // Update status to Processing
         job.Status = AudioJobStatus.Processing;
         await dbContext.SaveChangesAsync(cancellationToken);
-        await NotifyStatusChanged(hubContext, job);
+        await NotifyStatusChanged(notifier, job);
 
         try
         {
             // Run transcription with the settings chosen at upload (also after a restart or retry)
             var settings = new TranscriptionSettings(job.Model, job.RequestedLanguage);
-            var progress = CreateProgress(services, hubContext, job.Id);
+            var progressRecipients = await notifier.GetRecipientsAsync(job.Id, stoppingToken);
+            var progress = CreateProgress(services, notifier, progressRecipients, job.Id);
             var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, progress, cancellationToken);
 
             // Update job with results
@@ -145,7 +145,7 @@ public class TranscriptionWorker : BackgroundService
             dbContext.TranscriptSegments.AddRange(segments);
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            await NotifyStatusChanged(hubContext, job);
+            await NotifyStatusChanged(notifier, job);
 
             _logger.LogInformation(
                 "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
@@ -160,7 +160,7 @@ public class TranscriptionWorker : BackgroundService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
         {
             _logger.LogInformation("Job {JobId} was cancelled by a user", request.JobId);
-            return await MarkCancelledAsync(dbContext, hubContext, job, stoppingToken);
+            return await MarkCancelledAsync(dbContext, notifier, job, stoppingToken);
         }
         catch (Exception ex)
         {
@@ -171,7 +171,7 @@ public class TranscriptionWorker : BackgroundService
             job.CompletedAtUtc = DateTime.UtcNow;
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            await NotifyStatusChanged(hubContext, job);
+            await NotifyStatusChanged(notifier, job);
             return AudioJobStatus.Failed;
         }
     }
@@ -227,7 +227,7 @@ public class TranscriptionWorker : BackgroundService
     }
 
     private async Task<AudioJobStatus?> MarkCancelledAsync(
-        AppDbContext dbContext, IHubContext<TranscriptionHub> hubContext, AudioJob job, CancellationToken stoppingToken)
+        AppDbContext dbContext, IJobNotifier notifier, AudioJob job, CancellationToken stoppingToken)
     {
         job.Status = AudioJobStatus.Cancelled;
         job.ErrorMessage = null;
@@ -243,7 +243,7 @@ public class TranscriptionWorker : BackgroundService
             return null;
         }
 
-        await NotifyStatusChanged(hubContext, job);
+        await NotifyStatusChanged(notifier, job);
         return AudioJobStatus.Cancelled;
     }
 
@@ -251,13 +251,13 @@ public class TranscriptionWorker : BackgroundService
     /// Keeps the latest value for clients that load the job later and pushes throttled "JobProgress" events.
     /// Called on Whisper's thread, so sending is not awaited.
     /// </summary>
-    private ThrottledProgress CreateProgress(IServiceProvider services, IHubContext<TranscriptionHub> hubContext, Guid jobId)
+    private ThrottledProgress CreateProgress(IServiceProvider services, IJobNotifier notifier, IReadOnlyList<string> recipients, Guid jobId)
     {
         var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
         return new ThrottledProgress(timeProvider, percent =>
         {
             _progressStore.Set(jobId, percent);
-            hubContext.Clients.All.SendAsync("JobProgress", new JobProgressDto(jobId, percent))
+            notifier.SendAsync(recipients, "JobProgress", new JobProgressDto(jobId, percent))
                 .ContinueWith(
                     t => _logger.LogWarning(t.Exception, "Failed to push progress of job {JobId}", jobId),
                     CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
@@ -277,7 +277,7 @@ public class TranscriptionWorker : BackgroundService
     }
 
     private static async Task NotifyStatusChanged(
-        IHubContext<TranscriptionHub> hubContext,
+        IJobNotifier notifier,
         AudioJob job)
     {
         var dto = new AudioJobListDto(
@@ -285,6 +285,6 @@ public class TranscriptionWorker : BackgroundService
             job.Status, job.Language, job.DurationSeconds,
             job.CreatedAtUtc, job.CompletedAtUtc);
 
-        await hubContext.Clients.All.SendAsync("JobStatusChanged", dto);
+        await notifier.NotifyAsync(job.Id, "JobStatusChanged", dto);
     }
 }

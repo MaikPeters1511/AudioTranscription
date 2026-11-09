@@ -55,7 +55,8 @@
       "previous": "Previous page",
       "next": "Next page",
       "page": "Page {{ page }}"
-    }
+    },
+    "sharedBy": "Shared by {{ email }}"
   },
   "jobDetail": {
     "pageTitle": "{{ fileName }} · Transcription",
@@ -100,7 +101,8 @@
       "translateLanguage": "Target language",
       "failed": "Generation failed.",
       "unknownError": "Unknown error"
-    }
+    },
+    "sharedBy": "Shared by {{ email }}"
   },
   "upload": {
     "title": "Upload audio",
@@ -255,6 +257,24 @@
         "lastAdminDeactivate": "The last active administrator cannot be deactivated.",
         "generic": "That did not work. Please try again."
       }
+    }
+  },
+  "jobShare": {
+    "open": "Share",
+    "title": "Share job",
+    "hint": "Users you share with can read the transcript, but not change or delete it.",
+    "email": "User's email address",
+    "add": "Share",
+    "sharedWith": "Shared with",
+    "none": "Not shared with anyone yet.",
+    "revoke": "Remove",
+    "revokeFor": "Remove access for {{ email }}",
+    "close": "Close",
+    "added": "Access saved",
+    "revoked": "Access removed",
+    "error": {
+      "unknownUser": "There is no user with this email address, or the job already belongs to you.",
+      "generic": "That did not work. Please try again."
     }
   }
 }

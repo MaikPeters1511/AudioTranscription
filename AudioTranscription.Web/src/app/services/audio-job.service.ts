@@ -3,6 +3,7 @@ import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import {
   AudioJob,
   AudioJobListItem,
+  JobShare,
   AudioJobStatus,
   CreateAudioJobResponse,
   JobSpeaker,
@@ -290,11 +291,35 @@ export class AudioJobService {
       const index = current.findIndex((j) => j.id === job.id);
       if (index >= 0) {
         const updated = [...current];
-        updated[index] = job;
+        const existing = current[index];
+        // Live events go to several users, so they cannot say who owns the job: keep what the list knows
+        updated[index] = {
+          ...job,
+          isOwner: job.isOwner ?? existing.isOwner,
+          sharedByEmail: job.sharedByEmail ?? existing.sharedByEmail,
+        };
         return updated;
       }
       return [job, ...current];
     });
+  }
+
+  // --- sharing (S19) -------------------------------------------------------------
+
+  /** Users the job is shared with; only the owner may ask. */
+  getShares(jobId: string): Promise<JobShare[]> {
+    return firstValueFrom(this.http.get<JobShare[]>(`${this.baseUrl}/${jobId}/shares`));
+  }
+
+  /** Shares the job read-only with the user having this e-mail address. Errors are left to the caller. */
+  async addShare(jobId: string, email: string): Promise<void> {
+    await firstValueFrom(this.http.post(`${this.baseUrl}/${jobId}/shares`, { email }));
+  }
+
+  async removeShare(jobId: string, userId: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete(`${this.baseUrl}/${jobId}/shares/${encodeURIComponent(userId)}`),
+    );
   }
 
   /** Translation key of the status label (see public/i18n). */

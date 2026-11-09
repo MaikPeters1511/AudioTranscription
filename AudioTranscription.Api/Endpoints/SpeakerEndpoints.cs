@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Domain.Entities;
 using AudioTranscription.Infrastructure.Data;
@@ -14,7 +15,8 @@ public static class SpeakerEndpoints
 
     public static void MapSpeakerEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/audio-jobs/{id:guid}/speakers");
+        var group = app.MapGroup("/api/audio-jobs/{id:guid}/speakers")
+            .RequireJobAccess();
 
         group.MapGet("/", GetSpeakers)
             .WithName("GetJobSpeakers")

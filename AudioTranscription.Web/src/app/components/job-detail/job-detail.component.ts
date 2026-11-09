@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
+import { JobShareComponent } from '../job-share/job-share.component';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { AudioJobService } from '../../services/audio-job.service';
@@ -15,7 +16,7 @@ import { languageName } from '../../i18n/language-names';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, TranscriptPlayerComponent, JobProgressComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobShareComponent, TranscriptPlayerComponent, JobProgressComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -36,6 +37,9 @@ import { languageName } from '../../i18n/language-names';
         <div class="flex items-start justify-between mb-6">
           <div>
             <h1 class="text-3xl font-bold">{{ job.fileName }}</h1>
+            @if (job.isOwner === false && job.sharedByEmail) {
+              <p class="text-sm text-base-content/70 mt-1" data-testid="shared-by">{{ 'jobDetail.sharedBy' | transloco: { email: job.sharedByEmail } }}</p>
+            }
             <p class="text-sm text-base-content/60 mt-1">
               {{ jobService.formatFileSize(job.fileSizeBytes) }} •
               {{ job.contentType }} •
@@ -49,7 +53,12 @@ import { languageName } from '../../i18n/language-names';
               }
               {{ jobService.getStatusLabelKey(job.status) | transloco }}
             </span>
-            <app-job-actions [job]="job" />
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+              @if (job.isOwner !== false) {
+                <app-job-share [jobId]="job.id" />
+              }
+              <app-job-actions [job]="job" />
+            </div>
           </div>
         </div>
 

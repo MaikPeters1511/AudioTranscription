@@ -64,6 +64,7 @@ public class DiarizationIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         var job = new AudioJob
         {
+            OwnerId = TestAuthHandler.DefaultUserId,
             FileName = "meeting.mp3", ContentType = "audio/mpeg", Model = "Base",
             Status = status, RawTranscript = "Hallo zusammen. Los geht's.",
         };

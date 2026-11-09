@@ -1,4 +1,5 @@
 using System.Text;
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Enums;
@@ -17,7 +18,8 @@ public static class TranscriptOutputEndpoints
 
     public static void MapTranscriptOutputEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/audio-jobs/{id:guid}");
+        var group = app.MapGroup("/api/audio-jobs/{id:guid}")
+            .RequireJobAccess();
 
         group.MapGet("/segments", GetSegments)
             .WithName("GetTranscriptSegments")
