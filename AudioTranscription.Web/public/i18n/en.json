@@ -102,7 +102,13 @@
       "failed": "Generation failed.",
       "unknownError": "Unknown error"
     },
-    "sharedBy": "Shared by {{ email }}"
+    "sharedBy": "Shared by {{ email }}",
+    "retention": {
+      "deleteAt": "Will be deleted automatically on {{ date }}.",
+      "lock": "Protect from automatic deletion",
+      "lockedByOwner": "Protected from automatic deletion by its owner.",
+      "failed": "The protection could not be changed. Please try again."
+    }
   },
   "upload": {
     "title": "Upload audio",

@@ -27,6 +27,11 @@ public class AudioJob
     /// admin can see and assign those.
     /// </summary>
     public string? OwnerId { get; set; }
+    /// <summary>
+    /// True when the owner excluded the job from automatic deletion (S30, retention): neither the
+    /// transcript nor the upload is removed by the retention service while this is set.
+    /// </summary>
+    public bool RetentionLocked { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
 }

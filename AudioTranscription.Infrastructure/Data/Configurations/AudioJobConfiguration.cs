@@ -74,5 +74,9 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.OwnerId);
+
+        builder.Property(x => x.RetentionLocked)
+            .IsRequired()
+            .HasDefaultValue(false);
     }
 }

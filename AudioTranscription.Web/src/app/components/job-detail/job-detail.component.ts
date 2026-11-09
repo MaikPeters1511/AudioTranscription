@@ -7,7 +7,7 @@ import { JobShareComponent } from '../job-share/job-share.component';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { AudioJobService } from '../../services/audio-job.service';
-import { AudioJobStatus, PostProcessingMode, SubtitleFormat, TranscriptionOptions, TranscriptVariant, VariantStatus } from '../../models/audio-job.model';
+import { AudioJob, AudioJobStatus, PostProcessingMode, SubtitleFormat, TranscriptionOptions, TranscriptVariant, VariantStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
@@ -61,6 +61,29 @@ import { languageName } from '../../i18n/language-names';
             </div>
           </div>
         </div>
+
+        <!-- Automatic deletion (S30): shown only when it applies or the job was locked against it -->
+        @if (job.deleteAtUtc || job.retentionLocked) {
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mb-6" data-testid="retention">
+            @if (job.deleteAtUtc) {
+              <span>{{ 'jobDetail.retention.deleteAt' | transloco: { date: (job.deleteAtUtc | date: ('format.dateTime' | transloco)) } }}</span>
+            }
+            @if (job.isOwner !== false) {
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="toggle toggle-sm"
+                  data-testid="retention-lock"
+                  [checked]="job.retentionLocked"
+                  (change)="setRetentionLock(job, $any($event.target).checked)"
+                />
+                <span>{{ 'jobDetail.retention.lock' | transloco }}</span>
+              </label>
+            } @else if (job.retentionLocked) {
+              <span>{{ 'jobDetail.retention.lockedByOwner' | transloco }}</span>
+            }
+          </div>
+        }
 
         @if (job.status === AudioJobStatus.Cancelled) {
           <div class="alert alert-info mb-6" role="status">
@@ -376,6 +399,16 @@ export class JobDetailComponent implements OnInit {
         this.pageTitle.set('app.name');
       }
     });
+  }
+
+  /** The toggle always shows what the server has: it is reloaded after the call, and on failure too. */
+  async setRetentionLock(job: AudioJob, locked: boolean): Promise<void> {
+    try {
+      await this.jobService.setRetentionLock(job.id, locked);
+    } catch {
+      this.toastService.error(this.transloco.translate('jobDetail.retention.failed'));
+      this.jobService.loadJob(job.id, true);
+    }
   }
 
   /** Language code named in the UI language, e.g. "de" -> "German". */

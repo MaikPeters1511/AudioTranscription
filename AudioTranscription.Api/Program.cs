@@ -52,7 +52,12 @@ if (builder.Configuration.GetValue<bool>($"{DiarizationOptions.SectionName}:Enab
     builder.Services.AddSingleton<IDiarizationService, SherpaOnnxDiarizationService>();
 }
 builder.Services.AddHostedService<InitialUserSeeder>();
+builder.Services.AddOptions<RetentionOptions>()
+    .Bind(builder.Configuration.GetSection(RetentionOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<RetentionOptions>, RetentionOptionsValidator>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
+builder.Services.AddHostedService<RetentionService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
 

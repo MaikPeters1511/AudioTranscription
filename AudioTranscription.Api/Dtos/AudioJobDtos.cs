@@ -36,7 +36,10 @@ public record AudioJobDto(
     bool DiarizationRequested,
     int? ProgressPercent = null,
     bool? IsOwner = null,
-    string? SharedByEmail = null
+    string? SharedByEmail = null,
+    // S30: excluded from automatic deletion, and when the job will otherwise be deleted (null: never or not applicable)
+    bool RetentionLocked = false,
+    DateTime? DeleteAtUtc = null
 );
 
 public record AudioJobListDto(
@@ -58,6 +61,8 @@ public record AudioJobListDto(
 public record JobShareDto(string UserId, string Email);
 
 public record ShareJobRequest(string? Email);
+
+public record SetRetentionLockRequest(bool? Locked);
 
 public record AssignOwnerRequest(string? UserId);
 

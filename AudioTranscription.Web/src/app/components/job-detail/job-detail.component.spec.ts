@@ -171,4 +171,49 @@ describe('JobDetailComponent', () => {
     expect(shared.nativeElement.querySelector('app-job-share')).toBeNull();
     expect(shared.nativeElement.querySelector('[data-testid=shared-by]').textContent).toContain('Geteilt von alice@example.com');
   });
+
+  describe('automatic deletion (S30)', () => {
+    it('shows nothing when retention does not apply to the job', () => {
+      const fixture = render(completedJob({ rawTranscript: 'x', isOwner: true }));
+
+      expect(fixture.nativeElement.querySelector('[data-testid=retention]')).toBeNull();
+    });
+
+    it('names the deletion date and offers the lock to the owner', () => {
+      const fixture = render(completedJob({ rawTranscript: 'x', isOwner: true, deleteAtUtc: '2026-12-24T10:00:00Z' }));
+
+      const box = fixture.nativeElement.querySelector('[data-testid=retention]') as HTMLElement;
+      expect(box.textContent).toMatch(/Wird am 24\.12\.2026 \d\d:\d\d automatisch gelöscht/);
+      expect((box.querySelector('[data-testid=retention-lock]') as HTMLInputElement).checked).toBe(false);
+    });
+
+    it('shows a locked job as protected, without a deletion date', () => {
+      const fixture = render(completedJob({ rawTranscript: 'x', isOwner: true, retentionLocked: true }));
+
+      const box = fixture.nativeElement.querySelector('[data-testid=retention]') as HTMLElement;
+      expect(box.textContent).not.toContain('automatisch gelöscht');
+      expect((box.querySelector('[data-testid=retention-lock]') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('does not let a shared user change the protection', () => {
+      const fixture = render(
+        completedJob({ rawTranscript: 'x', isOwner: false, sharedByEmail: 'a@example.com', retentionLocked: true }),
+      );
+
+      const box = fixture.nativeElement.querySelector('[data-testid=retention]') as HTMLElement;
+      expect(box.querySelector('[data-testid=retention-lock]')).toBeNull();
+      expect(box.textContent).toContain('Vom Eigentümer');
+    });
+
+    it('sends the lock to the service when toggled', () => {
+      const lock = vi.spyOn(jobService, 'setRetentionLock').mockResolvedValue();
+      const fixture = render(completedJob({ rawTranscript: 'x', isOwner: true, deleteAtUtc: '2026-12-24T10:00:00Z' }));
+
+      const toggle = fixture.nativeElement.querySelector('[data-testid=retention-lock]') as HTMLInputElement;
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change'));
+
+      expect(lock).toHaveBeenCalledWith('job-1', true);
+    });
+  });
 });
