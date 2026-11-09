@@ -8,7 +8,11 @@ Vor dem Umbau auf Mehrbenutzer (S18/S19) brauchen wir ein Sicherheitsnetz. Playw
 ## 2. User Stories
 - Als Entwickler möchte ich, dass die Kern-Flows automatisiert End-to-End geprüft werden, damit Umbauten keine Regressionen unbemerkt einführen.
 
-## 3. Tasks
+## 3. Vorgehen (gestaffelt)
+- **Stufe 1 (umgesetzt):** UI-Flows gegen eine gefakte API (`tests/support/mock-api.ts`, `*.mocked.spec.ts`), laufen mit dem Angular-Dev-Server allein, eigener CI-Job `Frontend E2E (mocked API)`.
+- **Stufe 2 (offen):** dieselben Flows gegen den echten Stack (docker-compose: API, SQL Server, Frontend) als zweiter CI-Job.
+
+## 3a. Tasks
 
 ### S31-T1 Testumgebung und Fixtures · qa · S
 - Stabile Testdaten (kurze generierte WAV-Datei), Test-Login über Seeder-Konfiguration, ein Whisper-Modell oder ein Stub für schnelle Läufe.
