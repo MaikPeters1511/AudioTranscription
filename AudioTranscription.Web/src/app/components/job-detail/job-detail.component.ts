@@ -401,7 +401,6 @@ export class JobDetailComponent implements OnInit {
     });
   }
 
-  /** Language code named in the UI language, e.g. "de" -> "German". */
   /** The toggle always shows what the server has: it is reloaded after the call, and on failure too. */
   async setRetentionLock(job: AudioJob, locked: boolean): Promise<void> {
     try {
@@ -412,6 +411,7 @@ export class JobDetailComponent implements OnInit {
     }
   }
 
+  /** Language code named in the UI language, e.g. "de" -> "German". */
   languageLabel(code: string): string {
     return languageName(code, this.activeLang());
   }

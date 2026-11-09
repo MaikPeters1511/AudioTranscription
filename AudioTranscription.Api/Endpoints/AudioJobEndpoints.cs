@@ -156,12 +156,25 @@ public static class AudioJobEndpoints
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
     }
 
-    private static async Task<NoContent> SetRetentionLock(Guid id, SetRetentionLockRequest request, AppDbContext dbContext)
+    private static async Task<Results<NoContent, ValidationProblem>> SetRetentionLock(
+        Guid id, SetRetentionLockRequest request, AppDbContext dbContext, ILogger<AudioJob> logger)
     {
+        // A missing or misspelled flag must not silently remove the protection
+        if (request.Locked is not { } locked)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["locked"] = ["Send true to protect the job from automatic deletion, false to allow it."]
+            });
+        }
+
         // The access filter already made sure the job exists and belongs to the caller
         var job = await dbContext.AudioJobs.FindAsync(id);
-        job!.RetentionLocked = request.Locked;
+        job!.RetentionLocked = locked;
         await dbContext.SaveChangesAsync();
+
+        // Audit trail: who locked what is the owner's decision to keep data; only ids are logged
+        logger.LogInformation("Retention lock of job {JobId} set to {Locked}", id, locked);
         return TypedResults.NoContent();
     }
 

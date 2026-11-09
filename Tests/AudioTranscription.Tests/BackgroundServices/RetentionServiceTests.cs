@@ -24,17 +24,32 @@ public class RetentionServiceTests : IDisposable
     private readonly Mock<IJobNotifier> _notifier = new();
     private readonly Mock<ILogger<RetentionService>> _logger = new();
     private ServiceProvider? _provider;
-    private TempFileStore? _store;
+    private HookedFileStore? _store;
+
+    /// <summary>The real store, with a hook to run code (or fail) when an upload is about to be deleted.</summary>
+    private sealed class HookedFileStore(TempFileStore inner) : ITempFileStore
+    {
+        public Action<string>? DeleteUploadHook { get; set; }
+        public string StorageDirectory => inner.StorageDirectory;
+        public string GetUploadPath(Guid jobId, string originalFileName) => inner.GetUploadPath(jobId, originalFileName);
+        public void CleanupAfterProcessing(string filePath, AudioJobStatus? outcome) => inner.CleanupAfterProcessing(filePath, outcome);
+
+        public void DeleteUpload(string filePath)
+        {
+            DeleteUploadHook?.Invoke(filePath);
+            inner.DeleteUpload(filePath);
+        }
+    }
 
     private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => new(utcNow, TimeSpan.Zero);
     }
 
-    private RetentionService CreateSut(int transcriptDays = 0, int audioDays = 0)
+    private RetentionService CreateSut(int transcriptDays = 0, int audioDays = 0, int maxJobsPerRun = 500)
     {
         var upload = Options.Create(new UploadOptions { TempStoragePath = _dir.Path, DeleteAfterTranscription = false });
-        _store = new TempFileStore(upload);
+        _store = new HookedFileStore(new TempFileStore(upload));
         _notifier.Setup(n => n.GetRecipientsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(["owner-id"]);
 
         var services = new ServiceCollection();
@@ -45,7 +60,7 @@ public class RetentionServiceTests : IDisposable
         return new RetentionService(
             _provider.GetRequiredService<IServiceScopeFactory>(),
             _store,
-            Options.Create(new RetentionOptions { TranscriptDays = transcriptDays, AudioDays = audioDays }),
+            Options.Create(new RetentionOptions { TranscriptDays = transcriptDays, AudioDays = audioDays, MaxJobsPerRun = maxJobsPerRun }),
             new FixedTimeProvider(Now),
             _logger.Object);
     }
@@ -54,7 +69,9 @@ public class RetentionServiceTests : IDisposable
         int ageDays,
         AudioJobStatus status = AudioJobStatus.Completed,
         bool locked = false,
-        bool completedAtMissing = false)
+        bool completedAtMissing = false,
+        string? ownerId = "owner-id",
+        double ageDaysFraction = 0)
     {
         using var scope = _provider!.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -63,10 +80,10 @@ public class RetentionServiceTests : IDisposable
             FileName = "meeting.mp3",
             ContentType = "audio/mpeg",
             Status = status,
-            OwnerId = "owner-id",
+            OwnerId = ownerId,
             RetentionLocked = locked,
             CreatedAtUtc = Now.AddDays(-ageDays - 1),
-            CompletedAtUtc = completedAtMissing ? null : Now.AddDays(-ageDays),
+            CompletedAtUtc = completedAtMissing ? null : Now.AddDays(-ageDays).AddDays(-ageDaysFraction),
         };
         db.AudioJobs.Add(job);
         await db.SaveChangesAsync();
@@ -228,6 +245,188 @@ public class RetentionServiceTests : IDisposable
             .Select(i => i.Arguments[2]?.ToString())
             .Should().NotContain(m => m!.Contains("meeting.mp3"), "file names can contain personal data");
     }
+
+    // ---- boundary
+
+    [Fact]
+    public async Task ExactlyAtTheCutoff_IsKept_AndOneTickOlderIsDeleted()
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        var atCutoff = await AddJobAsync(ageDays: 30);
+        var older = await AddJobAsync(ageDays: 30, ageDaysFraction: 1d / 86_400);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(atCutoff.Id)).Should().BeTrue("exactly N days old is not yet older than N days");
+        (await JobExistsAsync(older.Id)).Should().BeFalse();
+    }
+
+    // ---- jobs nobody owns (S19) cannot be locked, so retention must not touch them
+
+    [Fact]
+    public async Task JobsWithoutAnOwner_AreNeverDeleted()
+    {
+        var sut = CreateSut(transcriptDays: 1, audioDays: 1);
+        var orphan = await AddJobAsync(ageDays: 400, ownerId: null);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(orphan.Id)).Should().BeTrue("an admin has to assign it first, then its owner can lock it");
+        File.Exists(orphan.File).Should().BeTrue();
+    }
+
+    // ---- K1: the job may change between the selection and the deletion
+
+    [Theory]
+    [InlineData(AudioJobStatus.Pending)]
+    [InlineData(AudioJobStatus.Processing)]
+    public async Task AJobThatIsRetriedMeanwhile_IsNotDeleted_NorIsItsUpload(AudioJobStatus reopenedAs)
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        var job = await AddJobAsync(ageDays: 40, AudioJobStatus.Failed);
+        _notifier.Setup(n => n.GetRecipientsAsync(job.Id, It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                // The owner presses "retry" after retention listed the job but before it deleted it
+                await ChangeJobAsync(job.Id, j => { j.Status = reopenedAs; j.CompletedAtUtc = null; });
+                return ["owner-id"];
+            });
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(job.Id)).Should().BeTrue();
+        File.Exists(job.File).Should().BeTrue("the retry needs the upload");
+    }
+
+    [Fact]
+    public async Task AJobThatIsLockedMeanwhile_IsNotDeleted()
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        var job = await AddJobAsync(ageDays: 40);
+        _notifier.Setup(n => n.GetRecipientsAsync(job.Id, It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await ChangeJobAsync(job.Id, j => j.RetentionLocked = true);
+                return ["owner-id"];
+            });
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(job.Id)).Should().BeTrue();
+        File.Exists(job.File).Should().BeTrue();
+    }
+
+    private async Task ChangeJobAsync(Guid id, Action<AudioJob> change)
+    {
+        using var scope = _provider!.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        change(await db.AudioJobs.SingleAsync(j => j.Id == id));
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task AudioRetention_ReChecksJustBeforeDeletingTheFile()
+    {
+        var sut = CreateSut(audioDays: 7);
+        var job = await AddJobAsync(ageDays: 10, AudioJobStatus.Failed);
+        // Locked while the run is busy with an earlier job: the file must stay
+        var earlier = await AddJobAsync(ageDays: 20, AudioJobStatus.Failed);
+        _store!.DeleteUploadHook = path =>
+        {
+            if (path == earlier.File)
+                ChangeJobAsync(job.Id, j => j.RetentionLocked = true).GetAwaiter().GetResult();
+        };
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        File.Exists(earlier.File).Should().BeFalse();
+        File.Exists(job.File).Should().BeTrue("it was locked after the selection");
+    }
+
+    // ---- H3: limit and visibility of a mass deletion
+
+    [Fact]
+    public async Task AtMostMaxJobsPerRun_AreDeleted_OldestFirst_AndTheRestFollowsInTheNextRun()
+    {
+        var sut = CreateSut(transcriptDays: 30, maxJobsPerRun: 2);
+        var oldest = await AddJobAsync(ageDays: 400);
+        var middle = await AddJobAsync(ageDays: 300);
+        var newest = await AddJobAsync(ageDays: 40);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+        (await JobExistsAsync(oldest.Id)).Should().BeFalse();
+        (await JobExistsAsync(middle.Id)).Should().BeFalse();
+        (await JobExistsAsync(newest.Id)).Should().BeTrue();
+
+        await sut.RunOnceAsync(CancellationToken.None);
+        (await JobExistsAsync(newest.Id)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TheNumberOfJobsAboutToBeDeleted_IsLoggedBeforeDeleting()
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        await AddJobAsync(ageDays: 40);
+        await AddJobAsync(ageDays: 41);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        _logger.Invocations
+            .Where(i => i.Method.Name == nameof(ILogger.Log) && (LogLevel)i.Arguments[0] == LogLevel.Warning)
+            .Select(i => i.Arguments[2]?.ToString())
+            .Should().Contain(m => m!.Contains('2') && m.Contains("job"), "an operator has to see how many jobs a run is going to delete");
+    }
+
+    // ---- M2/M3: failures
+
+    [Fact]
+    public async Task WhenTheUploadCannotBeDeleted_TheJobIsStillGoneAndAnnounced_WithoutLoggingThePath()
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        var job = await AddJobAsync(ageDays: 40);
+        _store!.DeleteUploadHook = _ => throw new IOException($"Sharing violation on {job.File}");
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(job.Id)).Should().BeFalse();
+        _notifier.Verify(n => n.SendAsync(It.IsAny<IReadOnlyList<string>>(), "JobDeleted", job.Id, It.IsAny<CancellationToken>()), Times.Once);
+        AllLogText().Should().NotContain(job.File).And.NotContain(Path.GetFileName(job.File));
+    }
+
+    [Fact]
+    public async Task AnUnexpectedErrorWithOneJob_DoesNotStopTheRest_NorTheAudioPart()
+    {
+        var sut = CreateSut(transcriptDays: 30, audioDays: 7);
+        var failing = await AddJobAsync(ageDays: 40);
+        var healthy = await AddJobAsync(ageDays: 41);
+        var audioOnly = await AddJobAsync(ageDays: 10);
+        _notifier.Setup(n => n.GetRecipientsAsync(failing.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TimeoutException("db timeout"));
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(failing.Id)).Should().BeTrue();
+        (await JobExistsAsync(healthy.Id)).Should().BeFalse();
+        File.Exists(audioOnly.File).Should().BeFalse("the audio part still ran");
+    }
+
+    [Fact]
+    public async Task ANotificationFailure_DoesNotCountAsAFailedDeletion()
+    {
+        var sut = CreateSut(transcriptDays: 30);
+        var job = await AddJobAsync(ageDays: 40);
+        _notifier.Setup(n => n.SendAsync(It.IsAny<IReadOnlyList<string>>(), "JobDeleted", job.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("hub down"));
+
+        var error = await Record.ExceptionAsync(() => sut.RunOnceAsync(CancellationToken.None));
+
+        error.Should().BeNull();
+        (await JobExistsAsync(job.Id)).Should().BeFalse();
+    }
+
+    private string AllLogText() => string.Join("\n", _logger.Invocations
+        .Where(i => i.Method.Name == nameof(ILogger.Log))
+        .Select(i => $"{i.Arguments[2]} {i.Arguments[3]}"));
 
     public void Dispose()
     {

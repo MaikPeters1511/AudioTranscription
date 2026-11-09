@@ -88,6 +88,21 @@ public class RetentionLockIntegrationTests : IClassFixture<WebApplicationFactory
         (await LoadAsync(id)).RetentionLocked.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"lock\":true}")]
+    [InlineData("{\"locked\":null}")]
+    [InlineData("{\"locked\":\"yes\"}")]
+    public async Task ABodyWithoutAValidLockedFlag_IsRejected_AndDoesNotChangeTheLock(string body)
+    {
+        var id = await AddJobAsync(locked: true);
+
+        var response = await Client().PutAsync($"/api/audio-jobs/{id}/retention-lock", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await LoadAsync(id)).RetentionLocked.Should().BeTrue("a malformed call must not remove the protection");
+    }
+
     [Fact]
     public async Task SharedUser_CannotLock_AndOthersDoNotSeeTheJob()
     {

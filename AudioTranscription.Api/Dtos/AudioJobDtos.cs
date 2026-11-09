@@ -62,7 +62,7 @@ public record JobShareDto(string UserId, string Email);
 
 public record ShareJobRequest(string? Email);
 
-public record SetRetentionLockRequest(bool Locked);
+public record SetRetentionLockRequest(bool? Locked);
 
 public record AssignOwnerRequest(string? UserId);
 
