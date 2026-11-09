@@ -185,6 +185,16 @@ public static class AudioJobEndpoints
     {
         var options = uploadOptions.Value;
 
+        // Every job needs an owner (ADR 0007): refuse before the file is even written to disk
+        var ownerId = JobAccessService.GetUserId(request.HttpContext.User);
+        if (string.IsNullOrEmpty(ownerId))
+        {
+            return TypedResults.Problem(
+                title: "Not signed in",
+                detail: "The user of this request could not be determined.",
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
         if (!request.HasFormContentType)
         {
             return TypedResults.Problem(
@@ -270,15 +280,15 @@ public static class AudioJobEndpoints
             Model = resolvedModel,
             RequestedLanguage = resolvedLanguage,
             DiarizationRequested = upload.Diarize,
-            OwnerId = JobAccessService.GetUserId(request.HttpContext.User),
+            OwnerId = ownerId,
             CreatedAtUtc = DateTime.UtcNow
         };
 
         dbContext.AudioJobs.Add(audioJob);
         await dbContext.SaveChangesAsync();
 
-        logger.LogInformation("Audio job {JobId} created for file '{FileName}' ({FileSize} bytes)",
-            jobId, upload.FileName, upload.FileSizeBytes);
+        // Only the id is logged: file names can contain personal data
+        logger.LogInformation("Audio job {JobId} created ({FileSize} bytes)", jobId, upload.FileSizeBytes);
 
         // Notify the owner's connected clients about the new job
         await notifier.NotifyAsync(audioJob.Id, "JobCreated", new AudioJobListDto(

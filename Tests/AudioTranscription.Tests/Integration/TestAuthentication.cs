@@ -19,6 +19,8 @@ public class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> option
     public const string SchemeName = "Test";
     public const string DefaultUserId = "test-user-id";
     public const string UserIdHeader = "X-Test-User";
+    /// <summary>Value of <see cref="UserIdHeader"/> for a request that is authenticated but carries no user id claim.</summary>
+    public const string NoUser = "none";
     public const string RolesHeader = "X-Test-Roles";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -27,8 +29,9 @@ public class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> option
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, "test@example.com"),
-            new(ClaimTypes.NameIdentifier, userId),
         };
+        if (userId != NoUser)
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));
         var roles = Request.Headers[RolesHeader].FirstOrDefault();
         if (!string.IsNullOrEmpty(roles))
             claims.AddRange(roles.Split(',').Select(role => new Claim(ClaimTypes.Role, role)));

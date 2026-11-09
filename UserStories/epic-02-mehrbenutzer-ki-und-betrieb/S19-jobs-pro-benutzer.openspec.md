@@ -45,6 +45,7 @@ Bisher sehen alle angemeldeten Benutzer dieselben Jobs (ADR 0003). Künftig besi
 - ADR: [ADR 0007](../../docs/adr/0007-jobs-pro-benutzer.md). Freigabe bedeutet nur Lesen, es gibt keine `Permission`-Spalte (YAGNI, später erweiterbar).
 - Admins sehen keine fremden Jobs; sie können nur Jobs **ohne** Eigentümer auflisten (`GET /api/admin/jobs/unassigned`) und zuordnen (`POST /api/admin/jobs/{id}/owner`). Eine Oberfläche dafür gibt es noch nicht (Folge-Ticket).
 - Zentrale Prüfung: `JobAccessService` und Endpoint-Filter `RequireJobAccess`; Live-Updates über `IJobNotifier` statt `Clients.All`.
+- Security-Review (PR #206): Upload ohne Benutzer wird mit 401 abgelehnt, der Zugriffsfilter bricht ohne `{id}` ab (fail closed), ein Test stellt sicher, dass jede Route unter `/api/audio-jobs/{id}` geschützt ist, die Admin-Zuordnung ist serialisiert und antwortet bei Jobs mit Eigentümer mit 404, der Migrations-Backfill geht nur an einen Admin. Bewusst offen (Folge-Tickets): Rate-Limit für die Benutzersuche per Freigabe, `JobUnshared`-Event beim Entzug, toten `JoinJobGroup`-Code entfernen.
 - Offen: Der E2E-Test mit zwei Benutzern, ein Security-Review durch den `sec-agent` und die Oberfläche zum Zuordnen unassignierter Jobs.
 
 ## 5. Acceptance Criteria (DoD)

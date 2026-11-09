@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
@@ -10,6 +11,7 @@ using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.TestHost;
@@ -240,6 +242,39 @@ public class JobAccessIntegrationTests : IClassFixture<WebApplicationFactory<Pro
         (await As(_alice).GetAsync($"/api/audio-jobs/{created!.Id}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task Upload_WithoutAUser_IsRejected_AndNothingIsStoredOrQueued()
+    {
+        using var content = new MultipartFormDataContent();
+        var file = new ByteArrayContent([.. "ID3"u8.ToArray(), 0, 0, 0, 0]);
+        file.Headers.ContentType = new MediaTypeHeaderValue("audio/mpeg");
+        content.Add(file, "file", "anonymous.mp3");
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, TestAuthHandler.NoUser); // authenticated, but without a user id
+
+        var response = await client.PostAsync("/api/audio-jobs", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var scope = _factory.Services.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.AnyAsync(j => j.FileName == "anonymous.mp3")).Should().BeFalse();
+        Directory.GetFiles(_dir.Path, "*", SearchOption.AllDirectories).Should().BeEmpty("the upload must not even be written to disk");
+    }
+
+    // ---------------------------------------------------------------- coverage (M1)
+
+    [Fact]
+    public void EveryRouteBelowAJobId_IsGuardedByTheAccessFilter()
+    {
+        var endpoints = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(e => e.RoutePattern.RawText is { } raw && raw.StartsWith("/api/audio-jobs/{id", StringComparison.Ordinal))
+            .ToList();
+
+        endpoints.Should().NotBeEmpty();
+        endpoints.Where(e => e.Metadata.GetMetadata<JobAccessGuardMetadata>() is null)
+            .Select(e => $"{e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.FirstOrDefault()} {e.RoutePattern.RawText}")
+            .Should().BeEmpty("a route that is not guarded would expose other users' jobs");
+    }
+
     // ---------------------------------------------------------------- shares
 
     [Fact]
@@ -302,6 +337,24 @@ public class JobAccessIntegrationTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
+    public async Task ConcurrentAssignments_GiveAnUnassignedJobToExactlyOneUser()
+    {
+        var orphan = await AddJobAsync(null);
+        var first = As(_admin, "Admin");
+        var second = As(_admin, "Admin");
+
+        var results = await Task.WhenAll(
+            first.PostAsJsonAsync($"/api/admin/jobs/{orphan}/owner", new { userId = _alice }),
+            second.PostAsJsonAsync($"/api/admin/jobs/{orphan}/owner", new { userId = _bob }));
+
+        results.Count(r => r.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
+        results.Count(r => r.StatusCode == HttpStatusCode.NotFound).Should().Be(1);
+        var winner = results[0].StatusCode == HttpStatusCode.NoContent ? _alice : _bob;
+        using var scope = _factory.Services.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.SingleAsync(j => j.Id == orphan)).OwnerId.Should().Be(winner);
+    }
+
+    [Fact]
     public async Task AdminJobEndpoints_AreForbiddenForNonAdmins()
     {
         var orphan = await AddJobAsync(null);
@@ -311,14 +364,16 @@ public class JobAccessIntegrationTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
-    public async Task Admin_CannotAssignAnOwnerThatDoesNotExist_OrTakeOverAnOwnedJob()
+    public async Task Admin_CannotAssignAnOwnerThatDoesNotExist_AndSeesOwnedJobsAsNonExistent()
     {
         var orphan = await AddJobAsync(null);
         var owned = await AddJobAsync(_alice);
         var admin = As(_admin, "Admin");
 
         (await admin.PostAsJsonAsync($"/api/admin/jobs/{orphan}/owner", new { userId = "no-such-user" })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await admin.PostAsJsonAsync($"/api/admin/jobs/{owned}/owner", new { userId = _bob })).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        // Not 409: that would confirm to an admin that a job of someone else exists
+        (await admin.PostAsJsonAsync($"/api/admin/jobs/{owned}/owner", new { userId = _bob })).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await As(_alice).GetAsync($"/api/audio-jobs/{owned}")).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     // ---------------------------------------------------------------- live updates

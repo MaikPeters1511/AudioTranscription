@@ -61,17 +61,16 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
 
-            // Existing jobs predate ownership: give them to the first admin (or, without one, to the first
-            // user). Without any user they stay unassigned and an admin assigns them later (S19).
+            // Existing jobs predate ownership: give them to the first admin. Without an admin they stay
+            // unassigned (and invisible) until an admin assigns them: handing transcripts to an arbitrary
+            // user would silently expose them (S19, ADR 0007).
             migrationBuilder.Sql(@"
                 UPDATE AudioJobs
-                SET OwnerId = COALESCE(
-                    (SELECT TOP 1 ur.UserId
-                       FROM AspNetUserRoles ur
-                       JOIN AspNetRoles r ON r.Id = ur.RoleId
-                      WHERE r.NormalizedName = 'ADMIN'
-                      ORDER BY ur.UserId),
-                    (SELECT TOP 1 Id FROM AspNetUsers ORDER BY Id))
+                SET OwnerId = (SELECT TOP 1 ur.UserId
+                                 FROM AspNetUserRoles ur
+                                 JOIN AspNetRoles r ON r.Id = ur.RoleId
+                                WHERE r.NormalizedName = 'ADMIN'
+                                ORDER BY ur.UserId)
                 WHERE OwnerId IS NULL;");
         }
 

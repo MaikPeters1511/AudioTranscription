@@ -21,7 +21,7 @@ ADR 0003 hat bewusst gemeinsame Jobs für alle angemeldeten Benutzer festgelegt 
    | Alle anderen (auch Admins) | nein, Antwort `404` | nein, Antwort `404` |
    Fremde Jobs antworten mit `404`, nicht `403`, damit die Existenz einer Job-ID nicht verraten wird.
 4. **Admins sehen keine fremden Jobs.** Die Rolle `Admin` darf aber **Jobs ohne Eigentümer** (aus der Zeit vor S19) auflisten und einem Benutzer zuordnen (`/api/admin/jobs/...`).
-5. **Altdaten:** Die Migration weist bestehende Jobs dem ersten Admin zu, sonst dem ersten Benutzer. Gibt es noch keinen Benutzer, bleibt `OwnerId` leer (nullable) und ein Admin ordnet später zu.
+5. **Altdaten:** Die Migration weist bestehende Jobs dem ersten Admin zu. Gibt es keinen Admin, bleibt `OwnerId` leer (nullable), und ein Admin ordnet später zu. Ein beliebiger anderer Benutzer bekommt sie bewusst nicht, sonst würden Transkripte unbemerkt lesbar. Der Upload verlangt einen erkennbaren Benutzer (sonst 401), und die Zuordnung eines Jobs ohne Eigentümer ist serialisiert; für Jobs mit Eigentümer antwortet sie mit 404, nicht 409.
 6. **Zentrale Zugriffsprüfung:** Ein Dienst (`JobAccessService`) beantwortet „welchen Zugriff hat Benutzer X auf Job Y“. Ein Endpoint-Filter (`JobAccessFilter`) wendet ihn auf alle Routen unter `/api/audio-jobs/{id}` an (Lesen für `GET`, Eigentümer für alles andere). Es gibt keine verteilten Einzelprüfungen in den Handlern.
 7. **Live-Updates:** Der Hub sendet nicht mehr an alle (`Clients.All`), sondern über `IJobNotifier` an Eigentümer und Freigegebene (`Clients.Users(...)`, Benutzer-ID aus dem `NameIdentifier`-Claim). `JoinJobGroup` prüft den Lesezugriff.
 8. **Suche und Liste:** Beide filtern serverseitig auf sichtbare Jobs (eigene und freigegebene).

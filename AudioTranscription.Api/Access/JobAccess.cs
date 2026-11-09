@@ -53,6 +53,12 @@ public class JobAccessService(AppDbContext db)
     }
 }
 
+/// <summary>
+/// Marks an endpoint as guarded by <see cref="JobAccessEndpointExtensions.RequireJobAccess{TBuilder}"/>.
+/// A test lists all routes below a job id and fails for any without it, so a new route cannot be forgotten.
+/// </summary>
+public sealed class JobAccessGuardMetadata;
+
 public static class JobAccessEndpointExtensions
 {
     /// <summary>
@@ -64,11 +70,13 @@ public static class JobAccessEndpointExtensions
     public static TBuilder RequireJobAccess<TBuilder>(this TBuilder builder, JobAccess? required = null)
         where TBuilder : IEndpointConventionBuilder
     {
+        builder.Add(endpoint => endpoint.Metadata.Add(new JobAccessGuardMetadata()));
         builder.AddEndpointFilter(async (context, next) =>
         {
             var http = context.HttpContext;
+            // Fail closed: a guarded route without a job id is a programming error, never "let it through"
             if (!Guid.TryParse(http.GetRouteValue("id")?.ToString(), out var jobId))
-                return await next(context);
+                throw new InvalidOperationException("RequireJobAccess needs a {id:guid} route value.");
 
             var needed = required ?? (HttpMethods.IsGet(http.Request.Method) || HttpMethods.IsHead(http.Request.Method)
                 ? JobAccess.Read

@@ -155,33 +155,23 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
     }
 
     [Fact]
-    public async Task AddJobOwnership_WithoutAnAdmin_UsesTheFirstUser_AndWithoutUsersLeavesJobsUnassigned()
+    public async Task AddJobOwnership_WithoutAnAdmin_LeavesJobsUnassigned_InsteadOfHandingThemToAnyUser()
     {
-        var withUsers = sqlServer.CreateConnectionString();
-        var withUsersJob = Guid.NewGuid();
-        await using (var db = CreateContext(withUsers))
+        var connectionString = sqlServer.CreateConnectionString();
+        var jobId = Guid.NewGuid();
+        await using (var db = CreateContext(connectionString))
         {
             await db.GetService<IMigrator>().MigrateAsync(BeforeOwnership);
-            await InsertUserAsync(db, "bbb-user", "b@example.com");
             await InsertUserAsync(db, "aaa-user", "a@example.com");
-            await InsertJobAsync(db, withUsersJob);
-        }
-        await using (var migrated = CreateContext(withUsers))
-        {
-            await migrated.Database.MigrateAsync();
-            (await migrated.AudioJobs.SingleAsync(j => j.Id == withUsersJob)).OwnerId.Should().Be("aaa-user");
+            await InsertUserAsync(db, "bbb-user", "b@example.com");
+            await InsertJobAsync(db, jobId);
         }
 
-        var empty = sqlServer.CreateConnectionString();
-        var orphanJob = Guid.NewGuid();
-        await using (var db = CreateContext(empty))
-        {
-            await db.GetService<IMigrator>().MigrateAsync(BeforeOwnership);
-            await InsertJobAsync(db, orphanJob);
-        }
-        await using var migratedEmpty = CreateContext(empty);
-        await migratedEmpty.Database.MigrateAsync();
-        (await migratedEmpty.AudioJobs.SingleAsync(j => j.Id == orphanJob)).OwnerId.Should().BeNull();
+        await using var migrated = CreateContext(connectionString);
+        await migrated.Database.MigrateAsync();
+
+        // Their transcripts must not silently become readable by an arbitrary user; an admin assigns them
+        (await migrated.AudioJobs.SingleAsync(j => j.Id == jobId)).OwnerId.Should().BeNull();
     }
 
     /// <summary>
