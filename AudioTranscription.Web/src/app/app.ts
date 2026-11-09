@@ -59,6 +59,14 @@ import { AuthService } from './auth/auth.service';
             <span class="hidden md:inline text-sm text-base-content/70 max-w-[14rem] truncate">
               {{ 'auth.signedInAs' | transloco: { email: user.email } }}
             </span>
+            @if (auth.isAdmin()) {
+              <a routerLink="/admin/users" routerLinkActive="active" class="btn btn-ghost btn-sm">
+                {{ 'app.nav.users' | transloco }}
+              </a>
+            }
+            <a routerLink="/account" routerLinkActive="active" class="btn btn-ghost btn-sm">
+              {{ 'app.nav.account' | transloco }}
+            </a>
             <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">
               {{ 'auth.logout' | transloco }}
             </button>

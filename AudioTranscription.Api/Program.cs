@@ -78,7 +78,7 @@ builder.Services.AddOpenApi();
 
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
-builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+builder.Services.AddIdentityApiEndpoints<IdentityUser>(options => options.User.RequireUniqueEmail = true)
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.ConfigureApplicationCookie(options =>
@@ -101,7 +101,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // Every endpoint requires a signed-in user unless it explicitly allows anonymous access
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy(Roles.AdminPolicy, policy => policy.RequireRole(Roles.Admin));
+
+// Re-check the security stamp on every request so deactivating a user or changing a password
+// ends their existing sessions immediately instead of after the default 30 minutes.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
 
 // CORS only for explicitly configured origins; the frontend normally is same-origin via proxy/nginx
 builder.Services.AddCors();
@@ -186,6 +191,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
+app.MapAdminUserEndpoints();
 app.MapOpenApi(); // GET /openapi/v1.json, behind the same fallback auth policy as everything else
 
 // Map SignalR hub
