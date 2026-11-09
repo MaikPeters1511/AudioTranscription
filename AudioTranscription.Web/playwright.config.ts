@@ -11,6 +11,8 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
+const port = process.env['E2E_PORT'] ?? '4200';
+
 export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
@@ -22,12 +24,12 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env['CI'] ? [['html', { open: 'never' }], ['list']] : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
     /* Running app (e.g. `npm start` with the API behind the dev proxy) */
-    baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:4200',
+    baseURL: process.env['E2E_BASE_URL'] ?? `http://localhost:${port}`,
 
     /* Optional: use a preinstalled browser instead of `npx playwright install` */
     launchOptions: process.env['E2E_CHROMIUM_PATH']
@@ -41,20 +43,33 @@ export default defineConfig({
     locale: 'de-DE',
   },
 
-  /* Configure projects for major browsers */
+  /*
+   * Two kinds of specs (S31):
+   *  - *.mocked.spec.ts: UI flows against a faked API, need only the dev server (webServer below)
+   *  - everything else: runs against a real, running app + API (E2E_EMAIL / E2E_PASSWORD, see the specs)
+   */
   projects: [
     {
+      name: 'mocked',
+      testMatch: /.*\.mocked\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    {
       name: 'chromium',
+      testIgnore: /.*\.mocked\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
+      testIgnore: /.*\.mocked\.spec\.ts/,
       use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
+      testIgnore: /.*\.mocked\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
 
@@ -79,10 +94,13 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  /* Serve the app for the mocked specs unless an app is already running (E2E_BASE_URL or E2E_PORT, default 4200) */
+  webServer: process.env['E2E_BASE_URL']
+    ? undefined
+    : {
+        command: `npm start -- --port ${port}`,
+        url: `http://localhost:${port}`,
+        reuseExistingServer: !process.env['CI'],
+        timeout: 120_000,
+      },
 });
