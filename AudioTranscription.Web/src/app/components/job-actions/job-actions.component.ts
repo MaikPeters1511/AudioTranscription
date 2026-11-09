@@ -9,11 +9,13 @@ export interface JobActionTarget {
   id: string;
   fileName: string;
   status: AudioJobStatus;
+  /** False for a job shared with the user (S19): read only, so no actions are offered. */
+  isOwner?: boolean | null;
 }
 
 let nextId = 0;
 
-/** Cancel, retry and delete actions for one job (S09). Buttons depend on the job status. */
+/** Cancel, retry and delete actions for one job (S09). Buttons depend on the job status; only the owner gets them (S19). */
 @Component({
   selector: 'app-job-actions',
   standalone: true,
@@ -88,40 +90,42 @@ let nextId = 0;
           }
         </button>
       }
-      <button
-        type="button"
-        data-action="delete"
-        class="btn btn-sm"
-        [class.btn-ghost]="compact()"
-        [class.btn-square]="compact()"
-        [class.btn-error]="!compact()"
-        [class.btn-outline]="!compact()"
-        [disabled]="busy()"
-        [attr.aria-label]="
-          compact() ? ('jobActions.deleteFor' | transloco: { fileName: job().fileName }) : null
-        "
-        [title]="'jobActions.delete' | transloco"
-        (click)="confirmDelete()"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          aria-hidden="true"
+      @if (isOwner()) {
+        <button
+          type="button"
+          data-action="delete"
+          class="btn btn-sm"
+          [class.btn-ghost]="compact()"
+          [class.btn-square]="compact()"
+          [class.btn-error]="!compact()"
+          [class.btn-outline]="!compact()"
+          [disabled]="busy()"
+          [attr.aria-label]="
+            compact() ? ('jobActions.deleteFor' | transloco: { fileName: job().fileName }) : null
+          "
+          [title]="'jobActions.delete' | transloco"
+          (click)="confirmDelete()"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
-        </svg>
-        @if (!compact()) {
-          {{ 'jobActions.delete' | transloco }}
-        }
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          @if (!compact()) {
+            {{ 'jobActions.delete' | transloco }}
+          }
+        </button>
+      }
     </div>
 
     <!-- Native modal dialog: focus trap, Esc to close and focus return come from the browser -->
@@ -169,11 +173,17 @@ export class JobActionsComponent {
   private dialog = viewChild.required<ElementRef<HTMLDialogElement>>('confirmDialog');
 
   busy = signal(false);
-  canCancel = computed(() =>
-    [AudioJobStatus.Pending, AudioJobStatus.Processing].includes(this.job().status),
+  /** Unknown ownership (undefined) counts as owner: the API answers 403 for anyone else anyway. */
+  isOwner = computed(() => this.job().isOwner !== false);
+  canCancel = computed(
+    () =>
+      this.isOwner() &&
+      [AudioJobStatus.Pending, AudioJobStatus.Processing].includes(this.job().status),
   );
-  canRetry = computed(() =>
-    [AudioJobStatus.Failed, AudioJobStatus.Cancelled].includes(this.job().status),
+  canRetry = computed(
+    () =>
+      this.isOwner() &&
+      [AudioJobStatus.Failed, AudioJobStatus.Cancelled].includes(this.job().status),
   );
 
   async cancel(): Promise<void> {

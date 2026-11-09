@@ -58,6 +58,7 @@ public class VariantIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     {
         var job = new AudioJob
         {
+            OwnerId = TestAuthHandler.DefaultUserId,
             FileName = "meeting.mp3", ContentType = "audio/mpeg", Model = "Base",
             Status = status, RawTranscript = status == AudioJobStatus.Completed ? rawTranscript : null
         };
@@ -156,7 +157,7 @@ public class VariantIntegrationTests : IClassFixture<WebApplicationFactory<Progr
 
     private async Task<AudioJob> SeedFor(WebApplicationFactory<Program> factory)
     {
-        var job = new AudioJob { FileName = "meeting.mp3", ContentType = "audio/mpeg", Model = "Base", Status = AudioJobStatus.Completed, RawTranscript = "Hallo" };
+        var job = new AudioJob { OwnerId = TestAuthHandler.DefaultUserId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Model = "Base", Status = AudioJobStatus.Completed, RawTranscript = "Hallo" };
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.AudioJobs.Add(job);

@@ -28,6 +28,10 @@ export interface AudioJob {
   progressPercent?: number;
   /** Whether speaker diarization (S11) was requested at upload. */
   diarizationRequested: boolean;
+  /** False when the job was shared with the user by someone else (S19): read only. */
+  isOwner?: boolean;
+  /** E-mail of the owner when the job was shared with the user; undefined for own jobs. */
+  sharedByEmail?: string;
 }
 
 export interface AudioJobListItem {
@@ -41,6 +45,9 @@ export interface AudioJobListItem {
   completedAtUtc?: string;
   /** Latest progress of a running job in percent; only set while processing. */
   progressPercent?: number;
+  /** Missing in live events (unknown there), see AudioJobService.updateJobInList. */
+  isOwner?: boolean | null;
+  sharedByEmail?: string | null;
 }
 
 /** SignalR event "JobProgress". */
@@ -151,4 +158,10 @@ export interface SearchHit {
   highlightLength: number;
   /** Set when the hit came from a timed segment (S06); undefined for a job- or variant-level hit. */
   segmentStartMs?: number;
+}
+
+/** A user a job is shared with (read only, S19). */
+export interface JobShare {
+  userId: string;
+  email: string;
 }

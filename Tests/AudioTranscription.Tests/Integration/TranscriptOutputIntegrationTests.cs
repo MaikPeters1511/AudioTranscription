@@ -187,6 +187,7 @@ public class TranscriptOutputIntegrationTests : IClassFixture<WebApplicationFact
     {
         var job = new AudioJob
         {
+            OwnerId = TestAuthHandler.DefaultUserId,
             FileName = fileName,
             ContentType = "audio/mpeg",
             Model = "Base",

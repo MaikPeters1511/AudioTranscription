@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Domain.Search;
 using AudioTranscription.Infrastructure.Data;
@@ -22,7 +23,9 @@ public static class SearchEndpoints
 
     private static async Task<Results<Ok<PaginatedResult<SearchHitDto>>, ValidationProblem>> Search(
         [FromQuery] string? q,
+        HttpContext http,
         AppDbContext dbContext,
+        JobAccessService access,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -40,20 +43,26 @@ public static class SearchEndpoints
         // FREETEXT treats the whole input as natural-language search terms (with German stemming, ADR
         // 0005): unlike CONTAINS, it has no operator syntax (AND, "phrase", *, FORMSOF, ...) for user
         // input to inject into, and no escaping is needed.
-        var jobHits = await dbContext.AudioJobs
+        //
+        // Only jobs the user may read (own and shared, ADR 0007) can produce hits.
+        var userId = JobAccessService.GetUserId(http.User) ?? string.Empty;
+        var visible = access.VisibleJobIds(userId);
+        var visibleJobs = dbContext.AudioJobs.Where(j => visible.Contains(j.Id));
+
+        var jobHits = await visibleJobs
             .Where(j => j.RawTranscript != null && EF.Functions.FreeText(j.RawTranscript, q))
             .Select(j => new Hit(j.Id, j.FileName, j.RawTranscript!, null, j.CreatedAtUtc))
             .ToListAsync();
 
         var segmentHits = await dbContext.TranscriptSegments
             .Where(s => EF.Functions.FreeText(s.Text, q))
-            .Join(dbContext.AudioJobs, s => s.AudioJobId, j => j.Id,
+            .Join(visibleJobs, s => s.AudioJobId, j => j.Id,
                 (s, j) => new Hit(j.Id, j.FileName, s.Text, s.StartMs, j.CreatedAtUtc))
             .ToListAsync();
 
         var variantHits = await dbContext.TranscriptVariants
             .Where(v => v.Text != null && EF.Functions.FreeText(v.Text, q))
-            .Join(dbContext.AudioJobs, v => v.AudioJobId, j => j.Id,
+            .Join(visibleJobs, v => v.AudioJobId, j => j.Id,
                 (v, j) => new Hit(j.Id, j.FileName, v.Text!, null, j.CreatedAtUtc))
             .ToListAsync();
 

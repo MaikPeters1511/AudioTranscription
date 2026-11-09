@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
@@ -414,7 +415,7 @@ public class TranscriptionWorkerTests : IDisposable
         });
 
         var hubClients = new Mock<IHubClients>();
-        hubClients.Setup(c => c.All).Returns(_clientProxy.Object);
+        hubClients.Setup(c => c.Users(It.IsAny<IReadOnlyList<string>>())).Returns(_clientProxy.Object);
         var hubContext = new Mock<IHubContext<TranscriptionHub>>();
         hubContext.Setup(h => h.Clients).Returns(hubClients.Object);
 
@@ -425,6 +426,7 @@ public class TranscriptionWorkerTests : IDisposable
         services.AddSingleton(store ?? new TempFileStore(options));
         services.AddSingleton(_transcription.Object);
         services.AddSingleton(hubContext.Object);
+        services.AddScoped<IJobNotifier, JobNotifier>();
         services.AddSingleton(variantQueue ?? new VariantQueue());
         if (variantGenerator is not null)
             services.AddSingleton(variantGenerator);
@@ -440,6 +442,7 @@ public class TranscriptionWorkerTests : IDisposable
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.AudioJobs.Add(new AudioJob
             {
+                OwnerId = "owner-id",
                 Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status,
                 Model = model, RequestedLanguage = requestedLanguage, DiarizationRequested = diarizationRequested
             });

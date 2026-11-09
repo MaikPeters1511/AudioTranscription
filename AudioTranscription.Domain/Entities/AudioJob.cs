@@ -21,6 +21,12 @@ public class AudioJob
     /// <summary>Whether speaker diarization (S11) was requested at upload.</summary>
     public bool DiarizationRequested { get; set; }
     public double? DurationSeconds { get; set; }
+    /// <summary>
+    /// Id of the user (ASP.NET Core Identity) who uploaded the job and is the only one who may change or
+    /// delete it (S19). Null for jobs that predate user ownership and have not been assigned yet; only an
+    /// admin can see and assign those.
+    /// </summary>
+    public string? OwnerId { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
 }

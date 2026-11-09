@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
     public DbSet<TranscriptVariant> TranscriptVariants => Set<TranscriptVariant>();
     public DbSet<JobSpeaker> JobSpeakers => Set<JobSpeaker>();
+    public DbSet<JobShare> JobShares => Set<JobShare>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

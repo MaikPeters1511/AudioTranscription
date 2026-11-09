@@ -13,7 +13,7 @@ API und SignalR-Hub waren anonym erreichbar. Mit den geplanten Aktionen aus S09 
 1. **Lokale ASP.NET Core Identity** (`IdentityUser` in der eigenen Datenbank, EF-Core-Stores). Kein externer Identity Provider.
 2. **Cookie-Authentifizierung über die Identity API Endpoints** (`MapIdentityApi` unter `/api/auth`, Login mit `useCookies=true`). Das Cookie ist `HttpOnly`, `Secure` und `SameSite=Strict`. Bei fehlender Anmeldung antwortet die API mit `401` statt mit einem Redirect.
 3. **Standardmäßig geschützt:** Eine Fallback-Policy verlangt einen angemeldeten Benutzer. Ausnahmen sind nur Login, `me` und die Health-Endpoints (nur in Development).
-4. **Gemeinsame Jobs:** Alle angemeldeten Benutzer sehen und bearbeiten alle Jobs. Es gibt keine Zuordnung von Jobs zu Benutzern.
+4. **Gemeinsame Jobs:** Alle angemeldeten Benutzer sehen und bearbeiten alle Jobs. Es gibt keine Zuordnung von Jobs zu Benutzern. *(Abgelöst durch [ADR 0007](./0007-jobs-pro-benutzer.md): Jobs gehören seit S19 einem Benutzer.)*
 5. **Keine offene Registrierung:** `POST /api/auth/register` ist nur mit `Auth:AllowRegistration=true` aktiv. Der erste Benutzer wird beim Start aus `Auth:InitialUser:Email`/`Password` angelegt, die aus User-Secrets oder Umgebungsvariablen kommen, nie aus dem Repository.
 6. **CORS** erlaubt nur noch Origins aus `Cors:AllowedOrigins`.
 

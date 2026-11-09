@@ -118,6 +118,62 @@ public class DatabaseMigrationTests(SqlServerFixture sqlServer) : IClassFixture<
         (await db2.TranscriptVariants.CountAsync(v => v.AudioJobId == withoutProcessing)).Should().Be(0);
     }
 
+    private const string BeforeOwnership = "20260924205005_AddFullTextSearchIndex";
+
+    private async Task InsertUserAsync(AppDbContext db, string id, string email) =>
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO [AspNetUsers] ([Id], [UserName], [NormalizedUserName], [Email], [NormalizedEmail], [EmailConfirmed],
+                [PhoneNumberConfirmed], [TwoFactorEnabled], [LockoutEnabled], [AccessFailedCount])
+            VALUES ({id}, {email}, {email.ToUpperInvariant()}, {email}, {email.ToUpperInvariant()}, 1, 0, 0, 1, 0)
+            """);
+
+    private async Task InsertJobAsync(AppDbContext db, Guid id) =>
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO [AudioJobs] ([Id], [FileName], [FileSizeBytes], [ContentType], [Status], [Model], [CreatedAtUtc])
+            VALUES ({id}, 'old.mp3', 1024, 'audio/mpeg', 2, 'Base', SYSUTCDATETIME())
+            """);
+
+    [Fact]
+    public async Task AddJobOwnership_GivesExistingJobsToTheFirstAdmin()
+    {
+        var connectionString = sqlServer.CreateConnectionString();
+        var jobId = Guid.NewGuid();
+        await using (var db = CreateContext(connectionString))
+        {
+            await db.GetService<IMigrator>().MigrateAsync(BeforeOwnership);
+            await InsertUserAsync(db, "aaa-regular-user", "regular@example.com");
+            await InsertUserAsync(db, "zzz-admin-user", "admin@example.com");
+            await db.Database.ExecuteSqlRawAsync("INSERT INTO [AspNetRoles] ([Id], [Name], [NormalizedName]) VALUES ('role-admin', 'Admin', 'ADMIN')");
+            await db.Database.ExecuteSqlRawAsync("INSERT INTO [AspNetUserRoles] ([UserId], [RoleId]) VALUES ('zzz-admin-user', 'role-admin')");
+            await InsertJobAsync(db, jobId);
+        }
+
+        await using var migrated = CreateContext(connectionString);
+        await migrated.Database.MigrateAsync();
+
+        (await migrated.AudioJobs.SingleAsync(j => j.Id == jobId)).OwnerId.Should().Be("zzz-admin-user");
+    }
+
+    [Fact]
+    public async Task AddJobOwnership_WithoutAnAdmin_LeavesJobsUnassigned_InsteadOfHandingThemToAnyUser()
+    {
+        var connectionString = sqlServer.CreateConnectionString();
+        var jobId = Guid.NewGuid();
+        await using (var db = CreateContext(connectionString))
+        {
+            await db.GetService<IMigrator>().MigrateAsync(BeforeOwnership);
+            await InsertUserAsync(db, "aaa-user", "a@example.com");
+            await InsertUserAsync(db, "bbb-user", "b@example.com");
+            await InsertJobAsync(db, jobId);
+        }
+
+        await using var migrated = CreateContext(connectionString);
+        await migrated.Database.MigrateAsync();
+
+        // Their transcripts must not silently become readable by an arbitrary user; an admin assigns them
+        (await migrated.AudioJobs.SingleAsync(j => j.Id == jobId)).OwnerId.Should().BeNull();
+    }
+
     /// <summary>
     /// Recreates the state of a database created by the former EnsureCreated call:
     /// the InitialCreate schema without a __EFMigrationsHistory table.

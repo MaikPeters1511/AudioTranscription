@@ -23,7 +23,7 @@ describe('JobActionsComponent (S09)', () => {
 
   function render(
     status: AudioJobStatus,
-    options: { compact?: boolean; language?: Language } = {},
+    options: { compact?: boolean; language?: Language; isOwner?: boolean } = {},
   ) {
     Object.values(jobService).forEach((fn) => fn.mockReset().mockResolvedValue(undefined));
     Object.values(toast).forEach((fn) => fn.mockReset());
@@ -39,6 +39,7 @@ describe('JobActionsComponent (S09)', () => {
       id: 'job-1',
       fileName: 'meeting.mp3',
       status,
+      isOwner: options.isOwner,
     } satisfies JobActionTarget);
     fixture.componentRef.setInput('compact', options.compact ?? false);
     fixture.detectChanges();
@@ -60,6 +61,17 @@ describe('JobActionsComponent (S09)', () => {
     const fixture = render(status);
 
     expect(actionButtons(fixture).map((b) => b.dataset['action'])).toEqual(expected);
+  });
+
+  it.each([
+    AudioJobStatus.Pending,
+    AudioJobStatus.Processing,
+    AudioJobStatus.Failed,
+    AudioJobStatus.Completed,
+  ])('offers no action for a job shared with the user (status %s)', (status) => {
+    const fixture = render(status, { isOwner: false });
+
+    expect(actionButtons(fixture)).toEqual([]);
   });
 
   it('cancels a job', async () => {

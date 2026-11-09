@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
@@ -29,7 +30,7 @@ public class VariantWorkerTests : IDisposable
         string? rawTranscript = "Hallo Welt")
     {
         var hubClients = new Mock<IHubClients>();
-        hubClients.Setup(c => c.All).Returns(_clientProxy.Object);
+        hubClients.Setup(c => c.Users(It.IsAny<IReadOnlyList<string>>())).Returns(_clientProxy.Object);
         var hubContext = new Mock<IHubContext<TranscriptionHub>>();
         hubContext.Setup(h => h.Clients).Returns(hubClients.Object);
 
@@ -38,6 +39,7 @@ public class VariantWorkerTests : IDisposable
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName));
         services.AddSingleton(_generator.Object);
         services.AddSingleton(hubContext.Object);
+        services.AddScoped<IJobNotifier, JobNotifier>();
         _provider = services.BuildServiceProvider();
 
         var jobId = Guid.NewGuid();
@@ -47,6 +49,7 @@ public class VariantWorkerTests : IDisposable
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.AudioJobs.Add(new AudioJob
             {
+                OwnerId = "owner-id",
                 Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg",
                 Status = AudioJobStatus.Completed, Model = "Base", RawTranscript = rawTranscript
             });

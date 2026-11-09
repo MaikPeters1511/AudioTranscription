@@ -55,7 +55,8 @@
       "previous": "Vorherige Seite",
       "next": "Nächste Seite",
       "page": "Seite {{ page }}"
-    }
+    },
+    "sharedBy": "Geteilt von {{ email }}"
   },
   "jobDetail": {
     "pageTitle": "{{ fileName }} · Transkription",
@@ -100,7 +101,8 @@
       "translateLanguage": "Zielsprache",
       "failed": "Erstellung fehlgeschlagen.",
       "unknownError": "Unbekannter Fehler"
-    }
+    },
+    "sharedBy": "Geteilt von {{ email }}"
   },
   "upload": {
     "title": "Audio hochladen",
@@ -255,6 +257,24 @@
         "lastAdminDeactivate": "Der letzte aktive Administrator kann nicht deaktiviert werden.",
         "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
       }
+    }
+  },
+  "jobShare": {
+    "open": "Teilen",
+    "title": "Job teilen",
+    "hint": "Freigegebene Benutzer können das Transkript lesen, aber nichts ändern oder löschen.",
+    "email": "E-Mail-Adresse des Benutzers",
+    "add": "Freigeben",
+    "sharedWith": "Freigegeben für",
+    "none": "Noch mit niemandem geteilt.",
+    "revoke": "Entziehen",
+    "revokeFor": "Freigabe für {{ email }} entziehen",
+    "close": "Schließen",
+    "added": "Freigabe gespeichert",
+    "revoked": "Freigabe entzogen",
+    "error": {
+      "unknownUser": "Für diese E-Mail-Adresse gibt es keinen Benutzer, oder der Job gehört dir bereits.",
+      "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
     }
   }
 }

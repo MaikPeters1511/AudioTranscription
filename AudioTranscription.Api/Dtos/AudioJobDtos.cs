@@ -34,7 +34,9 @@ public record AudioJobDto(
     string Model,
     string? RequestedLanguage,
     bool DiarizationRequested,
-    int? ProgressPercent = null
+    int? ProgressPercent = null,
+    bool? IsOwner = null,
+    string? SharedByEmail = null
 );
 
 public record AudioJobListDto(
@@ -46,8 +48,18 @@ public record AudioJobListDto(
     double? DurationSeconds,
     DateTime CreatedAtUtc,
     DateTime? CompletedAtUtc,
-    int? ProgressPercent = null
+    int? ProgressPercent = null,
+    // Only set when answering a request, not in live events (those go to several users): null means unknown
+    bool? IsOwner = null,
+    string? SharedByEmail = null
 );
+
+/// <summary>A user a job is shared with (read only).</summary>
+public record JobShareDto(string UserId, string Email);
+
+public record ShareJobRequest(string? Email);
+
+public record AssignOwnerRequest(string? UserId);
 
 public record CreateAudioJobResponse(Guid Id);
 

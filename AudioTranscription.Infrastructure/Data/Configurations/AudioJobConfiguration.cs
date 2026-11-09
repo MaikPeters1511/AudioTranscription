@@ -1,4 +1,5 @@
 using AudioTranscription.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -62,5 +63,16 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
             .IsDescending();
 
         builder.HasIndex(x => x.Status);
+
+        // Nullable: jobs from before S19 stay unassigned until an admin gives them an owner
+        builder.Property(x => x.OwnerId)
+            .HasMaxLength(450); // same length as AspNetUsers.Id
+
+        builder.HasOne<IdentityUser>()
+            .WithMany()
+            .HasForeignKey(x => x.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.OwnerId);
     }
 }

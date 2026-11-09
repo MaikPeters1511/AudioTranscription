@@ -45,7 +45,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 
 ## 🔑 Anmeldung
 
-Die App ist nur nach Login nutzbar. Sie verwendet lokale Konten (ASP.NET Core Identity, [ADR 0003](docs/adr/0003-authentifizierung.md)), alle angemeldeten Benutzer sehen dieselben Jobs. Eine Selbst-Registrierung ist standardmäßig **aus**.
+Die App ist nur nach Login nutzbar. Sie verwendet lokale Konten (ASP.NET Core Identity, [ADR 0003](docs/adr/0003-authentifizierung.md)), jeder Benutzer sieht nur seine eigenen Jobs und die, die andere read-only mit ihm geteilt haben ([ADR 0007](docs/adr/0007-jobs-pro-benutzer.md)). Eine Selbst-Registrierung ist standardmäßig **aus**.
 
 ### Initialer Admin-Account
 

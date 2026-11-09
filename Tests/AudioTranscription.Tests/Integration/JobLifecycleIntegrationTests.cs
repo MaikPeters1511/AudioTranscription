@@ -35,7 +35,7 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
             .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TranscriptionResult("Zweiter Versuch", "de", 1));
         var hubClients = new Mock<IHubClients>();
-        hubClients.Setup(c => c.All).Returns(_allClients.Object);
+        hubClients.Setup(c => c.Users(It.IsAny<IReadOnlyList<string>>())).Returns(_allClients.Object);
         var hub = new Mock<IHubContext<TranscriptionHub>>();
         hub.Setup(h => h.Clients).Returns(hubClients.Object);
 
@@ -180,7 +180,8 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
         var done = await WaitForAsync(job.Id, AudioJobStatus.Completed);
         done.RawTranscript.Should().Be("Zweiter Versuch");
         done.ErrorMessage.Should().BeNull();
-        File.Exists(UploadPath(job)).Should().BeFalse("a successful retry cleans up the upload");
+        // The worker removes the upload right after it saved Completed, so the file may be there for a moment
+        (await WaitForUploadRemovedAsync(UploadPath(job))).Should().BeTrue("a successful retry cleans up the upload");
     }
 
     [Theory]
@@ -233,6 +234,7 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
     {
         var job = new AudioJob
         {
+            OwnerId = TestAuthHandler.DefaultUserId,
             FileName = "meeting.mp3",
             ContentType = "audio/mpeg",
             Status = status,
@@ -253,6 +255,14 @@ public class JobLifecycleIntegrationTests : IClassFixture<WebApplicationFactory<
     {
         using var scope = _factory.Services.CreateScope();
         return await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == id);
+    }
+
+    private static async Task<bool> WaitForUploadRemovedAsync(string path)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (File.Exists(path) && DateTime.UtcNow < deadline)
+            await Task.Delay(25);
+        return !File.Exists(path);
     }
 
     private async Task<AudioJob> WaitForAsync(Guid id, AudioJobStatus expected)

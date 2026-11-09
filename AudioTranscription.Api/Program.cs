@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Auth;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
@@ -71,6 +72,8 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 
 // Add SignalR
 builder.Services.AddSignalR();
+builder.Services.AddScoped<JobAccessService>();
+builder.Services.AddScoped<IJobNotifier, JobNotifier>();
 
 // OpenAPI (EN-3): describes every mapped endpoint, served under the same auth policy as the rest
 // of the API (the fallback policy below), not anonymously.
@@ -192,6 +195,7 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapAdminUserEndpoints();
+app.MapAdminJobEndpoints();
 app.MapOpenApi(); // GET /openapi/v1.json, behind the same fallback auth policy as everything else
 
 // Map SignalR hub
@@ -204,6 +208,7 @@ app.MapTranscriptOutputEndpoints();
 app.MapVariantEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
+app.MapJobShareEndpoints();
 
 app.Run();
 public partial class Program { }

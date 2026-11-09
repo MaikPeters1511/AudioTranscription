@@ -57,6 +57,7 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
         db.AudioJobs.RemoveRange(db.AudioJobs);
         db.AudioJobs.Add(new AudioJob
         {
+            OwnerId = TestAuthHandler.DefaultUserId,
             Id = Guid.NewGuid(),
             FileName = "test.mp3",
             FileSizeBytes = 1024,
@@ -93,6 +94,7 @@ public class AudioJobEndpointsIntegrationTests : IClassFixture<WebApplicationFac
             db.Database.EnsureCreated();
             db.AudioJobs.Add(new AudioJob
             {
+                OwnerId = TestAuthHandler.DefaultUserId,
                 Id = jobId,
                 FileName = "meeting.mp3",
                 ContentType = "audio/mpeg",

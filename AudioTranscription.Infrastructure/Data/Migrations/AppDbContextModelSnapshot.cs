@@ -66,6 +66,10 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("RawTranscript")
                         .HasColumnType("nvarchar(max)");
 
@@ -81,9 +85,30 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasIndex("CreatedAtUtc")
                         .IsDescending();
 
+                    b.HasIndex("OwnerId");
+
                     b.HasIndex("Status");
 
                     b.ToTable("AudioJobs", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobShare", b =>
+                {
+                    b.Property<Guid>("AudioJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("SharedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("AudioJobId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("JobShares", (string)null);
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobSpeaker", b =>
@@ -373,6 +398,29 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.AudioJob", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobShare", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
+                        .WithMany()
+                        .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobSpeaker", b =>
