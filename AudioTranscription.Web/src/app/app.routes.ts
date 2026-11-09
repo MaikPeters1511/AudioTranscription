@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
+import { adminGuard } from './auth/admin.guard';
 
 // Pages are lazy-loaded to keep the initial bundle small
 export const routes: Routes = [
@@ -31,6 +32,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./components/job-detail/job-detail.component').then((m) => m.JobDetailComponent),
+  },
+  {
+    path: 'account',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./auth/change-password.component').then((m) => m.ChangePasswordComponent),
+  },
+  {
+    path: 'admin/users',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./components/user-admin/user-admin.component').then((m) => m.UserAdminComponent),
   },
   { path: '**', redirectTo: 'upload' },
 ];

@@ -5,7 +5,9 @@
       "upload": "Upload",
       "jobs": "Jobs",
       "main": "Hauptnavigation",
-      "search": "Suche"
+      "search": "Suche",
+      "users": "Benutzer",
+      "account": "Passwort ändern"
     },
     "connection": {
       "live": "Live verbunden",
@@ -140,7 +142,17 @@
       "failed": "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen."
     },
     "logout": "Abmelden",
-    "signedInAs": "Angemeldet als {{ email }}"
+    "signedInAs": "Angemeldet als {{ email }}",
+    "changePassword": {
+      "title": "Passwort ändern",
+      "pageTitle": "Passwort ändern · Transkription",
+      "current": "Aktuelles Passwort",
+      "new": "Neues Passwort",
+      "hint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "submit": "Passwort ändern",
+      "done": "Dein Passwort wurde geändert.",
+      "failed": "Das Passwort konnte nicht geändert werden. Prüfe das aktuelle Passwort und die Regeln für das neue."
+    }
   },
   "jobActions": {
     "cancel": "Abbrechen",
@@ -202,5 +214,47 @@
     "loading": "Suche läuft…",
     "empty": "Keine Treffer für „{{ query }}“.",
     "resultCount": "{{ count }} Treffer"
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "Benutzerverwaltung · Transkription",
+      "title": "Benutzerverwaltung",
+      "add": "Benutzer anlegen",
+      "loading": "Benutzer werden geladen …",
+      "loadFailed": "Die Benutzer konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "caption": "Liste aller Benutzer",
+      "email": "E-Mail",
+      "admin": "Admin",
+      "status": "Status",
+      "actions": "Aktionen",
+      "adminFor": "Adminrolle für {{ email }}",
+      "active": "Aktiv",
+      "inactive": "Deaktiviert",
+      "deactivate": "Deaktivieren",
+      "activate": "Aktivieren",
+      "deactivateFor": "{{ email }} deaktivieren",
+      "activateFor": "{{ email }} aktivieren",
+      "count": "{{ count }} Benutzer",
+      "createTitle": "Benutzer anlegen",
+      "password": "Initiales Passwort",
+      "passwordHint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "makeAdmin": "Als Administrator anlegen",
+      "cancel": "Abbrechen",
+      "create": "Anlegen",
+      "confirmTitle": "Benutzer deaktivieren?",
+      "confirmText": "{{ email }} kann sich danach nicht mehr anmelden, bestehende Sitzungen werden beendet.",
+      "created": "Benutzer angelegt",
+      "rolesSaved": "Rollen gespeichert",
+      "deactivated": "Benutzer deaktiviert",
+      "activated": "Benutzer aktiviert",
+      "error": {
+        "duplicate": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.",
+        "invalid": "Bitte prüfe E-Mail-Adresse und Passwort.",
+        "lastAdminRole": "Der letzte aktive Administrator kann nicht herabgestuft werden.",
+        "lastAdminDeactivate": "Der letzte aktive Administrator kann nicht deaktiviert werden.",
+        "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
+      }
+    }
   }
 }

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 export interface CurrentUser {
   email: string;
+  roles?: string[];
 }
 
 /** Cookie-based session against the API's ASP.NET Core Identity endpoints (ADR 0003). */
@@ -15,6 +16,17 @@ export class AuthService {
   private readonly currentUser = signal<CurrentUser | null | undefined>(undefined);
   readonly user = this.currentUser.asReadonly();
   readonly isLoggedIn = computed(() => !!this.currentUser());
+  readonly isAdmin = computed(() => this.currentUser()?.roles?.includes('Admin') ?? false);
+
+  /** Changes the own password via the Identity manage endpoint; resolves false when the API rejects it. */
+  async changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/manage/info', { oldPassword, newPassword }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async loadCurrentUser(): Promise<boolean> {
     try {

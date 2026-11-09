@@ -12,11 +12,11 @@ Der Initial-Account erhält die Rolle `Admin` (siehe README), es gibt aber keine
 ## 3. API & Backend Requirements
 - **Autorisierung:** Alle Endpoints unter `/api/admin/users` nur mit Rolle `Admin`.
 - **Endpoints:**
-  - `GET /api/admin/users`: paginierte Liste (E-Mail, Rollen, Status, letzter Login).
-  - `POST /api/admin/users`: Benutzer anlegen mit initialem Passwort oder Einladungslink.
+  - `GET /api/admin/users`: paginierte Liste (E-Mail, Rollen, Status). *Umsetzung: ohne „letzter Login“, dafür wäre eine eigene Spalte samt Migration nötig; als Folge-Story vorgemerkt.*.
+  - `POST /api/admin/users`: Benutzer anlegen mit initialem Passwort. *Umsetzung: Einladungslink entfällt, weil dafür ein E-Mail-Versand fehlt.*
   - `PUT /api/admin/users/{id}/roles`: Rollen setzen.
   - `POST /api/admin/users/{id}/deactivate` und `/activate`.
-  - `POST /api/auth/change-password`: eigenes Passwort ändern.
+  - Eigenes Passwort ändern: über den vorhandenen Identity-Endpoint `POST /api/auth/manage/info` (`oldPassword`/`newPassword`), kein eigener Endpoint nötig.
 - **Regeln:** Der letzte aktive Admin kann sich nicht selbst degradieren oder deaktivieren. Alle Admin-Aktionen werden mit Zeitpunkt und Akteur geloggt.
 
 ## 4. Tasks
@@ -27,6 +27,7 @@ Der Initial-Account erhält die Rolle `Admin` (siehe README), es gibt aber keine
   - [ ] Keine Passwörter oder Hashes in Antworten oder Logs.
 
 ### S18-T2 Backend: Passwort ändern · backend, sec · S
+- *Umsetzung: Der Identity-Endpoint `/api/auth/manage/info` liefert das bereits; abgesichert durch einen Integrationstest.*
 - **AC:**
   - [ ] Altes Passwort wird verlangt, Identity-Passwortregeln gelten, Fehler liefern saubere Meldungen.
 

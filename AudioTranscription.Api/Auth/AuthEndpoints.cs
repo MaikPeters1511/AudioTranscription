@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace AudioTranscription.Api.Auth;
 
-public record MeResponse(string Email);
+public record MeResponse(string Email, string[] Roles);
 
 public static class AuthEndpoints
 {
@@ -38,10 +38,12 @@ public static class AuthEndpoints
             });
 
         group.MapGet("/me", (ClaimsPrincipal user) =>
-                TypedResults.Ok(new MeResponse(user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name ?? string.Empty)))
+                TypedResults.Ok(new MeResponse(
+                    user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name ?? string.Empty,
+                    user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray())))
             .WithName("GetCurrentUser")
             .WithSummary("Get the signed-in user")
-            .WithDescription("Returns the signed-in user");
+            .WithDescription("Returns the signed-in user and their roles");
 
         group.MapPost("/logout", async Task<NoContent> (SignInManager<IdentityUser> signInManager) =>
             {

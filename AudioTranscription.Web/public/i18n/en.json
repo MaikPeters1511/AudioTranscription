@@ -5,7 +5,9 @@
       "upload": "Upload",
       "jobs": "Jobs",
       "main": "Main navigation",
-      "search": "Search"
+      "search": "Search",
+      "users": "Users",
+      "account": "Change password"
     },
     "connection": {
       "live": "Live connected",
@@ -140,7 +142,17 @@
       "failed": "Sign-in failed. Please check your email and password."
     },
     "logout": "Sign out",
-    "signedInAs": "Signed in as {{ email }}"
+    "signedInAs": "Signed in as {{ email }}",
+    "changePassword": {
+      "title": "Change password",
+      "pageTitle": "Change password · Transcription",
+      "current": "Current password",
+      "new": "New password",
+      "hint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "submit": "Change password",
+      "done": "Your password has been changed.",
+      "failed": "The password could not be changed. Check the current password and the rules for the new one."
+    }
   },
   "jobActions": {
     "cancel": "Cancel",
@@ -202,5 +214,47 @@
     "loading": "Searching…",
     "empty": "No results for \"{{ query }}\".",
     "resultCount": "{{ count }} result(s)"
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "User administration · Transcription",
+      "title": "User administration",
+      "add": "Add user",
+      "loading": "Loading users…",
+      "loadFailed": "The users could not be loaded.",
+      "retry": "Try again",
+      "caption": "List of all users",
+      "email": "Email",
+      "admin": "Admin",
+      "status": "Status",
+      "actions": "Actions",
+      "adminFor": "Admin role for {{ email }}",
+      "active": "Active",
+      "inactive": "Deactivated",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "deactivateFor": "Deactivate {{ email }}",
+      "activateFor": "Activate {{ email }}",
+      "count": "{{ count }} users",
+      "createTitle": "Add user",
+      "password": "Initial password",
+      "passwordHint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "makeAdmin": "Create as administrator",
+      "cancel": "Cancel",
+      "create": "Create",
+      "confirmTitle": "Deactivate user?",
+      "confirmText": "{{ email }} will no longer be able to sign in, and existing sessions end.",
+      "created": "User created",
+      "rolesSaved": "Roles saved",
+      "deactivated": "User deactivated",
+      "activated": "User activated",
+      "error": {
+        "duplicate": "A user with this email address already exists.",
+        "invalid": "Please check the email address and password.",
+        "lastAdminRole": "The last active administrator cannot be demoted.",
+        "lastAdminDeactivate": "The last active administrator cannot be deactivated.",
+        "generic": "That did not work. Please try again."
+      }
+    }
   }
 }
