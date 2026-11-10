@@ -47,5 +47,11 @@ public class TranscriptVariantConfiguration : IEntityTypeConfiguration<Transcrip
         // Not unique: SQL Server treats every NULL TargetLanguage as distinct, so "one variant per
         // (job, mode, language)" is enforced in the endpoint (look up, then update or insert) instead.
         builder.HasIndex(x => new { x.AudioJobId, x.Mode, x.TargetLanguage });
+
+        // A template variant (S26) outlives its template: deleting the template only forgets the link
+        builder.HasOne<PostprocessingTemplate>()
+            .WithMany()
+            .HasForeignKey(x => x.TemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

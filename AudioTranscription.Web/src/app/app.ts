@@ -78,6 +78,9 @@ import { AuthService } from './auth/auth.service';
               <a routerLink="/admin/users" routerLinkActive="active" class="btn btn-ghost btn-sm">
                 {{ 'app.nav.users' | transloco }}
               </a>
+              <a routerLink="/admin/templates" routerLinkActive="active" class="btn btn-ghost btn-sm">
+                {{ 'app.nav.templates' | transloco }}
+              </a>
             }
             <a routerLink="/account" routerLinkActive="active" class="btn btn-ghost btn-sm">
               {{ 'app.nav.account' | transloco }}

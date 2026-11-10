@@ -162,9 +162,9 @@ export class AudioJobService {
   }
 
   /** Generates (or regenerates) a variant; the result arrives via loadVariants once "VariantCompleted" fires. */
-  generateVariant(jobId: string, mode: PostProcessingMode, targetLanguage?: string): Observable<TranscriptVariant> {
+  generateVariant(jobId: string, mode: PostProcessingMode, targetLanguage?: string, templateId?: string): Observable<TranscriptVariant> {
     return this.http
-      .post<TranscriptVariant>(`${this.baseUrl}/${jobId}/variants`, { mode, targetLanguage })
+      .post<TranscriptVariant>(`${this.baseUrl}/${jobId}/variants`, { mode, targetLanguage, templateId })
       .pipe(tap((variant) => this.variants.update((current) => upsertVariant(current, variant))));
   }
 

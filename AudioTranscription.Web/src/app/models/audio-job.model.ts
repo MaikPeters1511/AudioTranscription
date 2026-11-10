@@ -101,6 +101,8 @@ export enum PostProcessingMode {
   ActionItems = 3,
   /** Requires {@link TranscriptVariant.targetLanguage}. */
   Translate = 4,
+  /** Structured result of a post-processing template (S26); {@link TranscriptVariant.templateId} says which. */
+  Template = 5,
 }
 
 export enum VariantStatus {
@@ -114,6 +116,9 @@ export interface TranscriptVariant {
   id: string;
   mode: PostProcessingMode;
   targetLanguage?: string;
+  /** Set for a template variant (S26); null once the template was deleted. */
+  templateId?: string | null;
+  templateName?: string | null;
   status: VariantStatus;
   text?: string;
   errorMessage?: string;
@@ -249,4 +254,22 @@ export interface QueueOverview {
   entries: QueueEntry[];
   /** Waiting jobs of all users; only the caller's own are listed. */
   totalWaiting: number;
+}
+
+/** A post-processing template (S26): instructions for the model and the schema of its answer. */
+export interface PostprocessingTemplate {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+  outputSchema: string;
+  isBuiltIn: boolean;
+}
+
+/** Body of POST/PUT /api/templates (admins). */
+export interface SaveTemplateRequest {
+  name: string;
+  description: string;
+  prompt: string;
+  outputSchema: string;
 }

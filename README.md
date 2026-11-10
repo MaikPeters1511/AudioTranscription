@@ -28,6 +28,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - ✏️ **Transkript-Editor** — Segmente direkt im Player korrigieren (Enter/Doppelklick, Strg+Enter speichert, Alt+P spielt das Segment ab); jede Änderung ist eine neue Version mit Verlauf, Diff und „Wiederherstellen“, das Roh-Transkript bleibt unverändert; Suche, Untertitel und Exporte nutzen die korrigierte Fassung
 - 🔁 **Wiederaufnehmbarer Upload** — Dateien ab 10 MiB werden in Chunks per tus-Protokoll hochgeladen: automatische Wiederholung bei Verbindungsabbruch, Pause/Fortsetzen, Abbruch räumt den Teil-Upload auf; kleinere Dateien und der bisherige Endpoint bleiben unverändert (siehe [ADR 0006](docs/adr/0006-resumable-upload-spike.md))
 - 📑 **Automatische Kapitel** — das lokale Sprachmodell gliedert lange Aufnahmen in Abschnitte mit Überschrift und Kurzzusammenfassung (Map-Reduce über Fenster, Grenzen auf Segmentgrenzen); Marker auf der Zeitleiste und Kapitelliste im Player, Sprung per Klick oder Tastatur, Kapitel umbenennen und löschen
+- 📝 **Protokoll-Vorlagen** — strukturierte Nachbearbeitung mit Vorlagen (eingebaut: Besprechungsprotokoll, Entscheidungsliste, Aufgaben mit Verantwortlichen; eigene Vorlagen durch Admins): das Ergebnis wird gegen ein JSON-Schema geprüft und als Markdown gerendert, Verantwortliche erscheinen nur für benannte Sprecher
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -292,6 +293,8 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `PUT` | `/api/audio-jobs/{id}/speakers/{index}` | Sprecher umbenennen (`{ displayName }`, max. 100 Zeichen); `404` bei unbekanntem Job/Sprecher |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
 | `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes Ollama |
+| `GET` | `/api/templates` | Nachbearbeitungs-Vorlagen (eingebaute zuerst); eine Vorlage anwenden: `POST /api/audio-jobs/{id}/variants` mit `mode` `5` (Template) und `templateId` |
+| `POST`/`PUT`/`DELETE` | `/api/templates[/{id}]` | Eigene Vorlagen verwalten (nur Admin): Body `{ name, description, prompt, outputSchema }`; Prompt bis 4000 Zeichen mit den Platzhaltern `{{SPEAKERS}}`/`{{LANGUAGE}}`, `outputSchema` als JSON-Schema (Typen object, array, string, integer, number, boolean). Ungültig: `400`, eingebaute Vorlagen ändern oder löschen: `409` |
 | `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |
 | `GET` | `/api/search?q=&page=&pageSize=` | Volltextsuche über Rohtranskripte, Segmente und Fassungen; Treffer mit Snippet, Hervorhebungs-Offsets und optional `segmentStartMs`; `400` ohne `q` |
 | `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `VariantCompleted`, `JobDeleted`) |

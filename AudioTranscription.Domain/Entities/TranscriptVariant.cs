@@ -14,6 +14,8 @@ public class TranscriptVariant
     public PostProcessingMode Mode { get; set; }
     /// <summary>ISO-639-1 code; only set (and required) for <see cref="PostProcessingMode.Translate"/>.</summary>
     public string? TargetLanguage { get; set; }
+    /// <summary>The template of a <see cref="PostProcessingMode.Template"/> variant (S26); null for every other mode.</summary>
+    public Guid? TemplateId { get; set; }
     public VariantStatus Status { get; set; } = VariantStatus.Pending;
     public string? Text { get; set; }
     public string? ErrorMessage { get; set; }

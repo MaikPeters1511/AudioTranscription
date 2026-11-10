@@ -80,6 +80,7 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
     builder.Services.AddScoped<IVariantGenerator, OllamaVariantGenerator>();
     builder.Services.AddSingleton<VariantQueue>();
     builder.Services.AddHostedService<VariantRecoveryService>(); // must start before the worker
+    builder.Services.AddScoped<ITemplateVariantGenerator, LlmTemplateVariantGenerator>(); // S26
     builder.Services.AddHostedService<VariantWorker>();
     builder.Services.AddScoped<IChapterGenerator, LlmChapterGenerator>(); // S25
     builder.Services.AddSingleton<ChapterQueue>();
@@ -245,6 +246,7 @@ app.MapTranscriptOutputEndpoints();
 app.MapSegmentEditEndpoints();
 app.MapExportEndpoints();
 app.MapVariantEndpoints();
+app.MapTemplateEndpoints();
 app.MapChapterEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
