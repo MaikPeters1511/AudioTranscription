@@ -57,11 +57,15 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    // Business metrics of the transcription pipeline (S29); AppTelemetry.Name in the Infrastructure project
+                    .AddMeter("AudioTranscription");
             })
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
+                    // Spans of the transcription pipeline (S29)
+                    .AddSource("AudioTranscription")
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>

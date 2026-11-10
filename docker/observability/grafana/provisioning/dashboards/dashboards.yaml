@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: Audio Transcription
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

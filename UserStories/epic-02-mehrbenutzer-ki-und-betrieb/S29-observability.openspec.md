@@ -29,5 +29,12 @@ Aspire liefert Telemetrie-Grundlagen (`ServiceDefaults`). Es fehlen fachliche Me
 - **AC:**
   - [ ] `/health` prüft Datenbank, ffmpeg, Whisper-Modell und (falls aktiv) Ollama/Qdrant, ohne sensible Details nach außen.
 
+## 3b. Umsetzung
+- Meter und Quelle `AudioTranscription` (Konstante `AppTelemetry.Name`, in `ServiceDefaults` als Literal registriert; ein Test hält beide synchron). Metriken `transcription.jobs`, `transcription.duration`, `transcription.realtime_factor`, `transcription.queue.length`, `postprocessing.duration`; die Warteschlange zählt sich selbst, weil ein Single-Reader-Channel seine Länge nicht kennt.
+- Spans `transcription.job` mit `transcription.convert`, `transcription.whisper`, `transcription.diarize` und `postprocessing`; keine Fehlermeldungen und Dateinamen in Tags.
+- Health-Checks `database`, `ffmpeg`, `whisper-model`, `ollama` (nur Status, keine Details); `/health` bleibt wie zuvor nur in Development erreichbar.
+- Prometheus/Grafana als Compose-Profil `observability` mit OpenTelemetry-Collector, vorbereitetem Dashboard und dokumentierten Alarmschwellen: [docs/observability.md](../../docs/observability.md). Qdrant-Health-Check folgt mit S23.
+- Das Compose-Profil ist mit `docker compose config` syntaktisch geprüft, aber nicht gestartet (Images nicht gezogen); Dashboard-Abfragen und Metriknamen sind aus der OpenTelemetry-Prometheus-Namensregel abgeleitet und noch nicht gegen laufende Daten geprüft.
+
 ## 4. Acceptance Criteria (DoD)
 - [ ] Metriken sind im Aspire-Dashboard sichtbar, README beschreibt die Nutzung.

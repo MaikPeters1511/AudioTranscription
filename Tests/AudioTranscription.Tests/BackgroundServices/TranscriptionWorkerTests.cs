@@ -1,4 +1,8 @@
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Telemetry;
+using AudioTranscription.Tests.Telemetry;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Dtos;
@@ -27,8 +31,113 @@ public class TranscriptionWorkerTests : IDisposable
     private readonly JobCancellationRegistry _registry = new();
     private readonly JobProgressStore _progressStore = new();
     private readonly Mock<IClientProxy> _clientProxy = new();
+    private MetricsCollector? _collector;
     private readonly string _dbName = Guid.NewGuid().ToString();
     private ServiceProvider? _provider;
+
+    // ---- S29: metrics and trace of a job
+
+    [Fact]
+    public async Task ProcessJob_CountsACompletedJob_WithItsDurationAndRealtimeFactor()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        TranscriptionSucceeds(); // 1.5 s of audio
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _collector!.Of("transcription.jobs").Should().ContainSingle()
+            .Which.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["outcome"] = "completed", ["model"] = "Base" });
+        _collector.Of("transcription.duration").Should().ContainSingle();
+        _collector.Of("transcription.realtime_factor").Should().ContainSingle().Which.Value.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task ProcessJob_CountsAFailedJob()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        TranscriptionThrows(new InvalidOperationException("boom"));
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _collector!.Of("transcription.jobs").Should().ContainSingle().Which.Tags["outcome"].Should().Be("failed");
+        _collector.Of("transcription.realtime_factor").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessJob_CountsAJobCancelledByAUser()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, _, ct) =>
+            {
+                _registry.Cancel(jobId);
+                ct.ThrowIfCancellationRequested();
+                return Task.FromResult(new TranscriptionResult("unreachable", null, null));
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _collector!.Of("transcription.jobs").Should().ContainSingle().Which.Tags["outcome"].Should().Be("cancelled");
+    }
+
+    [Fact]
+    public async Task ProcessJob_DoesNotCountAJobThatIsSkipped()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, status: AudioJobStatus.Completed);
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _collector!.Of("transcription.jobs").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessJob_RecordsOneTraceSpanPerJob_MarkedAsErrorOnFailure_WithoutFileNames()
+    {
+        var spans = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "AudioTranscription",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => { lock (spans) spans.Add(activity); },
+        };
+        ActivitySource.AddActivityListener(listener);
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true);
+        TranscriptionThrows(new InvalidOperationException("boom"));
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        Activity span;
+        lock (spans) span = spans.Should().ContainSingle(a => a.OperationName == "transcription.job" && a.GetTagItem("job.id")!.ToString() == jobId.ToString()).Subject;
+        span.Status.Should().Be(ActivityStatusCode.Error);
+        span.Tags.Select(t => t.Value).Should().NotContain(v => v!.Contains("meeting.mp3"));
+        span.StatusDescription.Should().BeNull("an exception message may carry paths or content");
+    }
+
+    [Fact]
+    public async Task ProcessJob_WrapsDiarizationInItsOwnSpan()
+    {
+        var spans = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "AudioTranscription",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => { lock (spans) spans.Add(activity); },
+        };
+        ActivitySource.AddActivityListener(listener);
+        var diarization = new Mock<IDiarizationService>();
+        diarization.Setup(d => d.DiarizeAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, diarizationService: diarization.Object, diarizationRequested: true);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        lock (spans)
+        {
+            var job = spans.Single(a => a.OperationName == "transcription.job" && a.GetTagItem("job.id")!.ToString() == jobId.ToString());
+            spans.Should().Contain(a => a.OperationName == "transcription.diarize" && a.ParentId == job.Id);
+        }
+    }
 
     [Fact]
     public async Task ProcessJob_WhenTranscriptionFails_KeepsUploadForRetry()
@@ -421,6 +530,9 @@ public class TranscriptionWorkerTests : IDisposable
 
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddMetrics();
+        services.AddSingleton(new TranscriptionQueue());
+        services.AddSingleton<TranscriptionMetrics>();
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName));
         services.AddSingleton(options);
         services.AddSingleton(store ?? new TempFileStore(options));
@@ -433,6 +545,7 @@ public class TranscriptionWorkerTests : IDisposable
         if (diarizationService is not null)
             services.AddSingleton(diarizationService);
         _provider = services.BuildServiceProvider();
+        _collector = new MetricsCollector(_provider.GetRequiredService<IMeterFactory>());
 
         var jobId = Guid.NewGuid();
         var file = _dir.CreateFile($"{jobId}.mp3");
@@ -478,6 +591,7 @@ public class TranscriptionWorkerTests : IDisposable
 
     public void Dispose()
     {
+        _collector?.Dispose();
         _provider?.Dispose();
         _dir.Dispose();
     }

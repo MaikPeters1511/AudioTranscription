@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using AudioTranscription.Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Whisper.net;
@@ -37,13 +39,27 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             throw new InvalidOperationException($"Das Whisper-Modell '{settings.Model}' ist nicht freigegeben.");
 
         var factory = await _factories.GetAsync(modelType, cancellationToken);
-        var wavPath = await _wavConverter.ConvertAsync(audioFilePath, cancellationToken);
+        string wavPath;
+        using (var convertSpan = AppTelemetry.Source.StartActivity("transcription.convert"))
+        {
+            try
+            {
+                wavPath = await _wavConverter.ConvertAsync(audioFilePath, cancellationToken);
+            }
+            catch
+            {
+                convertSpan?.SetStatus(ActivityStatusCode.Error);
+                throw;
+            }
+        }
 
         try
         {
             _logger.LogInformation("Starting transcription for {FilePath} with model {Model}, language={Language}",
                 audioFilePath, modelType, settings.Language ?? WhisperOptions.AutomaticLanguage);
 
+            using var whisperSpan = AppTelemetry.Source.StartActivity("transcription.whisper");
+            whisperSpan?.SetTag("whisper.model", modelType.ToString());
             var builder = factory.CreateBuilder();
             builder = settings.Language is null
                 ? builder.WithLanguageDetection()

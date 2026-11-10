@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Telemetry;
+using AudioTranscription.Infrastructure.Telemetry;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
@@ -72,6 +75,9 @@ public class VariantWorker(
             return;
         }
 
+        using var activity = AppTelemetry.Source.StartActivity("postprocessing");
+        activity?.SetTag("postprocessing.mode", variant.Mode.ToString());
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             variant.Text = await generator.GenerateAsync(variant.Mode, job.RawTranscript, variant.TargetLanguage, stoppingToken);
@@ -87,7 +93,13 @@ public class VariantWorker(
             logger.LogError(ex, "Variant generation failed for {VariantId} (job {JobId}, mode {Mode})", variant.Id, variant.AudioJobId, variant.Mode);
             variant.Status = VariantStatus.Failed;
             variant.ErrorMessage = ex.Message;
+            activity?.SetStatus(ActivityStatusCode.Error);
         }
+
+        scope.ServiceProvider.GetService<TranscriptionMetrics>()?.PostProcessingFinished(
+            variant.Mode.ToString(),
+            variant.Status == VariantStatus.Completed ? TranscriptionOutcome.Completed : TranscriptionOutcome.Failed,
+            stopwatch.Elapsed);
 
         variant.CompletedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(stoppingToken);

@@ -1,4 +1,8 @@
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Telemetry;
+using AudioTranscription.Tests.Telemetry;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Hubs;
@@ -20,6 +24,7 @@ public class VariantWorkerTests : IDisposable
     private readonly Mock<IVariantGenerator> _generator = new();
     private readonly Mock<ILogger<VariantWorker>> _logger = new();
     private readonly Mock<IClientProxy> _clientProxy = new();
+    private MetricsCollector? _collector;
     private readonly string _dbName = Guid.NewGuid().ToString();
     private ServiceProvider? _provider;
 
@@ -36,11 +41,15 @@ public class VariantWorkerTests : IDisposable
 
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddMetrics();
+        services.AddSingleton(new TranscriptionQueue());
+        services.AddSingleton<TranscriptionMetrics>();
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(_dbName));
         services.AddSingleton(_generator.Object);
         services.AddSingleton(hubContext.Object);
         services.AddScoped<IJobNotifier, JobNotifier>();
         _provider = services.BuildServiceProvider();
+        _collector = new MetricsCollector(_provider.GetRequiredService<IMeterFactory>());
 
         var jobId = Guid.NewGuid();
         var variantId = Guid.NewGuid();
@@ -68,6 +77,40 @@ public class VariantWorkerTests : IDisposable
     {
         using var scope = _provider!.CreateScope();
         return await scope.ServiceProvider.GetRequiredService<AppDbContext>().TranscriptVariants.AsNoTracking().SingleAsync(v => v.Id == id);
+    }
+
+    [Fact]
+    public async Task ProcessVariant_TimesTheGeneration_ByModeAndOutcome_AndTracesIt()
+    {
+        var spans = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "AudioTranscription",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => { lock (spans) spans.Add(activity); },
+        };
+        ActivitySource.AddActivityListener(listener);
+        var (worker, variantId) = await ArrangeAsync(mode: PostProcessingMode.Summary);
+        _generator.Setup(g => g.GenerateAsync(PostProcessingMode.Summary, "Hallo Welt", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Kurz.");
+
+        await worker.ProcessVariantAsync(new VariantJobRequest(variantId), CancellationToken.None);
+
+        _collector!.Of("postprocessing.duration").Should().ContainSingle()
+            .Which.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["mode"] = "Summary", ["outcome"] = "completed" });
+        lock (spans) spans.Should().Contain(a => a.OperationName == "postprocessing" && (string?)a.GetTagItem("postprocessing.mode") == "Summary");
+    }
+
+    [Fact]
+    public async Task ProcessVariant_WhenGenerationFails_IsRecordedAsFailed()
+    {
+        var (worker, variantId) = await ArrangeAsync();
+        _generator.Setup(g => g.GenerateAsync(It.IsAny<PostProcessingMode>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("llm down"));
+
+        await worker.ProcessVariantAsync(new VariantJobRequest(variantId), CancellationToken.None);
+
+        _collector!.Of("postprocessing.duration").Should().ContainSingle().Which.Tags["outcome"].Should().Be("failed");
     }
 
     [Fact]
@@ -151,5 +194,9 @@ public class VariantWorkerTests : IDisposable
         exception.Should().BeNull();
     }
 
-    public void Dispose() => _provider?.Dispose();
+    public void Dispose()
+    {
+        _collector?.Dispose();
+        _provider?.Dispose();
+    }
 }
