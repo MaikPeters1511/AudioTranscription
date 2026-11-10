@@ -34,3 +34,9 @@ Exportiert werden bisher `.txt`, `.srt` und `.vtt`. Für die Weiterverarbeitung 
 ## 5. Acceptance Criteria (DoD)
 - [ ] Alle Formate sind für Roh- und nachbearbeitete Fassungen verfügbar.
 - [ ] Autorisierung aus S19 gilt, Swagger dokumentiert den Endpoint.
+
+## 6. Umsetzung
+- Endpoint: `GET /api/audio-jobs/{id}/export` (Pfad entsprechend der bestehenden Routen statt `/api/jobs`), `variant` = Id der fertigen Fassung.
+- Bibliotheken laut [ADR 0008](../../docs/adr/0008-exportbibliotheken.md): Open XML SDK (DOCX), QuestPDF Community (PDF).
+- `ITranscriptExporter` und `ExportDocument` im Domain-Layer, DOCX/PDF in Infrastructure.
+- Frontend: `app-job-export` (Format, Zeitstempel, Sprecher) in der Detailansicht.

@@ -5,6 +5,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { JobShareComponent } from '../job-share/job-share.component';
 import { JobOrganizeComponent } from '../job-organize/job-organize.component';
+import { JobExportComponent } from '../job-export/job-export.component';
 import { OrganizeService } from '../../services/organize.service';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
@@ -18,7 +19,7 @@ import { languageName } from '../../i18n/language-names';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobShareComponent, JobOrganizeComponent, TranscriptPlayerComponent, JobProgressComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobShareComponent, JobOrganizeComponent, JobExportComponent, TranscriptPlayerComponent, JobProgressComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -243,6 +244,7 @@ import { languageName } from '../../i18n/language-names';
                       [attr.aria-label]="'jobDetail.subtitles.' + format | transloco"
                     >{{ format.toUpperCase() }}</a>
                   }
+                  <app-job-export [jobId]="job.id" [variantId]="transcriptView() === 'raw' ? undefined : transcriptView()" />
                   <button
                     class="btn btn-sm btn-outline gap-1"
                     (click)="downloadTranscript(transcriptText, job.fileName)"

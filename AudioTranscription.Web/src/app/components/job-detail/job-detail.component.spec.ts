@@ -95,6 +95,15 @@ describe('JobDetailComponent', () => {
     expect(vtt.getAttribute('href')).toBe('/api/audio-jobs/job-1/subtitles?format=vtt');
   });
 
+  it('offers the export menu for completed jobs (S21)', () => {
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    const fixture = render(completedJob({ rawTranscript: 'hallo' }));
+    TestBed.inject(HttpTestingController).expectOne('/api/audio-jobs/job-1/segments').flush([]);
+
+    const download = fixture.nativeElement.querySelector('[data-testid=export-download]') as HTMLAnchorElement;
+    expect(download.getAttribute('href')).toBe('/api/audio-jobs/job-1/export?format=docx&timestamps=true&speakers=true');
+  });
+
   it('offers no subtitles or player for unfinished jobs', () => {
     const fixture = render(completedJob({ status: AudioJobStatus.Failed }));
 
