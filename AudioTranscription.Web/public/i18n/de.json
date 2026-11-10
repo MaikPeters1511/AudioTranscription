@@ -476,5 +476,24 @@
       "restore": "Wiederherstellen",
       "restoreLabel": "Version {{version}} wiederherstellen"
     }
+  },
+  "chapters": {
+    "title": "Kapitel",
+    "generate": "Kapitel erzeugen",
+    "regenerate": "Kapitel neu erzeugen",
+    "pending": "Kapitel werden erzeugt…",
+    "failed": "Die Kapitel konnten nicht erzeugt werden. Bitte versuche es erneut.",
+    "unavailable": "Die Kapitelerzeugung ist auf diesem Server nicht verfügbar.",
+    "error": "Die Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "timeline": "Kapitelmarker",
+    "jumpTo": "Zu Kapitel {{title}} bei {{time}} springen",
+    "edit": "Kapitel {{title}} bearbeiten",
+    "delete": "Kapitel {{title}} löschen",
+    "deleteConfirm": "Löschen?",
+    "deleteConfirmLabel": "Kapitel {{title}} wirklich löschen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "titleLabel": "Kapitelüberschrift",
+    "summaryLabel": "Kapitelzusammenfassung"
   }
 }

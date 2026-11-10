@@ -6,6 +6,7 @@ import { findActiveSegment, formatTimestamp } from './segment-time';
 import { speakerBadgeClass } from './speaker-color';
 import { SegmentEditState } from './segment-edit-state';
 import { SegmentHistoryComponent } from './segment-history.component';
+import { ChapterNavComponent } from './chapter-nav.component';
 
 /**
  * Audio player with the timed transcript: the segment being spoken is highlighted and kept in view,
@@ -14,7 +15,7 @@ import { SegmentHistoryComponent } from './segment-history.component';
 @Component({
   selector: 'app-transcript-player',
   standalone: true,
-  imports: [TranslocoPipe, SegmentHistoryComponent],
+  imports: [TranslocoPipe, SegmentHistoryComponent, ChapterNavComponent],
   template: `
     <section class="card bg-base-200 shadow-sm mt-6" aria-labelledby="player-title">
       <div class="card-body gap-4">
@@ -84,6 +85,8 @@ import { SegmentHistoryComponent } from './segment-history.component';
             } @else {
               <p class="text-sm text-base-content/70">{{ 'player.noAudio' | transloco }}</p>
             }
+
+            <app-chapter-nav [jobId]="jobId()" [canEdit]="canEdit()" [currentMs]="currentMs()" (seek)="seekToMs($event)" />
 
             <ol
               #segmentList
@@ -230,7 +233,7 @@ export class TranscriptPlayerComponent {
   /** null while loading. */
   readonly segments = signal<TranscriptSegment[] | null>(null);
   readonly audioAvailable = signal(true);
-  private readonly currentMs = signal(0);
+  protected readonly currentMs = signal(0);
   readonly activeIndex = computed(() => findActiveSegment(this.segments() ?? [], this.currentMs()));
   readonly audioUrl = computed(() => this.jobService.audioUrl(this.jobId()));
   readonly timestamp = formatTimestamp;
@@ -417,6 +420,15 @@ export class TranscriptPlayerComponent {
     if (audio) {
       this.currentMs.set(audio.currentTime * 1000);
     }
+  }
+
+  /** Jumps to a time, e.g. the start of a chapter (S25). */
+  seekToMs(ms: number): void {
+    const audio = this.audio()?.nativeElement;
+    if (audio) {
+      audio.currentTime = ms / 1000;
+    }
+    this.currentMs.set(ms);
   }
 
   seek(segment: TranscriptSegment): void {

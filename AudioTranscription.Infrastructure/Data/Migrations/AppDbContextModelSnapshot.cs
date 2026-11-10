@@ -115,6 +115,35 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.ToTable("AudioJobs", (string)null);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.ChapterRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AudioJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AudioJobId")
+                        .IsUnique();
+
+                    b.ToTable("ChapterRuns", (string)null);
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.Folder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -321,6 +350,40 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Tags", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.TranscriptChapter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AudioJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("EndMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<long>("StartMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AudioJobId", "Position");
+
+                    b.ToTable("TranscriptChapters", (string)null);
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.TranscriptSegment", b =>
@@ -639,6 +702,15 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.ChapterRun", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
+                        .WithMany()
+                        .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.Folder", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
@@ -739,6 +811,15 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.TranscriptChapter", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
+                        .WithMany()
+                        .HasForeignKey("AudioJobId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

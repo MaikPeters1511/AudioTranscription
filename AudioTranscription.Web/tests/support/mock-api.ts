@@ -15,6 +15,8 @@ export interface FakeJob {
   progressPercent?: number;
   segments: { index: number; startMs: number; endMs: number; text: string; speakerIndex?: number; version?: number }[];
   /** Corrections per segment index (S32), oldest first; version 0 is the original text. */
+  /** Chapters of the job (S25); POST /chapters fills them with one chapter per two segments. */
+  chapters?: { id: string; position: number; startMs: number; endMs: number; title: string; summary: string }[];
   edits?: Record<number, { version: number; text: string }[]>;
   speakers: { index: number; displayName: string }[];
 }
@@ -265,6 +267,24 @@ export class MockApi {
             speakerName: s.speakerIndex === undefined ? undefined : job.speakers.find((p) => p.index === s.speakerIndex)?.displayName,
           })),
         );
+      }
+      if (sub === 'chapters' && method === 'GET') {
+        return json(route, { status: job.chapters?.length ? 'Completed' : 'None', chapters: job.chapters ?? [] });
+      }
+      if (sub === 'chapters' && method === 'POST') {
+        job.chapters = [];
+        for (let i = 0; i < job.segments.length; i += 2) {
+          const pair = job.segments.slice(i, i + 2);
+          job.chapters.push({
+            id: `chapter-${job.chapters.length}`,
+            position: job.chapters.length,
+            startMs: pair[0].startMs,
+            endMs: pair[pair.length - 1].endMs,
+            title: `Thema ${job.chapters.length + 1}`,
+            summary: pair.map((p) => p.text).join(' '),
+          });
+        }
+        return json(route, { status: 'Completed', chapters: job.chapters }, 202);
       }
       const segmentEdit = sub?.match(/^segments\/(\d+)(?:\/(history|restore))?$/);
       if (segmentEdit) {

@@ -4,6 +4,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import * as signalR from '@microsoft/signalr';
 import { SignalRService } from './signalr.service';
 import { AudioJobService } from './audio-job.service';
+import { ChapterService } from './chapter.service';
 
 describe('SignalRService', () => {
   const handlers: Record<string, (...args: unknown[]) => void> = {};
@@ -34,5 +35,15 @@ describe('SignalRService', () => {
 
     expect(jobs.progressOf('job-1')).toBe(42);
     expect(jobs.progressOf('job-2')).toBeUndefined();
+  });
+
+  it('refreshes the chapters when their generation is done (S25)', () => {
+    TestBed.inject(SignalRService).start('');
+    const chapters = TestBed.inject(ChapterService);
+    const refresh = vi.spyOn(chapters, 'refresh');
+
+    handlers['ChaptersCompleted']({ jobId: 'job-1', runId: 'r', status: 2 });
+
+    expect(refresh).toHaveBeenCalledWith('job-1');
   });
 });

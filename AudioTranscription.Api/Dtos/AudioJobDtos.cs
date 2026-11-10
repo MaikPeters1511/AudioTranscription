@@ -168,3 +168,16 @@ public record QueueEntryDto(
 public record QueueDto(IReadOnlyList<QueueEntryDto> Entries, int TotalWaiting);
 
 public record SetPriorityRequest(int? Priority);
+
+
+/// <summary>A chapter of a recording (S25); the chapters of a job follow each other without gap or overlap.</summary>
+public record ChapterDto(Guid Id, int Position, long StartMs, long EndMs, string Title, string Summary);
+
+/// <summary>The chapters of a job and the state of their generation: None (never asked), Pending, Completed or Failed.</summary>
+public record ChaptersDto(string Status, string? ErrorMessage, List<ChapterDto> Chapters);
+
+/// <summary>Edit the text of a chapter by hand (S25); the limits stay on segment boundaries.</summary>
+public record UpdateChapterRequest(string Title, string? Summary);
+
+/// <summary>Pushed over SignalR when the generation of a job's chapters is done (S25).</summary>
+public record ChaptersCompletedDto(Guid JobId, Guid RunId, AudioTranscription.Domain.Enums.VariantStatus Status);

@@ -476,5 +476,24 @@
       "restore": "Restore",
       "restoreLabel": "Restore version {{version}}"
     }
+  },
+  "chapters": {
+    "title": "Chapters",
+    "generate": "Generate chapters",
+    "regenerate": "Regenerate chapters",
+    "pending": "Chapters are being generated…",
+    "failed": "The chapters could not be generated. Please try again.",
+    "unavailable": "Chapter generation is not available on this server.",
+    "error": "The change could not be saved. Please try again.",
+    "timeline": "Chapter markers",
+    "jumpTo": "Jump to chapter {{title}} at {{time}}",
+    "edit": "Edit chapter {{title}}",
+    "delete": "Delete chapter {{title}}",
+    "deleteConfirm": "Delete?",
+    "deleteConfirmLabel": "Really delete chapter {{title}}",
+    "save": "Save",
+    "cancel": "Cancel",
+    "titleLabel": "Chapter title",
+    "summaryLabel": "Chapter summary"
   }
 }

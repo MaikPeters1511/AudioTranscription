@@ -81,6 +81,9 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
     builder.Services.AddSingleton<VariantQueue>();
     builder.Services.AddHostedService<VariantRecoveryService>(); // must start before the worker
     builder.Services.AddHostedService<VariantWorker>();
+    builder.Services.AddScoped<IChapterGenerator, LlmChapterGenerator>(); // S25
+    builder.Services.AddSingleton<ChapterQueue>();
+    builder.Services.AddHostedService<ChapterWorker>();
 }
 
 // Add SignalR
@@ -242,6 +245,7 @@ app.MapTranscriptOutputEndpoints();
 app.MapSegmentEditEndpoints();
 app.MapExportEndpoints();
 app.MapVariantEndpoints();
+app.MapChapterEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
 app.MapJobShareEndpoints();
