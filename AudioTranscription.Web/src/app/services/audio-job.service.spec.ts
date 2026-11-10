@@ -371,6 +371,43 @@ describe('AudioJobService speaker diarization (S11)', () => {
   });
 });
 
+describe('AudioJobService transcript editor (S32)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  it('edits a segment with the expected version', () => {
+    service.editSegment('job-1', 2, 'Neu', 3).subscribe();
+
+    const req = http.expectOne('/api/audio-jobs/job-1/segments/2');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ text: 'Neu', expectedVersion: 3 });
+    req.flush({});
+  });
+
+  it('loads the history of a segment', () => {
+    service.loadSegmentHistory('job-1', 2).subscribe();
+
+    const req = http.expectOne('/api/audio-jobs/job-1/segments/2/history');
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('restores a version', () => {
+    service.restoreSegment('job-1', 2, 1, 4).subscribe();
+
+    const req = http.expectOne('/api/audio-jobs/job-1/segments/2/restore');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ version: 1, expectedVersion: 4 });
+    req.flush({});
+  });
+});
+
 describe('AudioJobService progress (S07)', () => {
   let service: AudioJobService;
   let http: HttpTestingController;

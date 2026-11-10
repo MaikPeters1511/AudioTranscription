@@ -310,7 +310,7 @@ import { languageName } from '../../i18n/language-names';
         }
 
         @if (job.status === AudioJobStatus.Completed) {
-          <app-transcript-player [jobId]="job.id" [initialSeekMs]="initialSeekMs" />
+          <app-transcript-player [jobId]="job.id" [initialSeekMs]="initialSeekMs" [canEdit]="job.isOwner !== false" />
         }
       } @else {
         <div class="alert alert-warning">

@@ -161,6 +161,16 @@ export interface TranscriptSegment {
   speakerIndex?: number;
   /** Resolved display name for {@link speakerIndex} ("Sprecher N" until renamed). */
   speakerName?: string;
+  /** 0 = original text; each correction (S32) increments it. Sent back as expectedVersion when editing. */
+  version?: number;
+}
+
+/** One entry of a segment's version history (S32); version 0 is the original and has no editor. */
+export interface SegmentVersion {
+  version: number;
+  text: string;
+  editedBy?: string | null;
+  editedAtUtc?: string | null;
 }
 
 export type SubtitleFormat = 'srt' | 'vtt';

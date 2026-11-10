@@ -235,6 +235,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 app.MapAudioJobEndpoints();
 app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
+app.MapSegmentEditEndpoints();
 app.MapExportEndpoints();
 app.MapVariantEndpoints();
 app.MapSpeakerEndpoints();

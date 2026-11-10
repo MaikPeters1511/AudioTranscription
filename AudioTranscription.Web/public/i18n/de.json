@@ -445,5 +445,31 @@
     "showJobs": "Aufträge anzeigen",
     "uploadMore": "Weitere Dateien hochladen",
     "hint": "Sie können mehrere Dateien auf einmal wählen; bis zu 3 werden parallel hochgeladen."
+  },
+  "editor": {
+    "edit": "Segment bei {{time}} bearbeiten",
+    "textLabel": "Korrigierter Text des Segments bei {{time}}",
+    "save": "Speichern",
+    "saving": "Speichern…",
+    "cancel": "Abbrechen",
+    "play": "Segment abspielen",
+    "shortcuts": "Enter oder Doppelklick startet eine Korrektur. Strg+Enter speichert, Esc bricht ab, Alt+P spielt das Segment ab.",
+    "historyToggle": "Versionsverlauf des Segments bei {{time}} anzeigen",
+    "historyHide": "Versionsverlauf des Segments bei {{time}} ausblenden",
+    "corrected": "korrigiert",
+    "error": {
+      "conflict": "Dieses Segment wurde zwischenzeitlich geändert. Lade das Transkript neu, um die aktuelle Fassung zu sehen.",
+      "failed": "Das Segment konnte nicht gespeichert werden. Bitte versuche es erneut."
+    },
+    "history": {
+      "title": "Versionsverlauf",
+      "loading": "Verlauf wird geladen…",
+      "loadFailed": "Der Verlauf konnte nicht geladen werden.",
+      "original": "Original",
+      "version": "Version {{version}}",
+      "current": "Aktuell",
+      "restore": "Wiederherstellen",
+      "restoreLabel": "Version {{version}} wiederherstellen"
+    }
   }
 }

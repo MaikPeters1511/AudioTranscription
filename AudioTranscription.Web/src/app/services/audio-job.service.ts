@@ -13,6 +13,7 @@ import {
   SubtitleFormat,
   TranscriptionOptions,
   TranscriptionSettings,
+  SegmentVersion,
   TranscriptSegment,
   TranscriptVariant,
 } from '../models/audio-job.model';
@@ -120,6 +121,20 @@ export class AudioJobService {
 
   loadSegments(id: string): Observable<TranscriptSegment[]> {
     return this.http.get<TranscriptSegment[]>(`${this.baseUrl}/${id}/segments`);
+  }
+
+  // --- transcript editor (S32) ------------------------------------------------
+
+  editSegment(jobId: string, index: number, text: string, expectedVersion: number): Observable<TranscriptSegment> {
+    return this.http.put<TranscriptSegment>(`${this.baseUrl}/${jobId}/segments/${index}`, { text, expectedVersion });
+  }
+
+  loadSegmentHistory(jobId: string, index: number): Observable<SegmentVersion[]> {
+    return this.http.get<SegmentVersion[]>(`${this.baseUrl}/${jobId}/segments/${index}/history`);
+  }
+
+  restoreSegment(jobId: string, index: number, version: number, expectedVersion: number): Observable<TranscriptSegment> {
+    return this.http.post<TranscriptSegment>(`${this.baseUrl}/${jobId}/segments/${index}/restore`, { version, expectedVersion });
   }
 
   // --- speaker diarization (S11) ---------------------------------------------

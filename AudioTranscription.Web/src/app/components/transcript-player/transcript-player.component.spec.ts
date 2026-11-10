@@ -239,3 +239,171 @@ describe('TranscriptPlayerComponent semantics', () => {
     expect(times).toEqual(['PT0S', 'PT1.5S']);
   });
 });
+
+describe('TranscriptPlayerComponent transcript editor (S32)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [TranscriptPlayerComponent, translocoTesting('en')],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  function render(canEdit = true) {
+    const fixture = TestBed.createComponent(TranscriptPlayerComponent);
+    fixture.componentRef.setInput('jobId', 'job-1');
+    fixture.componentRef.setInput('canEdit', canEdit);
+    fixture.detectChanges();
+    http.expectOne('/api/audio-jobs/job-1/segments').flush(segments.map((s) => ({ ...s, version: 0 })));
+    http.expectOne('/api/audio-jobs/job-1/speakers').flush([]);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    return { fixture, el };
+  }
+
+  const editButtons = (el: HTMLElement) => el.querySelectorAll<HTMLButtonElement>('[data-testid="segment-edit"]');
+  const textarea = (el: HTMLElement) => el.querySelector<HTMLTextAreaElement>('[data-testid="segment-editor"]');
+
+  function type(fixture: { detectChanges(): void }, area: HTMLTextAreaElement, value: string) {
+    area.value = value;
+    area.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+  }
+
+  it('offers no editing to readers of a shared job', () => {
+    const { el } = render(false);
+
+    expect(editButtons(el)).toHaveLength(0);
+  });
+
+  it('opens an editor with the current text via the edit button', () => {
+    const { fixture, el } = render();
+
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+
+    expect(textarea(el)?.value).toBe('Hallo zusammen.');
+  });
+
+  it('opens the editor on Enter and on double-click of a segment', () => {
+    const { fixture, el } = render();
+    const rows = el.querySelectorAll<HTMLElement>('[data-testid="segment-text"]');
+
+    rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(textarea(el)?.value).toBe('Hallo zusammen.');
+
+    el.querySelectorAll<HTMLElement>('[data-testid="segment-text"]')[0].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    el.querySelector<HTMLButtonElement>('[data-testid="editor-cancel"]')!.click();
+    fixture.detectChanges();
+    expect(textarea(el)).toBeNull();
+    el.querySelectorAll<HTMLElement>('[data-testid="segment-text"]')[1].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    fixture.detectChanges();
+    expect(textarea(el)?.value).toBe('Los geht es.');
+  });
+
+  it('saves a correction with the expected version and shows the new text', () => {
+    const { fixture, el } = render();
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+
+    type(fixture, textarea(el)!, 'Hallo Welt.');
+    el.querySelector<HTMLButtonElement>('[data-testid="editor-save"]')!.click();
+
+    const req = http.expectOne('/api/audio-jobs/job-1/segments/0');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ text: 'Hallo Welt.', expectedVersion: 0 });
+    req.flush({ index: 0, startMs: 0, endMs: 1_500, text: 'Hallo Welt.', version: 1 });
+    fixture.detectChanges();
+
+    expect(textarea(el)).toBeNull();
+    expect(el.textContent).toContain('Hallo Welt.');
+  });
+
+  it('saves with Ctrl+Enter and cancels with Escape', () => {
+    const { fixture, el } = render();
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+    type(fixture, textarea(el)!, 'Neu');
+
+    textarea(el)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }));
+    http.expectOne('/api/audio-jobs/job-1/segments/0').flush({ index: 0, startMs: 0, endMs: 1_500, text: 'Neu', version: 1 });
+    fixture.detectChanges();
+    expect(textarea(el)).toBeNull();
+
+    editButtons(el)[1].click();
+    fixture.detectChanges();
+    textarea(el)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(textarea(el)).toBeNull();
+  });
+
+  it('does not save an unchanged text', () => {
+    const { fixture, el } = render();
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+
+    expect(el.querySelector<HTMLButtonElement>('[data-testid="editor-save"]')!.disabled).toBe(true);
+  });
+
+  it('keeps the draft and explains a conflict', () => {
+    const { fixture, el } = render();
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+    type(fixture, textarea(el)!, 'Meine Korrektur');
+
+    el.querySelector<HTMLButtonElement>('[data-testid="editor-save"]')!.click();
+    http.expectOne('/api/audio-jobs/job-1/segments/0').flush({}, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    expect(el.querySelector('[role="alert"]')?.textContent).toContain('changed in the meantime');
+    expect(textarea(el)?.value).toBe('Meine Korrektur');
+  });
+
+  it('shows a clean error without technical details when saving fails', () => {
+    const { fixture, el } = render();
+    editButtons(el)[0].click();
+    fixture.detectChanges();
+    type(fixture, textarea(el)!, 'Neu');
+
+    el.querySelector<HTMLButtonElement>('[data-testid="editor-save"]')!.click();
+    http.expectOne('/api/audio-jobs/job-1/segments/0').flush('SqlException at line 12', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    const alert = el.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('could not be saved');
+    expect(alert.textContent).not.toContain('SqlException');
+  });
+
+  it('plays the segment from the editor with Alt+P', () => {
+    const { fixture, el } = render();
+    const audio = el.querySelector('audio')!;
+    let time = 0;
+    Object.defineProperty(audio, 'currentTime', { get: () => time, set: (v: number) => (time = v), configurable: true });
+    audio.play = vi.fn().mockResolvedValue(undefined);
+    editButtons(el)[1].click();
+    fixture.detectChanges();
+
+    textarea(el)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', altKey: true, bubbles: true }));
+
+    expect(time).toBe(1.5);
+    expect(audio.play).toHaveBeenCalled();
+  });
+
+  it('shows the version history of a segment and applies a restore', () => {
+    const { fixture, el } = render();
+
+    el.querySelectorAll<HTMLButtonElement>('[data-testid="segment-history-toggle"]')[0].click();
+    fixture.detectChanges();
+    http.expectOne('/api/audio-jobs/job-1/segments/0/history').flush([
+      { version: 1, text: 'Hallo Welt.', editedBy: 'u', editedAtUtc: '2026-11-10T10:00:00Z' },
+      { version: 0, text: 'Hallo zusammen.' },
+    ]);
+    fixture.detectChanges();
+    expect(el.querySelector('app-segment-history')).not.toBeNull();
+  });
+});

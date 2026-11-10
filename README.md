@@ -25,6 +25,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
 - 🏷️ **Tags, Ordner und Favoriten** — jeder Benutzer ordnet seine Jobs persönlich (auch geteilte), filtert die Liste und die Suche danach und verwaltet alles unter „Organisieren“
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
+- ✏️ **Transkript-Editor** — Segmente direkt im Player korrigieren (Enter/Doppelklick, Strg+Enter speichert, Alt+P spielt das Segment ab); jede Änderung ist eine neue Version mit Verlauf, Diff und „Wiederherstellen“, das Roh-Transkript bleibt unverändert; Suche, Untertitel und Exporte nutzen die korrigierte Fassung
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -271,6 +272,9 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST` | `/api/audio-jobs/{id}/cancel` | Wartenden oder laufenden Job abbrechen |
 | `POST` | `/api/audio-jobs/{id}/retry` | Fehlgeschlagenen oder abgebrochenen Job erneut einreihen |
 | `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts, bei Diarisierung inkl. `speakerIndex`/`speakerName` (`409`, solange der Job nicht abgeschlossen ist) |
+| `PUT` | `/api/audio-jobs/{id}/segments/{index}` | Segment korrigieren: Body `{ text, expectedVersion }`; legt eine neue Version an (`409`, wenn `expectedVersion` nicht die aktuelle ist oder der Job nicht abgeschlossen ist; nur für den Eigentümer) |
+| `GET` | `/api/audio-jobs/{id}/segments/{index}/history` | Alle Versionen des Segments, neueste zuerst; Version 0 ist das Original |
+| `POST` | `/api/audio-jobs/{id}/segments/{index}/restore` | Body `{ version, expectedVersion }`; stellt eine frühere Version als neue Version wieder her (nur für den Eigentümer) |
 | `GET` | `/api/audio-jobs/{id}/subtitles?format=srt\|vtt` | Untertitel-Download, Cues bei Diarisierung mit Sprechername (`409` wie oben, `400` bei unbekanntem Format) |
 | `GET` | `/api/audio-jobs/{id}/export?format=docx\|md\|json\|pdf&variant=&timestamps=&speakers=` | Export als Word, Markdown, JSON (`schemaVersion`) oder PDF, wahlweise für eine nachbearbeitete Fassung (`variant`=Variant-Id); `400` bei unbekanntem Format, `409` wenn Job/Variante nicht fertig, `404` bei fremder Variante |
 | `GET` `POST` | `/api/glossaries` | Eigene Glossare (Name + Begriffe) auflisten / anlegen; `400` bei Duplikaten, zu langen Begriffen oder wenn die Begriffe Whispers Prompt-Fenster (≈224 Tokens) sprengen, `409` bei doppeltem Namen |

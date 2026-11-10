@@ -30,7 +30,7 @@ public static class SubtitleFormatter
             .OrderBy(s => s.Index)
             .Select(s => (
                 Start: Math.Max(0, s.StartMs), s.EndMs,
-                Text: NormalizeWhitespace(s.Text),
+                Text: NormalizeWhitespace(s.EffectiveText),
                 Speaker: s.SpeakerIndex is { } index && speakerNames is not null && speakerNames.TryGetValue(index, out var name)
                     ? name
                     : null))

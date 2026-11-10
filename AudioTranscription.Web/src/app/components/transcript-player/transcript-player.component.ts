@@ -4,6 +4,8 @@ import { AudioJobService } from '../../services/audio-job.service';
 import { JobSpeaker, TranscriptSegment } from '../../models/audio-job.model';
 import { findActiveSegment, formatTimestamp } from './segment-time';
 import { speakerBadgeClass } from './speaker-color';
+import { SegmentEditState } from './segment-edit-state';
+import { SegmentHistoryComponent } from './segment-history.component';
 
 /**
  * Audio player with the timed transcript: the segment being spoken is highlighted and kept in view,
@@ -12,7 +14,7 @@ import { speakerBadgeClass } from './speaker-color';
 @Component({
   selector: 'app-transcript-player',
   standalone: true,
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, SegmentHistoryComponent],
   template: `
     <section class="card bg-base-200 shadow-sm mt-6" aria-labelledby="player-title">
       <div class="card-body gap-4">
@@ -90,21 +92,114 @@ import { speakerBadgeClass } from './speaker-color';
             >
               @for (segment of list; track segment.index; let i = $index) {
                 <li #segmentItem>
-                  @if (audioAvailable()) {
-                    <button
-                      type="button"
-                      class="w-full text-left flex gap-3 rounded-md px-2 py-1 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary"
-                      [class.bg-primary/15]="i === activeIndex()"
-                      [class.font-medium]="i === activeIndex()"
-                      [attr.aria-current]="i === activeIndex() ? 'true' : null"
-                      (click)="seek(segment)"
-                    >
-                      <time class="font-mono text-xs text-base-content/70 pt-0.5 shrink-0" [attr.datetime]="isoDuration(segment.startMs)">{{ timestamp(segment.startMs) }}</time>&ngsp;@if (segment.speakerName) {<span class="badge badge-sm {{ speakerBadgeClass(segment.speakerIndex!) }} shrink-0">{{ segment.speakerName }}</span>&ngsp;}<span>{{ segment.text }}</span>
-                    </button>
-                  } @else {
-                    <div class="flex gap-3 px-2 py-1">
-                      <time class="font-mono text-xs text-base-content/70 pt-0.5 shrink-0" [attr.datetime]="isoDuration(segment.startMs)">{{ timestamp(segment.startMs) }}</time>&ngsp;@if (segment.speakerName) {<span class="badge badge-sm {{ speakerBadgeClass(segment.speakerIndex!) }} shrink-0">{{ segment.speakerName }}</span>&ngsp;}<span>{{ segment.text }}</span>
+                  @if (edit.index() === segment.index) {
+                    <div class="rounded-md border border-primary bg-base-100 p-2 space-y-2">
+                      <label class="sr-only" [for]="'segment-editor-' + segment.index">
+                        {{ 'editor.textLabel' | transloco: { time: timestamp(segment.startMs) } }}
+                      </label>
+                      <textarea
+                        data-testid="segment-editor"
+                        class="textarea textarea-bordered w-full"
+                        rows="3"
+                        [id]="'segment-editor-' + segment.index"
+                        [attr.aria-describedby]="'segment-editor-help-' + segment.index"
+                        [value]="edit.draft()"
+                        [disabled]="edit.saving()"
+                        (input)="edit.draft.set($any($event.target).value)"
+                        (keydown)="onEditorKeydown($event, segment)"
+                      ></textarea>
+                      <p class="text-xs text-base-content/70" [id]="'segment-editor-help-' + segment.index">
+                        {{ 'editor.shortcuts' | transloco }}
+                      </p>
+                      @if (edit.error(); as error) {
+                        <p role="alert" class="text-error text-sm">
+                          {{ (error === 'conflict' ? 'editor.error.conflict' : 'editor.error.failed') | transloco }}
+                        </p>
+                      }
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          data-testid="editor-save"
+                          class="btn btn-sm btn-primary"
+                          [disabled]="!edit.canSave()"
+                          (click)="saveSegmentEdit(segment)"
+                        >
+                          {{ (edit.saving() ? 'editor.saving' : 'editor.save') | transloco }}
+                        </button>
+                        <button type="button" data-testid="editor-cancel" class="btn btn-sm" (click)="edit.cancel()">
+                          {{ 'editor.cancel' | transloco }}
+                        </button>
+                        @if (audioAvailable()) {
+                          <button type="button" data-testid="editor-play" class="btn btn-sm btn-ghost" (click)="play(segment)">
+                            {{ 'editor.play' | transloco }}
+                          </button>
+                        }
+                      </div>
                     </div>
+                  } @else {
+                    <div class="flex items-start gap-1">
+                      @if (audioAvailable()) {
+                        <button
+                          type="button"
+                          data-testid="segment-text"
+                          class="grow text-left flex gap-3 rounded-md px-2 py-1 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary"
+                          [class.bg-primary/15]="i === activeIndex()"
+                          [class.font-medium]="i === activeIndex()"
+                          [attr.aria-current]="i === activeIndex() ? 'true' : null"
+                          [attr.aria-keyshortcuts]="canEdit() ? 'Enter' : null"
+                          (click)="seek(segment)"
+                          (keydown.enter)="startEditFromKey($event, segment)"
+                          (dblclick)="startEditFromPointer(segment)"
+                        >
+                          <time class="font-mono text-xs text-base-content/70 pt-0.5 shrink-0" [attr.datetime]="isoDuration(segment.startMs)">{{ timestamp(segment.startMs) }}</time>&ngsp;@if (segment.speakerName) {<span class="badge badge-sm {{ speakerBadgeClass(segment.speakerIndex!) }} shrink-0">{{ segment.speakerName }}</span>&ngsp;}<span>{{ segment.text }}</span>
+                        </button>
+                      } @else {
+                        <div
+                          data-testid="segment-text"
+                          class="grow flex gap-3 px-2 py-1 rounded-md focus-visible:outline-2 focus-visible:outline-primary"
+                          [attr.tabindex]="canEdit() ? 0 : null"
+                          [attr.aria-keyshortcuts]="canEdit() ? 'Enter' : null"
+                          (keydown.enter)="startEditFromKey($event, segment)"
+                          (dblclick)="startEditFromPointer(segment)"
+                        >
+                          <time class="font-mono text-xs text-base-content/70 pt-0.5 shrink-0" [attr.datetime]="isoDuration(segment.startMs)">{{ timestamp(segment.startMs) }}</time>&ngsp;@if (segment.speakerName) {<span class="badge badge-sm {{ speakerBadgeClass(segment.speakerIndex!) }} shrink-0">{{ segment.speakerName }}</span>&ngsp;}<span>{{ segment.text }}</span>
+                        </div>
+                      }
+                      @if (canEdit()) {
+                        <button
+                          type="button"
+                          data-testid="segment-edit"
+                          class="btn btn-ghost btn-xs px-1"
+                          [attr.aria-label]="'editor.edit' | transloco: { time: timestamp(segment.startMs) }"
+                          (click)="startSegmentEdit(segment)"
+                        >
+                          ✎
+                        </button>
+                      }
+                      @if (canEdit() || (segment.version ?? 0) > 0) {
+                        <button
+                          type="button"
+                          data-testid="segment-history-toggle"
+                          class="btn btn-ghost btn-xs px-1"
+                          [class.text-primary]="(segment.version ?? 0) > 0"
+                          [attr.aria-expanded]="historyIndex() === segment.index"
+                          [attr.aria-label]="(historyIndex() === segment.index ? 'editor.historyHide' : 'editor.historyToggle') | transloco: { time: timestamp(segment.startMs) }"
+                          (click)="toggleHistory(segment)"
+                        >
+                          ⟲
+                        </button>
+                      }
+                    </div>
+                  }
+                  @if (historyIndex() === segment.index) {
+                    <app-segment-history
+                      class="block mt-1"
+                      [jobId]="jobId()"
+                      [segment]="segment"
+                      [canRestore]="canEdit()"
+                      (restored)="applyEdited($event)"
+                      (conflict)="reloadSegments()"
+                    />
                   }
                 </li>
               }
@@ -123,6 +218,8 @@ export class TranscriptPlayerComponent {
   readonly jobId = input.required<string>();
   /** Jump straight to this time once segments (and the audio element) are ready (S13 search deep-link). */
   readonly initialSeekMs = input<number | undefined>(undefined);
+  /** Whether the user may correct segments (S32): owners only, readers of a shared job see the text read only. */
+  readonly canEdit = input(false);
 
   private jobService = inject(AudioJobService);
   private audioSeekApplied = false;
@@ -141,6 +238,85 @@ export class TranscriptPlayerComponent {
   /** Machine-readable offset for &lt;time datetime&gt;, e.g. "PT65.5S". */
   isoDuration(ms: number): string {
     return `PT${ms / 1000}S`;
+  }
+
+  // --- transcript editor (S32) ----------------------------------------------
+
+  readonly edit = new SegmentEditState();
+  /** Index of the segment whose version history is open. */
+  readonly historyIndex = signal<number | null>(null);
+
+  startSegmentEdit(segment: TranscriptSegment): void {
+    this.edit.start(segment.index, segment.text);
+  }
+
+  startEditFromKey(event: Event, segment: TranscriptSegment): void {
+    if (!this.canEdit()) {
+      return;
+    }
+    // Enter corrects the segment; Space still plays it
+    event.preventDefault();
+    this.startSegmentEdit(segment);
+  }
+
+  startEditFromPointer(segment: TranscriptSegment): void {
+    if (this.canEdit()) {
+      this.startSegmentEdit(segment);
+    }
+  }
+
+  onEditorKeydown(event: KeyboardEvent, segment: TranscriptSegment): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.edit.cancel();
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      this.saveSegmentEdit(segment);
+    } else if (event.altKey && event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      this.play(segment);
+    }
+  }
+
+  saveSegmentEdit(segment: TranscriptSegment): void {
+    if (!this.edit.canSave()) {
+      return;
+    }
+    this.edit.beginSave();
+    this.jobService.editSegment(this.jobId(), segment.index, this.edit.draft().trim(), segment.version ?? 0).subscribe({
+      next: (saved) => {
+        this.applyEdited(saved);
+        this.edit.finish();
+      },
+      error: (error: { status?: number }) => this.edit.fail(error.status === 409 ? 'conflict' : 'failed'),
+    });
+  }
+
+  /** Takes over a segment as returned by an edit or restore. */
+  applyEdited(saved: TranscriptSegment): void {
+    this.segments.update((current) =>
+      (current ?? []).map((s) => (s.index === saved.index ? { ...s, text: saved.text, version: saved.version } : s)),
+    );
+  }
+
+  toggleHistory(segment: TranscriptSegment): void {
+    this.historyIndex.update((open) => (open === segment.index ? null : segment.index));
+  }
+
+  /** After a conflict: fetch the latest versions so the next edit uses the current version number. */
+  reloadSegments(): void {
+    this.jobService.loadSegments(this.jobId()).subscribe({
+      next: (segments) => this.segments.set(segments),
+      // Keep showing the versions we have; the next save will report the conflict again
+      error: () => undefined,
+    });
+  }
+
+  /** Plays the segment from its start (Alt+P in the editor). */
+  play(segment: TranscriptSegment): void {
+    this.seek(segment);
+    // The browser may refuse playback without a user gesture or lack of audio; the segment is still selected
+    void this.audio()?.nativeElement.play?.()?.catch(() => undefined);
   }
 
   // --- speaker diarization (S11) ----------------------------------------------
@@ -184,6 +360,8 @@ export class TranscriptPlayerComponent {
         this.currentMs.set(0);
         this.speakers.set([]);
         this.editingSpeakerIndex.set(null);
+        this.edit.cancel();
+        this.historyIndex.set(null);
         this.audioSeekApplied = false;
       });
       const subscription = this.jobService.loadSegments(id).subscribe({

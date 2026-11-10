@@ -132,6 +132,23 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
     }
 
     [Fact]
+    public async Task Search_FindsCorrectedSegmentText_ButNotTheReplacedOriginal()
+    {
+        var job = await SeedJobAsync("edit.mp3", null, (0, "Der Zauberer kam."));
+        var client = _factory.CreateClient();
+        (await client.PutAsJsonAsync($"/api/audio-jobs/{job}/segments/0", new EditSegmentRequest("Der Drachentöter kam.", 0)))
+            .EnsureSuccessStatusCode();
+        using (var scope = _factory.Services.CreateScope())
+            await WaitForFullTextPopulationAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), "TranscriptSegments");
+
+        var corrected = await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Drachentöter");
+        var original = await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Zauberer");
+
+        corrected!.Items.Should().ContainSingle().Which.JobId.Should().Be(job);
+        original!.Items.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Search_CanBeNarrowedToATagOrFolderOfTheUser_AndSomeoneElsesMatchesNothing()
     {
         var tagged = await SeedJobAsync("tagged.mp3", "Der Zauberer im markierten Job.");
