@@ -106,6 +106,49 @@ describe('AudioJobService retention lock (S30)', () => {
   });
 });
 
+describe('AudioJobService organizing (S20)', () => {
+  let service: AudioJobService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    service = TestBed.inject(AudioJobService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('sends only the filters that are set, always from page 1 when they change', () => {
+    service.setFilters({ tag: 't1', favorite: true });
+
+    const req = http.expectOne((r) => r.url === '/api/audio-jobs');
+    expect(req.request.params.get('tag')).toBe('t1');
+    expect(req.request.params.get('favorite')).toBe('true');
+    expect(req.request.params.has('folder')).toBe(false);
+    expect(req.request.params.get('page')).toBe('1');
+    req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+  });
+
+  it('keeps the known tags, favorite and folder when a live event does not carry them', () => {
+    service.jobs.set([{ ...listItem('a'), tags: [{ id: 't1', name: 'Budget' }], isFavorite: true, folderId: 'f1' }]);
+
+    service.updateJobInList({ ...listItem('a', AudioJobStatus.Completed), tags: null, isFavorite: null, folderId: null });
+
+    expect(service.jobs()[0]).toMatchObject({ status: AudioJobStatus.Completed, isFavorite: true, folderId: 'f1' });
+    expect(service.jobs()[0].tags?.map((t) => t.name)).toEqual(['Budget']);
+  });
+
+  it('applies a change to the list and to the open job', () => {
+    service.jobs.set([listItem('a'), listItem('b')]);
+    service.selectedJob.set({ id: 'a', fileName: 'a.mp3', status: AudioJobStatus.Completed } as AudioJob);
+
+    service.patchJob('a', { isFavorite: true });
+
+    expect(service.jobs().map((j) => j.isFavorite)).toEqual([true, undefined]);
+    expect(service.selectedJob()?.isFavorite).toBe(true);
+  });
+});
+
 describe('AudioJobService sharing (S19)', () => {
   let service: AudioJobService;
   let http: HttpTestingController;

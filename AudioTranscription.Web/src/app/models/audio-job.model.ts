@@ -36,6 +36,12 @@ export interface AudioJob {
   retentionLocked?: boolean;
   /** When retention will delete the job; undefined when retention is off, or the job is locked or still open. */
   deleteAtUtc?: string;
+  /** The user's own tags on the job (S20). */
+  tags?: Tag[] | null;
+  /** The user's own favorite mark (S20). */
+  isFavorite?: boolean | null;
+  /** The owner's folder the job is filed in (S20); never set for a reader of a shared job. */
+  folderId?: string | null;
 }
 
 export interface AudioJobListItem {
@@ -52,6 +58,10 @@ export interface AudioJobListItem {
   /** Missing in live events (unknown there), see AudioJobService.updateJobInList. */
   isOwner?: boolean | null;
   sharedByEmail?: string | null;
+  /** Like on AudioJob; missing in live events (unknown there), see AudioJobService.updateJobInList. */
+  tags?: Tag[] | null;
+  isFavorite?: boolean | null;
+  folderId?: string | null;
 }
 
 /** SignalR event "JobProgress". */
@@ -168,4 +178,19 @@ export interface SearchHit {
 export interface JobShare {
   userId: string;
   email: string;
+}
+
+/** A label the user puts on jobs (S20). Personal: other users never see it. */
+export interface Tag {
+  id: string;
+  name: string;
+  /** #RRGGBB, validated by the API. */
+  color?: string | null;
+}
+
+/** A folder in the user's own tree (S20); flat list with parent ids. */
+export interface Folder {
+  id: string;
+  name: string;
+  parentId?: string | null;
 }
