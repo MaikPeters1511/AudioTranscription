@@ -123,6 +123,7 @@ public class RetentionService(
         // only if it still qualifies, and decide that in the same statement that deletes it
         if (!await TryDeleteExpiredAsync(dbContext, id, cutoffUtc, cancellationToken))
             return false;
+        await Search.SemanticIndexHooks.JobDeletedAsync(scope.ServiceProvider, id, logger, cancellationToken);
 
         // The row is gone for good; a leftover file is not a reason to call the deletion failed
         try

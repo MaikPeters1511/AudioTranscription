@@ -43,3 +43,14 @@ Die Volltextsuche (S13, ADR 0005) findet Wörter und ihre Beugungen, aber keine 
 ## 6. Acceptance Criteria (DoD)
 - [ ] Beispiel-Suchen mit Synonymen finden die erwarteten Stellen (kleines Evaluationsset im Testprojekt).
 - [ ] Kein Benutzer sieht Treffer fremder Jobs, Swagger und README aktualisiert.
+
+## 7. Umsetzung
+
+- **Entscheidung (T1):** [ADR 0010](../../docs/adr/0010-semantische-suche-embeddings.md) (D7): `bge-m3` über Ollama (1024 Dimensionen, Cosine) als Standard, OpenAI nur per Opt-in (`Embedding:Provider=OpenAI` mit Schlüssel aus Environment/Secret), Chunks von rund 45 s mit 15 s Überlappung, Modellwechsel macht den Index veraltet bis zum Neuaufbau, Hybrid per Reciprocal Rank Fusion.
+- **Infrastruktur (T2/EN-3):** Qdrant im Aspire-AppHost (Datenvolume, `bge-m3` neben `llama3.2`) und in `docker-compose.yml` (Volume, Health Check, Verbindung per Environment Variable), Readiness-Check `qdrant`. Ohne `qdrant`-Connection-String und ohne nutzbares Embedding-Modell ist die semantische Suche aus (503, Umschalter ausgeblendet).
+- **Embeddings (EN-4):** `IEmbeddingService` über `IEmbeddingGenerator` (Microsoft.Extensions.AI): Batches, Polly-Retry, Dimensionsprüfung, normierte Vektoren.
+- **Indexierung (T3):** `SemanticIndexer` + `IndexingWorker`: nach Abschluss eines Jobs und nach jeder Segmentkorrektur (S32) wird neu indexiert (feste Chunk-Ids, Neuindexierung überschreibt); Fehler werden protokolliert und blockieren den Job nie, ein fehlgeschlagener Lauf lässt die alten Chunks stehen. Löschen eines Jobs (S09) und Aufbewahrungsfrist (S30) entfernen dessen Vektoren (Best Effort). Qdrant-Verhalten ist gegen einen echten Container getestet (Testcontainers), die übrige Logik mit Fake-Embedding und In-Memory-Index.
+- **Suche (T4):** `GET /api/search/semantic`; die erlaubten Job-Ids (eigene und freigegebene, S19) werden aus der Datenbank berechnet und als Filter in die Vektorsuche gegeben, die Berechtigung gilt also zum Suchzeitpunkt (Test mit zwei Benutzern und entzogener Freigabe). Treffer enthalten die Sprungmarke.
+- **Frontend (T5):** Umschalter „Wörtlich / Bedeutung / Kombiniert“ (Radio-Gruppe mit Legende und Hinweis), nur sichtbar, wenn der Server die Modi anbietet; Tag-/Ordnerfilter gelten nur für „Wörtlich“; DE/EN.
+- **Neuaufbau (T6):** `POST /api/admin/search/reindex` und `GET /api/admin/search/status` (Fortschritt auch im Log).
+- **Nicht umgesetzt/offen:** Das Evaluationsset mit Synonymen (`SemanticEvaluationTests`) läuft nur mit einem echten Modell (`EMBEDDING_EVAL_OLLAMA_URL`) und wurde in dieser Umgebung nicht ausgeführt; die Qualität von `bge-m3` auf deutschen Transkripten ist damit nicht gemessen. Varianten und Kapitel werden nicht indexiert, in der Hybrid-Suche zählt die Reihenfolge der Volltextsuche (neueste zuerst), nicht ein Relevanzwert. Die Vektorsuche liefert keine Gesamtzahl, die Paginierung weiß nur, ob eine weitere Seite folgt. Der OpenAI-Pfad ist ohne Schlüssel nicht getestet.

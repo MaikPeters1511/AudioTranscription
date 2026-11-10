@@ -13,6 +13,19 @@ services:
     volumes:
       - sql-data:/var/opt/mssql
 
+  # S23 / EN-3: vector database of the semantic search (ADR 0010); data survives restarts in the volume
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: audio-transcription-qdrant
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      # The image has no curl/wget; bash's /dev/tcp is enough to see that the HTTP port answers
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && printf \"GET /readyz HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -20,6 +33,7 @@ services:
     container_name: audio-transcription-api
     depends_on:
       - sql
+      - qdrant
     environment:
       - ConnectionStrings__transcriptiondb=Server=sql;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
       # First login (ADR 0003); set in a local, git-ignored .env file
@@ -31,6 +45,14 @@ services:
       - Upload__IncompleteSessionRetentionHours=${UPLOAD_INCOMPLETE_RETENTION_HOURS:-24}
       # S29: empty = no export; with the observability profile set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # S23: semantic search needs Qdrant and an embedding model. Local by default: set EMBEDDING_OLLAMA_ENDPOINT to an
+      # Ollama server that has the model (ollama pull bge-m3). OpenAI only with EMBEDDING_PROVIDER=OpenAI and a key.
+      - ConnectionStrings__qdrant=Endpoint=http://qdrant:6334
+      - Embedding__Provider=${EMBEDDING_PROVIDER:-Ollama}
+      - Embedding__Model=${EMBEDDING_MODEL:-bge-m3}
+      - Embedding__Dimensions=${EMBEDDING_DIMENSIONS:-1024}
+      - Embedding__Endpoint=${EMBEDDING_OLLAMA_ENDPOINT:-}
+      - Embedding__ApiKey=${EMBEDDING_OPENAI_API_KEY:-}
     ports:
       - "8080:8080"
     volumes:
@@ -118,5 +140,6 @@ services:
       - "3000:3000"
 
 volumes:
+  qdrant-data:
   sql-data:
   api-uploads:

@@ -43,4 +43,31 @@ describe('SearchService', () => {
 
     expect(result).toEqual(hits);
   });
+
+  it('searches by meaning through the semantic endpoint, without tag and folder filters (S23)', () => {
+    service.search('Geld', 1, 20, { tag: 't1', folder: 'f1' }, 'semantic').subscribe();
+
+    const req = http.expectOne((r) => r.url === '/api/search/semantic');
+    expect(req.request.params.get('mode')).toBe('semantic');
+    expect(req.request.params.has('tag')).toBe(false);
+    req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+  });
+
+  it('asks the server for the combined search (S23)', () => {
+    service.search('Geld', 2, 10, {}, 'hybrid').subscribe();
+
+    const req = http.expectOne((r) => r.url === '/api/search/semantic');
+    expect(req.request.params.get('mode')).toBe('hybrid');
+    expect(req.request.params.get('page')).toBe('2');
+    req.flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+  });
+
+  it('loads which modes the server offers (S23)', () => {
+    let modes: unknown;
+    service.loadModes().subscribe((m) => (modes = m));
+
+    http.expectOne('/api/search/modes').flush({ semantic: true, indexStatus: 'Ready' });
+
+    expect(modes).toEqual({ semantic: true, indexStatus: 'Ready' });
+  });
 });

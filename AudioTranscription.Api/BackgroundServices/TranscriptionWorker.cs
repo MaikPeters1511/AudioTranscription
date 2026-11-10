@@ -171,6 +171,9 @@ public class TranscriptionWorker : BackgroundService
                 "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
                 request.JobId, result.Text.Length, result.DetectedLanguage, result.DurationSeconds);
 
+            // Semantic search (S23): index the new transcript in the background; no-op when not configured
+            AudioTranscription.Api.Search.SemanticIndexHooks.JobChanged(services, job.Id);
+
             // Automatic cleanup (S04); other modes are generated on demand (S10). Never fails the job itself.
             if (services.GetService<IVariantGenerator>() is not null)
                 await EnqueueAutomaticCleanupVariant(services, dbContext, job.Id, cancellationToken);

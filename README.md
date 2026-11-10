@@ -29,6 +29,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🔁 **Wiederaufnehmbarer Upload** — Dateien ab 10 MiB werden in Chunks per tus-Protokoll hochgeladen: automatische Wiederholung bei Verbindungsabbruch, Pause/Fortsetzen, Abbruch räumt den Teil-Upload auf; kleinere Dateien und der bisherige Endpoint bleiben unverändert (siehe [ADR 0006](docs/adr/0006-resumable-upload-spike.md))
 - 📑 **Automatische Kapitel** — das lokale Sprachmodell gliedert lange Aufnahmen in Abschnitte mit Überschrift und Kurzzusammenfassung (Map-Reduce über Fenster, Grenzen auf Segmentgrenzen); Marker auf der Zeitleiste und Kapitelliste im Player, Sprung per Klick oder Tastatur, Kapitel umbenennen und löschen
 - 📝 **Protokoll-Vorlagen** — strukturierte Nachbearbeitung mit Vorlagen (eingebaut: Besprechungsprotokoll, Entscheidungsliste, Aufgaben mit Verantwortlichen; eigene Vorlagen durch Admins): das Ergebnis wird gegen ein JSON-Schema geprüft und als Markdown gerendert, Verantwortliche erscheinen nur für benannte Sprecher
+- 🧠 **Semantische Suche** — Suche in natürlicher Sprache über Embeddings in Qdrant („Wann ging es ums Geld?“ findet die Budgetrunde): Modi Wörtlich, Bedeutung und Kombiniert (Reciprocal Rank Fusion mit der Volltextsuche); Modell lokal über Ollama (`bge-m3`), OpenAI nur per ausdrücklicher Konfiguration; Berechtigungen serverseitig erzwungen (siehe [ADR 0010](docs/adr/0010-semantische-suche-embeddings.md))
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -297,6 +298,10 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST`/`PUT`/`DELETE` | `/api/templates[/{id}]` | Eigene Vorlagen verwalten (nur Admin): Body `{ name, description, prompt, outputSchema }`; Prompt bis 4000 Zeichen mit den Platzhaltern `{{SPEAKERS}}`/`{{LANGUAGE}}`, `outputSchema` als JSON-Schema (Typen object, array, string, integer, number, boolean). Ungültig: `400`, eingebaute Vorlagen ändern oder löschen: `409` |
 | `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |
 | `GET` | `/api/search?q=&page=&pageSize=` | Volltextsuche über Rohtranskripte, Segmente und Fassungen; Treffer mit Snippet, Hervorhebungs-Offsets und optional `segmentStartMs`; `400` ohne `q` |
+| `GET` | `/api/search/semantic?q=&mode=&page=&pageSize=` | Suche nach Bedeutung (`mode=semantic`, Standard) oder kombiniert mit der Volltextsuche (`mode=hybrid`); nur eigene und freigegebene Jobs, Treffer mit Sprungmarke. `503`: nicht konfiguriert, `409`: Index stammt von einem anderen Embedding-Modell und muss neu aufgebaut werden |
+| `GET` | `/api/search/modes` | Ob die semantische und kombinierte Suche nutzbar sind (`{ semantic, indexStatus }`) |
+| `POST` | `/api/admin/search/reindex` | Admin: Index neu aufbauen (löscht die Collection, indexiert alle abgeschlossenen Jobs mit dem konfigurierten Modell); `409`, solange ein Neuaufbau läuft |
+| `GET` | `/api/admin/search/status` | Admin: Zustand des Index (`NotConfigured`, `NotBuilt`, `Ready`, `Stale`), Modell und Fortschritt eines laufenden Neuaufbaus |
 | `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `VariantCompleted`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack

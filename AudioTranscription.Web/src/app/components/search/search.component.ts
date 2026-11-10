@@ -1,10 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { SearchService } from '../../services/search.service';
-import { PaginatedResult, SearchHit } from '../../models/audio-job.model';
+import { PaginatedResult, SearchHit, SearchMode } from '../../models/audio-job.model';
 import { PageTitleService } from '../../i18n/page-title.service';
 import { OrganizeService } from '../../services/organize.service';
 
@@ -32,7 +32,30 @@ import { OrganizeService } from '../../services/organize.service';
         />
       </div>
 
+      <!-- Words, meaning or both (S23); only offered when the server has semantic search -->
+      @if (semanticAvailable()) {
+        <fieldset class="mb-6" data-testid="search-modes">
+          <legend class="text-xs font-medium mb-1">{{ 'search.mode.legend' | transloco }}</legend>
+          <div class="join" role="radiogroup">
+            @for (m of modes; track m) {
+              <input
+                class="join-item btn btn-sm"
+                type="radio"
+                name="search-mode"
+                [attr.data-testid]="'search-mode-' + m"
+                [value]="m"
+                [checked]="mode() === m"
+                [attr.aria-label]="'search.mode.' + m | transloco"
+                (change)="mode.set(m)"
+              />
+            }
+          </div>
+          <p class="text-xs text-base-content/60 mt-1">{{ 'search.mode.hint.' + mode() | transloco }}</p>
+        </fieldset>
+      }
+
       <!-- Optionally narrow the search to one of the user's tags or folders (S20) -->
+      @if (mode() === 'literal') {
       <div class="flex flex-wrap gap-3 mb-6">
         <div class="flex flex-col gap-1">
           <label for="search-tag" class="text-xs font-medium">{{ 'search.filter.tag' | transloco }}</label>
@@ -53,6 +76,7 @@ import { OrganizeService } from '../../services/organize.service';
           </select>
         </div>
       </div>
+      }
 
       <p id="search-status" class="sr-only" aria-live="polite">{{ statusText() }}</p>
 
@@ -98,6 +122,10 @@ export class SearchComponent {
   readonly tag = signal('');
   readonly folder = signal('');
   readonly loading = signal(false);
+  readonly modes: readonly SearchMode[] = ['literal', 'semantic', 'hybrid'];
+  readonly mode = signal<SearchMode>('literal');
+  /** Whether the server offers semantic and hybrid search (S23). */
+  readonly semanticAvailable = signal(false);
   readonly results = signal<PaginatedResult<SearchHit> | null>(null);
 
   readonly statusText = computed(() => {
@@ -119,12 +147,18 @@ export class SearchComponent {
     // The user's tags and folders for the filters; the search works without them if loading fails
     this.organize.load().catch(() => undefined);
 
+    // Semantic search is optional; without the answer only the literal search is offered
+    this.searchService.loadModes().subscribe({
+      next: (modes) => this.semanticAvailable.set(modes.semantic),
+      error: () => this.semanticAvailable.set(false),
+    });
+
     // The text is debounced; choosing a tag or folder searches again at once
-    toObservable(computed(() => ({ query: this.query(), tag: this.tag(), folder: this.folder() })))
+    toObservable(computed(() => ({ query: this.query(), tag: this.tag(), folder: this.folder(), mode: this.mode() })))
       .pipe(
         debounceTime(300),
-        distinctUntilChanged((a, b) => a.query === b.query && a.tag === b.tag && a.folder === b.folder),
-        switchMap(({ query, tag, folder }) => {
+        distinctUntilChanged((a, b) => a.query === b.query && a.tag === b.tag && a.folder === b.folder && a.mode === b.mode),
+        switchMap(({ query, tag, folder, mode }) => {
           const trimmed = query.trim();
           if (!trimmed) {
             this.results.set(null);
@@ -132,7 +166,12 @@ export class SearchComponent {
             return of(null);
           }
           this.loading.set(true);
-          return this.searchService.search(trimmed, 1, 20, { tag: tag || undefined, folder: folder || undefined });
+          return this.searchService
+            .search(trimmed, 1, 20, { tag: tag || undefined, folder: folder || undefined }, mode)
+            .pipe(
+              // A failing semantic search must not leave the page stuck: show the empty state
+              catchError(() => of({ items: [], totalCount: 0, page: 1, pageSize: 20 } as PaginatedResult<SearchHit>)),
+            );
         }),
         takeUntilDestroyed(),
       )

@@ -191,3 +191,10 @@ public record TemplateDto(Guid Id, string Name, string Description, string Promp
 
 /// <summary>Body of POST/PUT /api/templates (admin).</summary>
 public record SaveTemplateRequest(string Name, string? Description, string Prompt, string OutputSchema);
+
+
+/// <summary>Which search modes are usable: <c>Semantic</c> covers the semantic and the hybrid mode (S23).</summary>
+public record SearchModesDto(bool Semantic, string IndexStatus);
+
+/// <summary>State of the semantic index for admins (S23): NotConfigured, NotBuilt, Ready, Stale or Rebuilding.</summary>
+public record SemanticIndexStatusDto(string Status, bool Running, int Done, int Total, string? Provider, string? Model, int? Dimensions);

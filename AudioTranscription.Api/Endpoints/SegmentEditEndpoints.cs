@@ -145,6 +145,9 @@ public static class SegmentEditEndpoints
             return AudioJobEndpoints.JobConflict($"Segment {index} was changed in the meantime.");
         }
 
+        // The corrected text has to be found by the semantic search too (S23)
+        Search.SemanticIndexHooks.JobChanged(http.RequestServices, id);
+
         var speakerName = segment.SpeakerIndex is { } speaker
             ? (await SpeakerNaming.LoadResolvedNamesAsync(dbContext, id)).GetValueOrDefault(speaker, SpeakerNaming.DefaultName(speaker))
             : null;

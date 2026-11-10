@@ -71,6 +71,7 @@ public static class AudioJobEndpoints
         JobCancellationRegistry cancellations,
         ITempFileStore tempFileStore,
         IJobNotifier notifier,
+        IServiceProvider services,
         ILogger<AudioJob> logger)
     {
         var job = await dbContext.AudioJobs.FindAsync(id);
@@ -86,6 +87,7 @@ public static class AudioJobEndpoints
         dbContext.AudioJobs.Remove(job);
         await dbContext.SaveChangesAsync();
         tempFileStore.DeleteUpload(tempFileStore.GetUploadPath(job.Id, job.FileName));
+        await Search.SemanticIndexHooks.JobDeletedAsync(services, id, logger);
 
         // Only the id is logged: file names can contain personal data
         logger.LogInformation("Audio job {JobId} deleted", id);
