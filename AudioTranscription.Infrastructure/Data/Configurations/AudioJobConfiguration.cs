@@ -50,6 +50,8 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(x => x.InitialPrompt).HasMaxLength(1000);
+
         builder.Property(x => x.DurationSeconds);
 
         builder.Property(x => x.CreatedAtUtc)

@@ -8,7 +8,8 @@
       "search": "Suche",
       "users": "Benutzer",
       "account": "Passwort ändern",
-      "organize": "Organisieren"
+      "organize": "Organisieren",
+      "glossaries": "Glossar"
     },
     "connection": {
       "live": "Live verbunden",
@@ -143,7 +144,11 @@
       "modelHint": "Größere Modelle sind genauer, aber langsamer. Ein Modell wird beim ersten Einsatz heruntergeladen.",
       "language": "Sprache der Aufnahme",
       "auto": "Automatisch erkennen",
-      "diarize": "Erkennen, wer spricht (Sprechererkennung); läuft vollständig offline und kann länger dauern."
+      "diarize": "Erkennen, wer spricht (Sprechererkennung); läuft vollständig offline und kann länger dauern.",
+      "glossary": "Glossar",
+      "glossaryNone": "Kein Glossar",
+      "glossaryHint": "Hilft Whisper bei Namen und Fachbegriffen.",
+      "glossaryManage": "Glossare verwalten"
     },
     "tabs": {
       "file": "Datei hochladen",
@@ -361,5 +366,31 @@
     "speakers": "Sprechernamen",
     "download": "Herunterladen",
     "downloadLabel": "Export herunterladen"
+  },
+  "glossary": {
+    "pageTitle": "Glossar",
+    "title": "Glossar",
+    "intro": "Namen und Fachbegriffe, die Whisper beim Transkribieren richtig schreiben soll. Beim Upload wählbar.",
+    "loadFailed": "Die Glossare konnten nicht geladen werden.",
+    "createTitle": "Neues Glossar",
+    "editTitle": "Glossar bearbeiten",
+    "name": "Name",
+    "terms": "Begriffe",
+    "termsHint": "Ein Begriff pro Zeile.",
+    "tokens": "Etwa {{used}} von {{max}} Tokens",
+    "tooLong": "Das Glossar ist zu lang für Whisper. Bitte Begriffe entfernen.",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "confirmDelete": "Glossar löschen?",
+    "listTitle": "Meine Glossare",
+    "empty": "Noch keine Glossare.",
+    "termCount": "{{count}} Begriffe",
+    "editFor": "Glossar {{name}} bearbeiten",
+    "deleteFor": "Glossar {{name}} löschen",
+    "duplicate": "Ein Glossar mit diesem Namen existiert bereits.",
+    "invalid": "Bitte Name und Begriffe prüfen (keine Duplikate, höchstens 200 Begriffe mit je 100 Zeichen).",
+    "failed": "Das Glossar konnte nicht gespeichert werden."
   }
 }

@@ -45,6 +45,11 @@ import { AuthService } from './auth/auth.service';
                 {{ 'app.nav.organize' | transloco }}
               </a>
             </li>
+            <li>
+              <a routerLink="/glossaries" routerLinkActive="active" class="rounded-lg">
+                {{ 'app.nav.glossaries' | transloco }}
+              </a>
+            </li>
           </ul>
         </nav>
         <div class="navbar-end gap-2">

@@ -64,6 +64,8 @@ public class WhisperTranscriptionService : ITranscriptionService, IAsyncDisposab
             builder = settings.Language is null
                 ? builder.WithLanguageDetection()
                 : builder.WithLanguage(settings.Language);
+            if (!string.IsNullOrWhiteSpace(settings.InitialPrompt))
+                builder = builder.WithPrompt(settings.InitialPrompt);
             if (progress is not null)
                 builder = builder.WithProgressHandler(WhisperProgress.Handler(progress));
             using var processor = builder.Build();

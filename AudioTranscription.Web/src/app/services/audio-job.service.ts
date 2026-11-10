@@ -187,6 +187,9 @@ export class AudioJobService {
     if (settings.diarize) {
       formData.append('diarize', 'true');
     }
+    if (settings.glossaryId) {
+      formData.append('glossaryId', settings.glossaryId);
+    }
 
     return this.http
       .post<CreateAudioJobResponse>(this.baseUrl, formData, {

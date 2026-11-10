@@ -40,6 +40,12 @@ export const routes: Routes = [
       import('./components/organize/organize.component').then((m) => m.OrganizeComponent),
   },
   {
+    path: 'glossaries',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/glossary/glossary.component').then((m) => m.GlossaryComponent),
+  },
+  {
     path: 'account',
     canActivate: [authGuard],
     loadComponent: () =>

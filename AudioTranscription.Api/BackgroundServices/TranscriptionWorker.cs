@@ -136,7 +136,7 @@ public class TranscriptionWorker : BackgroundService
         try
         {
             // Run transcription with the settings chosen at upload (also after a restart or retry)
-            var settings = new TranscriptionSettings(job.Model, job.RequestedLanguage);
+            var settings = new TranscriptionSettings(job.Model, job.RequestedLanguage, job.InitialPrompt);
             var progressRecipients = await notifier.GetRecipientsAsync(job.Id, stoppingToken);
             var progress = CreateProgress(services, notifier, progressRecipients, job.Id);
             var result = await transcriptionService.TranscribeAsync(request.FilePath, settings, progress, cancellationToken);
