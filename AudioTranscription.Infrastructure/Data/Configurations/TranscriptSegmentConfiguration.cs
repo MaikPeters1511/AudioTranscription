@@ -18,6 +18,10 @@ public class TranscriptSegmentConfiguration : IEntityTypeConfiguration<Transcrip
             .IsRequired()
             .HasColumnType("nvarchar(max)");
 
+        builder.Property(x => x.CurrentText)
+            .HasColumnType("nvarchar(max)");
+        builder.Ignore(x => x.EffectiveText);
+
         // Segments belong to their job and are removed by the database together with it
         builder.HasOne<AudioJob>()
             .WithMany()

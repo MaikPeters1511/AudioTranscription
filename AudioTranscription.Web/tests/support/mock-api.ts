@@ -13,7 +13,9 @@ export interface FakeJob {
   language?: string;
   durationSeconds?: number;
   progressPercent?: number;
-  segments: { index: number; startMs: number; endMs: number; text: string; speakerIndex?: number }[];
+  segments: { index: number; startMs: number; endMs: number; text: string; speakerIndex?: number; version?: number }[];
+  /** Corrections per segment index (S32), oldest first; version 0 is the original text. */
+  edits?: Record<number, { version: number; text: string }[]>;
   speakers: { index: number; displayName: string }[];
 }
 
@@ -208,6 +210,22 @@ export class MockApi {
             speakerName: s.speakerIndex === undefined ? undefined : job.speakers.find((p) => p.index === s.speakerIndex)?.displayName,
           })),
         );
+      }
+      const segmentEdit = sub?.match(/^segments\/(\d+)(?:\/(history|restore))?$/);
+      if (segmentEdit) {
+        const segment = job.segments.find((s) => s.index === Number(segmentEdit[1]));
+        if (!segment) return json(route, { title: 'Not found' }, 404);
+        job.edits ??= {};
+        const edits = (job.edits[segment.index] ??= [{ version: 0, text: segment.text }]);
+        if (segmentEdit[2] === 'history' && method === 'GET') return json(route, [...edits].reverse());
+        const body = request.postDataJSON() as { text?: string; version?: number; expectedVersion: number };
+        if ((segment.version ?? 0) !== body.expectedVersion) return json(route, { title: 'Conflict' }, 409);
+        const text = segmentEdit[2] === 'restore' ? edits.find((e) => e.version === body.version)?.text : body.text;
+        if (text === undefined) return json(route, { title: 'Not found' }, 404);
+        segment.version = (segment.version ?? 0) + 1;
+        segment.text = text;
+        edits.push({ version: segment.version, text });
+        return json(route, segment);
       }
       if (sub === 'speakers' && method === 'GET') return json(route, job.speakers);
       const rename = sub?.match(/^speakers\/(\d+)$/);

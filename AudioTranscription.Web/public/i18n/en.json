@@ -445,5 +445,31 @@
     "showJobs": "Show jobs",
     "uploadMore": "Upload more files",
     "hint": "You can select several files at once; up to 3 are uploaded in parallel."
+  },
+  "editor": {
+    "edit": "Edit segment at {{time}}",
+    "textLabel": "Corrected text of the segment at {{time}}",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "play": "Play segment",
+    "shortcuts": "Enter or double-click starts a correction. Ctrl+Enter saves, Esc cancels, Alt+P plays the segment.",
+    "historyToggle": "Show version history of the segment at {{time}}",
+    "historyHide": "Hide version history of the segment at {{time}}",
+    "corrected": "corrected",
+    "error": {
+      "conflict": "This segment was changed in the meantime. Reload the transcript to see the latest version.",
+      "failed": "The segment could not be saved. Please try again."
+    },
+    "history": {
+      "title": "Version history",
+      "loading": "Loading history…",
+      "loadFailed": "The history could not be loaded.",
+      "original": "Original",
+      "version": "Version {{version}}",
+      "current": "Current",
+      "restore": "Restore",
+      "restoreLabel": "Restore version {{version}}"
+    }
   }
 }

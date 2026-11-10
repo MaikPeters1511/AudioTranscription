@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<AudioJob> AudioJobs => Set<AudioJob>();
     public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
+    public DbSet<SegmentEdit> SegmentEdits => Set<SegmentEdit>();
     public DbSet<TranscriptVariant> TranscriptVariants => Set<TranscriptVariant>();
     public DbSet<JobSpeaker> JobSpeakers => Set<JobSpeaker>();
     public DbSet<JobShare> JobShares => Set<JobShare>();

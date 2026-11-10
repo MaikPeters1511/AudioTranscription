@@ -53,9 +53,10 @@ public static class TranscriptOutputEndpoints
             .ToListAsync();
         return TypedResults.Ok(segments
             .Select(s => new TranscriptSegmentDto(
-                s.Index, s.StartMs, s.EndMs, s.Text,
+                s.Index, s.StartMs, s.EndMs, s.EffectiveText,
                 s.SpeakerIndex,
-                s.SpeakerIndex is { } speakerIndex ? speakerNames.GetValueOrDefault(speakerIndex, SpeakerNaming.DefaultName(speakerIndex)) : null))
+                s.SpeakerIndex is { } speakerIndex ? speakerNames.GetValueOrDefault(speakerIndex, SpeakerNaming.DefaultName(speakerIndex)) : null,
+                s.Version))
             .ToList());
     }
 

@@ -116,8 +116,19 @@ public record TranscriptSegmentDto(
     /// <summary>Set only for a diarized job (S11); null otherwise or when no speaker overlapped this segment.</summary>
     int? SpeakerIndex = null,
     /// <summary>Resolved display name for <see cref="SpeakerIndex"/> ("Sprecher N" until renamed); null when SpeakerIndex is null.</summary>
-    string? SpeakerName = null
+    string? SpeakerName = null,
+    /// <summary>0 = original text; each correction (S32) increments it. Send it back as <c>ExpectedVersion</c> when editing.</summary>
+    int Version = 0
 );
+
+/// <summary>Correct a segment (S32); <see cref="ExpectedVersion"/> guards against overwriting a concurrent edit (409).</summary>
+public record EditSegmentRequest(string Text, int ExpectedVersion);
+
+/// <summary>Restore an earlier version of a segment as a new version (S32).</summary>
+public record RestoreSegmentRequest(int Version, int ExpectedVersion);
+
+/// <summary>One entry of a segment's history (S32); version 0 is the original and has no editor.</summary>
+public record SegmentVersionDto(int Version, string Text, string? EditedBy, DateTime? EditedAtUtc);
 
 /// <summary>One speaker detected by diarization (S11), with its resolved display name.</summary>
 public record JobSpeakerDto(int Index, string DisplayName);

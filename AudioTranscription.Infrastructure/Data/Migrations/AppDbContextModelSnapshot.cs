@@ -266,6 +266,36 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.ToTable("JobTags", (string)null);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.SegmentEdit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("EditedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EditedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("SegmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SegmentId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("SegmentEdits", (string)null);
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -301,6 +331,9 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.Property<Guid>("AudioJobId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CurrentText")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long>("EndMs")
                         .HasColumnType("bigint");
 
@@ -316,6 +349,9 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -654,6 +690,15 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasOne("AudioTranscription.Domain.Entities.Tag", null)
                         .WithMany()
                         .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.SegmentEdit", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.TranscriptSegment", null)
+                        .WithMany()
+                        .HasForeignKey("SegmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

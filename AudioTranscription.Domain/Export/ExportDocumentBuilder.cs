@@ -13,7 +13,7 @@ public static class ExportDocumentBuilder
         int? lastSpeaker = null;
         foreach (var segment in segments.OrderBy(s => s.Index))
         {
-            var text = Normalize(segment.Text);
+            var text = Normalize(segment.EffectiveText);
             if (text.Length == 0)
                 continue;
 

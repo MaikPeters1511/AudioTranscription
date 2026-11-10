@@ -59,10 +59,12 @@ public static class SearchEndpoints
             .Select(j => new Hit(j.Id, j.FileName, j.RawTranscript!, null, j.CreatedAtUtc))
             .ToListAsync();
 
+        // A corrected segment (S32) is found by its correction only, not by the original it replaced
         var segmentHits = await dbContext.TranscriptSegments
-            .Where(s => EF.Functions.FreeText(s.Text, q))
+            .Where(s => (s.CurrentText == null && EF.Functions.FreeText(s.Text, q))
+                || (s.CurrentText != null && EF.Functions.FreeText(s.CurrentText, q)))
             .Join(visibleJobs, s => s.AudioJobId, j => j.Id,
-                (s, j) => new Hit(j.Id, j.FileName, s.Text, s.StartMs, j.CreatedAtUtc))
+                (s, j) => new Hit(j.Id, j.FileName, s.CurrentText ?? s.Text, s.StartMs, j.CreatedAtUtc))
             .ToListAsync();
 
         var variantHits = await dbContext.TranscriptVariants
