@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.5.4" />
+    <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.5.4" />
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.5.4" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.5.0" />
   </ItemGroup>

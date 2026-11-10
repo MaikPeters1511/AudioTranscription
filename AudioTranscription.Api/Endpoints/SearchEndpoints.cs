@@ -1,5 +1,6 @@
 using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Dtos;
+using AudioTranscription.Domain.Entities;
 using AudioTranscription.Domain.Search;
 using AudioTranscription.Infrastructure.Data;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -54,6 +55,28 @@ public static class SearchEndpoints
             .Where(j => visible.Contains(j.Id))
             .Filter(dbContext, userId, tag, folder, favoritesOnly: false);
 
+        var ordered = await FullTextHitsAsync(dbContext, visibleJobs, q);
+
+        var totalCount = ordered.Count;
+        var items = ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(h =>
+            {
+                var snippet = SearchSnippetBuilder.Build(h.Text, q);
+                return new SearchHitDto(h.JobId, h.FileName, snippet.Text, snippet.HighlightStart, snippet.HighlightLength, h.SegmentStartMs);
+            })
+            .ToList();
+
+        return TypedResults.Ok(new PaginatedResult<SearchHitDto>(items, totalCount, page, pageSize));
+    }
+
+    /// <summary>
+    /// The full-text hits over raw transcripts, timed segments and variants, newest job first. A segment that was
+    /// corrected (S32) is found by its correction only. Shared with the hybrid search (S23).
+    /// </summary>
+    internal static async Task<List<Hit>> FullTextHitsAsync(AppDbContext dbContext, IQueryable<AudioJob> visibleJobs, string q)
+    {
         var jobHits = await visibleJobs
             .Where(j => j.RawTranscript != null && EF.Functions.FreeText(j.RawTranscript, q))
             .Select(j => new Hit(j.Id, j.FileName, j.RawTranscript!, null, j.CreatedAtUtc))
@@ -73,23 +96,10 @@ public static class SearchEndpoints
                 (v, j) => new Hit(j.Id, j.FileName, v.Text!, null, j.CreatedAtUtc))
             .ToListAsync();
 
-        var ordered = jobHits.Concat(segmentHits).Concat(variantHits)
+        return jobHits.Concat(segmentHits).Concat(variantHits)
             .OrderByDescending(h => h.CreatedAtUtc)
             .ToList();
-
-        var totalCount = ordered.Count;
-        var items = ordered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(h =>
-            {
-                var snippet = SearchSnippetBuilder.Build(h.Text, q);
-                return new SearchHitDto(h.JobId, h.FileName, snippet.Text, snippet.HighlightStart, snippet.HighlightLength, h.SegmentStartMs);
-            })
-            .ToList();
-
-        return TypedResults.Ok(new PaginatedResult<SearchHitDto>(items, totalCount, page, pageSize));
     }
 
-    private record Hit(Guid JobId, string FileName, string Text, long? SegmentStartMs, DateTime CreatedAtUtc);
+    internal record Hit(Guid JobId, string FileName, string Text, long? SegmentStartMs, DateTime CreatedAtUtc);
 }

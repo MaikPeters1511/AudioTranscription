@@ -254,6 +254,17 @@
       "tag": "Tag",
       "folder": "Ordner",
       "all": "Alle"
+    },
+    "mode": {
+      "legend": "Suchmodus",
+      "literal": "Wörtlich",
+      "semantic": "Bedeutung",
+      "hybrid": "Kombiniert",
+      "hint": {
+        "literal": "Findet die eingegebenen Wörter samt ihren Beugungen.",
+        "semantic": "Findet Stellen mit ähnlicher Bedeutung, auch ohne das genaue Wort.",
+        "hybrid": "Verbindet beides und stellt Treffer, die beide Suchen finden, nach oben."
+      }
     }
   },
   "admin": {

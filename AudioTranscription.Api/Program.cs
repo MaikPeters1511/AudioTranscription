@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Search;
 using AudioTranscription.Api.Uploads;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using AudioTranscription.Api.Health;
@@ -114,6 +115,9 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("llama3
     var ollamaAddress = new Uri(builder.Configuration.GetConnectionString("llama3.2")!);
     healthChecks.AddCheck("ollama", new OllamaHealthCheck(new HttpClient { Timeout = TimeSpan.FromSeconds(3) }, ollamaAddress), tags: ["ready"]);
 }
+
+// Semantic search (S23, ADR 0010): only with a Qdrant connection string and a usable embedding model
+builder.AddSemanticSearch();
 
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
@@ -250,6 +254,7 @@ app.MapTemplateEndpoints();
 app.MapChapterEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
+app.MapSemanticSearchEndpoints();
 app.MapJobShareEndpoints();
 app.MapJobOrganizationEndpoints();
 app.MapGlossaryEndpoints();

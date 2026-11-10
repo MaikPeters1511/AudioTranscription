@@ -28,6 +28,8 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
     private readonly WebApplicationFactory<Program> _baseFactory;
     private WebApplicationFactory<Program> _factory = null!;
     private string _connectionString = null!;
+    private readonly AudioTranscription.Tests.Search.FakeEmbeddingService _embeddings = new();
+    private readonly AudioTranscription.Tests.Search.InMemoryVectorIndex _vectors = new();
 
     public SearchIntegrationTests(SearchSqlServerFixture sqlServer, WebApplicationFactory<Program> factory)
     {
@@ -60,6 +62,11 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
             services.AddDbContext<AppDbContext>(o => o.UseSqlServer(_connectionString));
 
             services.AddTestAuthentication();
+
+            // Semantic search with fakes, for the hybrid mode (S23)
+            services.AddSingleton<AudioTranscription.Infrastructure.Embeddings.IEmbeddingService>(_embeddings);
+            services.AddSingleton<AudioTranscription.Infrastructure.Embeddings.IVectorIndex>(_vectors);
+            services.AddScoped<AudioTranscription.Api.Search.SemanticIndexer>();
         }));
     }
 
@@ -129,6 +136,25 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
 
         result!.Items.Select(h => h.JobId).Should().BeEquivalentTo([own, shared]);
         result.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task HybridSearch_CombinesTheWordMatchWithTheMeaningMatch()
+    {
+        var byWord = await SeedJobAsync("wort.mp3", null, (0, "Das Budget wurde heute beschlossen."));
+        var byMeaning = await SeedJobAsync("sinn.mp3", null, (0, "Die Kosten steigen weiter."));
+        foreach (var id in new[] { byWord, byMeaning })
+        {
+            using var scope = _factory.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<AudioTranscription.Api.Search.SemanticIndexer>().IndexJobAsync(id);
+        }
+        var client = _factory.CreateClient();
+
+        var result = await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search/semantic?q=Budget&mode=hybrid");
+
+        result!.Items.Select(i => i.JobId).Should().BeEquivalentTo([byWord, byMeaning]);
+        result.Items[0].JobId.Should().Be(byWord, "found by the word and by the meaning");
+        result.Items[0].HighlightLength.Should().BeGreaterThan(0, "the full-text hit keeps its highlight");
     }
 
     [Fact]

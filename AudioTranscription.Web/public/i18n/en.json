@@ -254,6 +254,17 @@
       "tag": "Tag",
       "folder": "Folder",
       "all": "All"
+    },
+    "mode": {
+      "legend": "Search mode",
+      "literal": "Words",
+      "semantic": "Meaning",
+      "hybrid": "Combined",
+      "hint": {
+        "literal": "Finds the words you type, including their inflections.",
+        "semantic": "Finds passages with a similar meaning, even without the exact word.",
+        "hybrid": "Combines both and ranks hits found by both first."
+      }
     }
   },
   "admin": {

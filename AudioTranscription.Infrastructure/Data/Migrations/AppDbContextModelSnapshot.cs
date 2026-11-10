@@ -144,6 +144,32 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.ToTable("ChapterRuns", (string)null);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.EmbeddingIndexState", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Dimensions")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmbeddingIndexStates", (string)null);
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.Folder", b =>
                 {
                     b.Property<Guid>("Id")

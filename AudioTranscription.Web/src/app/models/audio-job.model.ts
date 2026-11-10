@@ -273,3 +273,12 @@ export interface SaveTemplateRequest {
   prompt: string;
   outputSchema: string;
 }
+
+/** How a search looks for hits (S23): by the words, by the meaning, or both combined. */
+export type SearchMode = 'literal' | 'semantic' | 'hybrid';
+
+/** GET /api/search/modes. */
+export interface SearchModes {
+  semantic: boolean;
+  indexStatus: string;
+}

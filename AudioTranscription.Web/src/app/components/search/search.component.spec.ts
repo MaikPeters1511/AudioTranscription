@@ -22,12 +22,14 @@ describe('SearchComponent', () => {
     vi.useRealTimers();
   });
 
-  function render(tags: unknown[] = [], folders: unknown[] = []) {
+  function render(tags: unknown[] = [], folders: unknown[] = [], semanticAvailable = false) {
     const fixture = TestBed.createComponent(SearchComponent);
     fixture.detectChanges();
     // The filters' tags and folders (S20)
     http.expectOne('/api/tags').flush(tags);
     http.expectOne('/api/folders').flush(folders);
+    // Which modes the server offers (S23)
+    http.expectOne('/api/search/modes').flush({ semantic: semanticAvailable, indexStatus: 'Ready' });
     fixture.detectChanges();
     return { fixture, el: fixture.nativeElement as HTMLElement };
   }
@@ -172,5 +174,86 @@ describe('SearchComponent', () => {
 
     expect(el.querySelector('label[for=search-tag]')).not.toBeNull();
     expect(el.querySelector('label[for=search-folder]')).not.toBeNull();
+  });
+
+  describe('search modes (S23)', () => {
+    const empty = { items: [], totalCount: 0, page: 1, pageSize: 20 };
+    const modeRadio = (el: HTMLElement, mode: string) => el.querySelector<HTMLInputElement>(`[data-testid="search-mode-${mode}"]`);
+
+    it('offers no mode switch when the server has no semantic search', () => {
+      const { el } = render();
+
+      expect(el.querySelector('[data-testid="search-modes"]')).toBeNull();
+    });
+
+    it('offers the three modes, literal first, as a labelled radio group', () => {
+      const { el } = render([], [], true);
+
+      expect(el.querySelector('[data-testid="search-modes"] legend')?.textContent).toContain('Search mode');
+      expect(['literal', 'semantic', 'hybrid'].map((m) => modeRadio(el, m)?.getAttribute('aria-label'))).toEqual(['Words', 'Meaning', 'Combined']);
+      expect(modeRadio(el, 'literal')!.checked).toBe(true);
+    });
+
+    it('searches by meaning when that mode is chosen and sends the mode for the combined search', () => {
+      const { fixture, el } = render([], [], true);
+      type(fixture, el, 'Wann ging es ums Geld?');
+      vi.advanceTimersByTime(300);
+      http.expectOne((r) => r.url === '/api/search').flush(empty);
+
+      modeRadio(el, 'semantic')!.click();
+      modeRadio(el, 'semantic')!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      vi.advanceTimersByTime(300);
+      const semantic = http.expectOne((r) => r.url === '/api/search/semantic');
+      expect(semantic.request.params.get('mode')).toBe('semantic');
+      expect(semantic.request.params.get('q')).toBe('Wann ging es ums Geld?');
+      semantic.flush(empty);
+
+      modeRadio(el, 'hybrid')!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      vi.advanceTimersByTime(300);
+      expect(http.expectOne((r) => r.url === '/api/search/semantic').request.params.get('mode')).toBe('hybrid');
+    });
+
+    it('shows a semantic hit without highlight and links to its time', () => {
+      const { fixture, el } = render([], [], true);
+      type(fixture, el, 'Geld');
+      modeRadio(el, 'semantic')!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      vi.advanceTimersByTime(300);
+
+      http.expectOne((r) => r.url === '/api/search/semantic').flush({
+        items: [{ jobId: 'job-1', fileName: 'meeting.mp3', snippet: 'In der Budgetrunde geht es um die Kosten.', highlightStart: 0, highlightLength: 0, segmentStartMs: 60000 }],
+        totalCount: 1, page: 1, pageSize: 20,
+      });
+      fixture.detectChanges();
+
+      expect(el.querySelector('mark')).toBeNull();
+      expect(el.textContent).toContain('Budgetrunde');
+      expect(el.querySelector('a')?.getAttribute('href')).toContain('t=60000');
+    });
+
+    it('hides the tag and folder filters in the semantic modes', () => {
+      const { fixture, el } = render([], [], true);
+
+      modeRadio(el, 'semantic')!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="search-tag"]')).toBeNull();
+    });
+
+    it('shows the empty state instead of hanging when the semantic search fails', () => {
+      const { fixture, el } = render([], [], true);
+      type(fixture, el, 'Geld');
+      modeRadio(el, 'semantic')!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      vi.advanceTimersByTime(300);
+
+      http.expectOne((r) => r.url === '/api/search/semantic').flush({}, { status: 409, statusText: 'Conflict' });
+      fixture.detectChanges();
+
+      expect(el.querySelector('[role="status"]')).toBeNull();
+      expect(el.textContent).toContain('No results');
+    });
   });
 });
