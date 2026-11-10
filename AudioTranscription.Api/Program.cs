@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Chat;
 using AudioTranscription.Api.Search;
 using AudioTranscription.Api.Uploads;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -168,7 +169,8 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("llama3
 }
 
 // Semantic search (S23, ADR 0010): only with a Qdrant connection string and a usable embedding model
-builder.AddSemanticSearch();
+var semanticSearchAvailable = builder.AddSemanticSearch();
+builder.AddChat(semanticSearchAvailable); // S24, ADR 0011
 
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
@@ -325,6 +327,7 @@ app.MapChapterEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
 app.MapSemanticSearchEndpoints();
+app.MapChatEndpoints();
 app.MapJobShareEndpoints();
 app.MapJobOrganizationEndpoints();
 app.MapGlossaryEndpoints();

@@ -1,4 +1,5 @@
 using AudioTranscription.Infrastructure.Embeddings;
+using Microsoft.Extensions.AI;
 
 namespace AudioTranscription.Tests.Search;
 
@@ -97,3 +98,32 @@ public class InMemoryVectorIndex : IVectorIndex
 
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
 }
+
+/// <summary>A language model that answers with a prepared script and records what it was asked.</summary>
+public sealed class ScriptedChatClient : IChatClient
+{
+    public Func<IList<ChatMessage>, int, IEnumerable<string>> Script { get; set; } = (_, _) => ["Antwort [1]."];
+    public List<List<ChatMessage>> Requests { get; } = [];
+    public int Calls;
+
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var list = messages.ToList();
+        Requests.Add(list);
+        var call = ++Calls;
+        foreach (var part in Script(list, call))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            yield return new ChatResponseUpdate(ChatRole.Assistant, part);
+        }
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+    public void Dispose() { }
+}
+

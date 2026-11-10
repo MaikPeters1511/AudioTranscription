@@ -282,3 +282,38 @@ export interface SearchModes {
   semantic: boolean;
   indexStatus: string;
 }
+
+/** What a chat question refers to (S24): everything, one recording or one folder. */
+export interface ChatScope {
+  kind: 'all' | 'job' | 'folder';
+  id?: string;
+}
+
+/** A citation of an answer: the source number in the text and the passage it points at. */
+export interface ChatCitation {
+  number: number;
+  jobId: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface ChatMessage {
+  id?: string;
+  role: 'user' | 'assistant';
+  text: string;
+  citations: ChatCitation[];
+}
+
+export interface ChatConversationSummary {
+  id: string;
+  title: string;
+  updatedAtUtc: string;
+}
+
+/** GET /api/chat/info: which model answers, and whether it is an external service. */
+export interface ChatInfo {
+  enabled: boolean;
+  provider?: string | null;
+  model?: string | null;
+  external: boolean;
+}

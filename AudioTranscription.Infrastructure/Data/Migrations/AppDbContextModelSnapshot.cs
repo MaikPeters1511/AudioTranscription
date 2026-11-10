@@ -193,6 +193,64 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.ToTable("ChapterRuns", (string)null);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.ChatConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "UpdatedAtUtc");
+
+                    b.ToTable("ChatConversations", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.ConversationMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CitationsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CreatedAtUtc");
+
+                    b.ToTable("ChatMessages", (string)null);
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.EmbeddingIndexState", b =>
                 {
                     b.Property<int>("Id")
@@ -948,6 +1006,15 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
                         .WithMany()
                         .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.ConversationMessage", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.ChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

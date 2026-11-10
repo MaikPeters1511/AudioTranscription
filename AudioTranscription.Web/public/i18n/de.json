@@ -13,7 +13,8 @@
       "queue": "Warteschlange",
       "templates": "Vorlagen",
       "apiKeys": "API-Keys",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "chat": "Chat"
     },
     "connection": {
       "live": "Live verbunden",
@@ -131,7 +132,8 @@
       "lock": "Vor automatischem Löschen schützen",
       "lockedByOwner": "Vom Eigentümer vor automatischem Löschen geschützt.",
       "failed": "Der Schutz konnte nicht geändert werden. Bitte versuche es erneut."
-    }
+    },
+    "askAbout": "Fragen zu dieser Aufnahme"
   },
   "upload": {
     "title": "Audio hochladen",
@@ -644,5 +646,38 @@
     "deleteFailed": "Der Webhook konnte nicht gelöscht werden.",
     "verifyTitle": "Signatur prüfen",
     "verifyIntro": "Jeder Aufruf enthält die Header X-Webhook-Id, X-Webhook-Event, X-Webhook-Timestamp und X-Webhook-Signature. Berechne den HMAC-SHA256 aus Zeitstempel, einem Punkt und dem unveränderten Body mit deinem Geheimnis, vergleiche zeitkonstant und lehne alte Zeitstempel ab. Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; ignoriere Doppelte anhand von X-Webhook-Id."
+  },
+  "chat": {
+    "title": "Chat mit deinen Transkripten",
+    "pageTitle": "Chat · Transkription",
+    "history": "Gespräche",
+    "new": "Neues Gespräch",
+    "delete": "Gespräch {{title}} löschen",
+    "unavailable": "Der Chat ist auf diesem Server nicht verfügbar. Er braucht die semantische Suche und ein Sprachmodell.",
+    "provider": {
+      "local": "Antworten entstehen lokal mit {{model}} ({{provider}}).",
+      "external": "Externer Dienst: Fragen und Textstellen deiner Transkripte werden an {{provider}} ({{model}}) gesendet."
+    },
+    "scope": {
+      "label": "Wozu fragen",
+      "job": "Diese Aufnahme",
+      "all": "Alle Aufnahmen",
+      "allHint": "Fragen beziehen sich auf alle deine Aufnahmen und die mit dir geteilten."
+    },
+    "messages": "Gespräch",
+    "you": "Du",
+    "assistant": "Assistent",
+    "sources": "Quellen",
+    "citation": "Quelle {{number}} bei {{time}}",
+    "question": "Deine Frage",
+    "hint": "Enter sendet, Umschalt+Enter beginnt eine neue Zeile. Antworten beruhen nur auf deinen Transkripten.",
+    "send": "Senden",
+    "stop": "Stopp",
+    "error": {
+      "unavailable": "Die Antwort konnte nicht erzeugt werden. Ist das Sprachmodell erreichbar?",
+      "rateLimit": "Zu viele Fragen. Bitte warte einen Moment.",
+      "notFound": "Die Aufnahme oder das Gespräch wurde nicht gefunden.",
+      "failed": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+    }
   }
 }
