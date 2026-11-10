@@ -9,6 +9,7 @@ import { JobExportComponent } from '../job-export/job-export.component';
 import { OrganizeService } from '../../services/organize.service';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
+import { TemplateService } from '../../services/template.service';
 import { AudioJobService } from '../../services/audio-job.service';
 import { AudioJob, AudioJobStatus, PostProcessingMode, SubtitleFormat, TranscriptionOptions, TranscriptVariant, VariantStatus } from '../../models/audio-job.model';
 import { ToastService } from '../../services/toast.service';
@@ -211,6 +212,35 @@ import { languageName } from '../../i18n/language-names';
                   </button>
                 </div>
               </div>
+              @if (templates().length > 0) {
+                <div class="flex items-center gap-1" data-testid="template-picker">
+                  <label for="template-select" class="sr-only">{{ 'jobDetail.variants.templateLabel' | transloco }}</label>
+                  <select
+                    id="template-select"
+                    class="select select-sm"
+                    [value]="selectedTemplateId()"
+                    (change)="selectedTemplateId.set($any($event.target).value)"
+                  >
+                    <option value="">{{ 'jobDetail.variants.templatePlaceholder' | transloco }}</option>
+                    @for (template of templates(); track template.id) {
+                      <option [value]="template.id">{{ template.name }}</option>
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline gap-1"
+                    data-testid="template-apply"
+                    [attr.aria-busy]="isPending(PostProcessingMode.Template, undefined, selectedTemplateId()) ? 'true' : null"
+                    [disabled]="!selectedTemplateId() || isPending(PostProcessingMode.Template, undefined, selectedTemplateId())"
+                    (click)="requestVariant(PostProcessingMode.Template, undefined, selectedTemplateId())"
+                  >
+                    @if (isPending(PostProcessingMode.Template, undefined, selectedTemplateId())) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    {{ 'jobDetail.variants.applyTemplate' | transloco }}
+                  </button>
+                </div>
+              }
               @if (failedVariants().length) {
                 <ul class="text-sm text-error">
                   @for (v of failedVariants(); track v.id) {
@@ -322,6 +352,7 @@ import { languageName } from '../../i18n/language-names';
 })
 export class JobDetailComponent implements OnInit {
   jobService = inject(AudioJobService);
+  private templateService = inject(TemplateService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toastService = inject(ToastService);
@@ -342,7 +373,7 @@ export class JobDetailComponent implements OnInit {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly PostProcessingMode = PostProcessingMode;
-  readonly generateModes: readonly Exclude<PostProcessingMode, PostProcessingMode.Translate>[] = [
+  readonly generateModes: readonly Exclude<PostProcessingMode, PostProcessingMode.Translate | PostProcessingMode.Template>[] = [
     PostProcessingMode.Cleanup,
     PostProcessingMode.Summary,
     PostProcessingMode.BulletPoints,
@@ -356,6 +387,9 @@ export class JobDetailComponent implements OnInit {
     return (this.transcriptionOptions()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
   });
   selectedTranslateLanguage = signal('');
+  /** Post-processing templates (S26) to choose from. */
+  readonly templates = this.templateService.templates;
+  selectedTemplateId = signal('');
 
   completedVariants = computed(() => this.jobService.variants().filter((v) => v.status === VariantStatus.Completed));
   failedVariants = computed(() => this.jobService.variants().filter((v) => v.status === VariantStatus.Failed));
@@ -434,6 +468,9 @@ export class JobDetailComponent implements OnInit {
     this.jobService.loadTranscriptionOptions().subscribe({
       next: (options) => {
         this.transcriptionOptions.set(options);
+        if (options.postProcessingEnabled) {
+          this.templateService.load();
+        }
         if (options.languages.length) {
           this.selectedTranslateLanguage.set(options.languages[0]);
         }
@@ -448,7 +485,7 @@ export class JobDetailComponent implements OnInit {
    * Translate is never passed in here (its tab and button use their own dedicated text), but the
    * switch still needs to be exhaustive for TypeScript.
    */
-  modeKey(mode: Exclude<PostProcessingMode, PostProcessingMode.Translate>): string {
+  modeKey(mode: Exclude<PostProcessingMode, PostProcessingMode.Translate | PostProcessingMode.Template>): string {
     switch (mode) {
       case PostProcessingMode.Cleanup:
         return 'processed';
@@ -467,23 +504,32 @@ export class JobDetailComponent implements OnInit {
         language: languageName(v.targetLanguage!, this.activeLang()),
       });
     }
-    return this.transloco.translate('jobDetail.versions.' + this.modeKey(v.mode as Exclude<PostProcessingMode, PostProcessingMode.Translate>));
+    if (v.mode === PostProcessingMode.Template) {
+      return v.templateName ?? this.transloco.translate('jobDetail.versions.template');
+    }
+    return this.transloco.translate('jobDetail.versions.' + this.modeKey(v.mode as Exclude<PostProcessingMode, PostProcessingMode.Translate | PostProcessingMode.Template>));
   }
 
-  isPending(mode: PostProcessingMode, targetLanguage?: string): boolean {
+  isPending(mode: PostProcessingMode, targetLanguage?: string, templateId?: string): boolean {
     return this.jobService
       .variants()
-      .some((v) => v.mode === mode && (v.targetLanguage ?? '') === (targetLanguage ?? '') && v.status === VariantStatus.Pending);
+      .some(
+        (v) =>
+          v.mode === mode &&
+          (v.targetLanguage ?? '') === (targetLanguage ?? '') &&
+          (v.templateId ?? '') === (templateId ?? '') &&
+          v.status === VariantStatus.Pending,
+      );
   }
 
-  requestVariant(mode: PostProcessingMode, targetLanguage?: string): void {
+  requestVariant(mode: PostProcessingMode, targetLanguage?: string, templateId?: string): void {
     const job = this.jobService.selectedJob();
     if (!job) {
       return;
     }
-    this.jobService.generateVariant(job.id, mode, targetLanguage).subscribe({
+    this.jobService.generateVariant(job.id, mode, targetLanguage, templateId).subscribe({
       error: (err) => {
-        const detail = err.error?.errors?.mode?.[0] ?? err.error?.errors?.targetLanguage?.[0] ?? err.error?.detail;
+        const detail = err.error?.errors?.mode?.[0] ?? err.error?.errors?.targetLanguage?.[0] ?? err.error?.errors?.templateId?.[0] ?? err.error?.detail;
         this.toastService.error(detail || this.transloco.translate('jobDetail.variants.failed'));
       },
     });

@@ -10,11 +10,14 @@ public record TranscriptVariantDto(
     string? Text,
     string? ErrorMessage,
     DateTime CreatedAtUtc,
-    DateTime? CompletedAtUtc
+    DateTime? CompletedAtUtc,
+    /// <summary>Set for a template variant (S26).</summary>
+    Guid? TemplateId = null,
+    string? TemplateName = null
 );
 
 /// <summary>Body of POST /api/audio-jobs/{id}/variants.</summary>
-public record CreateVariantRequest(PostProcessingMode Mode, string? TargetLanguage);
+public record CreateVariantRequest(PostProcessingMode Mode, string? TargetLanguage, Guid? TemplateId = null);
 
 /// <summary>SignalR event "VariantCompleted".</summary>
 public record VariantCompletedDto(Guid JobId, Guid VariantId, PostProcessingMode Mode, VariantStatus Status);
@@ -181,3 +184,10 @@ public record UpdateChapterRequest(string Title, string? Summary);
 
 /// <summary>Pushed over SignalR when the generation of a job's chapters is done (S25).</summary>
 public record ChaptersCompletedDto(Guid JobId, Guid RunId, AudioTranscription.Domain.Enums.VariantStatus Status);
+
+
+/// <summary>A post-processing template (S26).</summary>
+public record TemplateDto(Guid Id, string Name, string Description, string Prompt, string OutputSchema, bool IsBuiltIn);
+
+/// <summary>Body of POST/PUT /api/templates (admin).</summary>
+public record SaveTemplateRequest(string Name, string? Description, string Prompt, string OutputSchema);

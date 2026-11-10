@@ -63,5 +63,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/user-admin/user-admin.component').then((m) => m.UserAdminComponent),
   },
+  {
+    path: 'admin/templates',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./components/template-admin/template-admin.component').then((m) => m.TemplateAdminComponent),
+  },
   { path: '**', redirectTo: 'upload' },
 ];

@@ -61,25 +61,42 @@ public static class VariantEndpoints
             }
         }
 
+        // A template variant (S26) names its template; every other mode ignores a template id
+        PostprocessingTemplate? template = null;
+        if (request.Mode == PostProcessingMode.Template)
+        {
+            template = request.TemplateId is { } wanted ? await dbContext.PostprocessingTemplates.FindAsync(wanted) : null;
+            if (template is null)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["templateId"] = ["Use the id of an existing template (GET /api/templates)."]
+                });
+            }
+        }
+
         var job = await dbContext.AudioJobs.FindAsync(id);
         if (job is null)
             return AudioJobEndpoints.JobNotFound(id);
         if (job.Status != AudioJobStatus.Completed)
             return AudioJobEndpoints.JobConflict($"Variants can only be generated for completed jobs (current status: {job.Status}).");
 
-        var generator = services.GetService<IVariantGenerator>();
+        var generator = request.Mode == PostProcessingMode.Template
+            ? (object?)services.GetService<ITemplateVariantGenerator>()
+            : services.GetService<IVariantGenerator>();
         var variantQueue = services.GetService<VariantQueue>();
         if (generator is null || variantQueue is null)
         {
             return TypedResults.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
 
+        var templateId = template?.Id;
         // "A rerun overwrites it": reuse the existing row for this (job, mode, language) instead of adding a second one
         var variant = await dbContext.TranscriptVariants.SingleOrDefaultAsync(
-            v => v.AudioJobId == id && v.Mode == request.Mode && v.TargetLanguage == targetLanguage);
+            v => v.AudioJobId == id && v.Mode == request.Mode && v.TargetLanguage == targetLanguage && v.TemplateId == templateId);
         if (variant is null)
         {
-            variant = new TranscriptVariant { AudioJobId = id, Mode = request.Mode, TargetLanguage = targetLanguage };
+            variant = new TranscriptVariant { AudioJobId = id, Mode = request.Mode, TargetLanguage = targetLanguage, TemplateId = templateId };
             dbContext.TranscriptVariants.Add(variant);
         }
         else
@@ -93,7 +110,7 @@ public static class VariantEndpoints
         await dbContext.SaveChangesAsync();
         await variantQueue.EnqueueAsync(new VariantJobRequest(variant.Id));
 
-        return TypedResults.Accepted($"/api/audio-jobs/{id}/variants", ToDto(variant));
+        return TypedResults.Accepted($"/api/audio-jobs/{id}/variants", ToDto(variant, template?.Name));
     }
 
     private static async Task<Results<Ok<List<TranscriptVariantDto>>, NotFound<ProblemDetails>>> GetVariants(
@@ -105,11 +122,14 @@ public static class VariantEndpoints
         var variants = await dbContext.TranscriptVariants
             .Where(v => v.AudioJobId == id)
             .OrderBy(v => v.CreatedAtUtc)
-            .Select(v => new TranscriptVariantDto(v.Id, v.Mode, v.TargetLanguage, v.Status, v.Text, v.ErrorMessage, v.CreatedAtUtc, v.CompletedAtUtc))
+            .GroupJoin(dbContext.PostprocessingTemplates, v => v.TemplateId, t => t.Id, (v, ts) => new { v, ts })
+            .SelectMany(x => x.ts.DefaultIfEmpty(), (x, t) => new TranscriptVariantDto(
+                x.v.Id, x.v.Mode, x.v.TargetLanguage, x.v.Status, x.v.Text, x.v.ErrorMessage, x.v.CreatedAtUtc, x.v.CompletedAtUtc,
+                x.v.TemplateId, t != null ? t.Name : null))
             .ToListAsync();
         return TypedResults.Ok(variants);
     }
 
-    private static TranscriptVariantDto ToDto(TranscriptVariant v) =>
-        new(v.Id, v.Mode, v.TargetLanguage, v.Status, v.Text, v.ErrorMessage, v.CreatedAtUtc, v.CompletedAtUtc);
+    private static TranscriptVariantDto ToDto(TranscriptVariant v, string? templateName = null) =>
+        new(v.Id, v.Mode, v.TargetLanguage, v.Status, v.Text, v.ErrorMessage, v.CreatedAtUtc, v.CompletedAtUtc, v.TemplateId, templateName);
 }

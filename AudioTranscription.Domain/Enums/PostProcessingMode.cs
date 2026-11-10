@@ -10,4 +10,6 @@ public enum PostProcessingMode
     ActionItems = 3,
     /// <summary>Requires <see cref="Entities.TranscriptVariant.TargetLanguage"/>.</summary>
     Translate = 4,
+    /// <summary>Structured result of a <see cref="Entities.PostprocessingTemplate"/> (S26); requires <see cref="Entities.TranscriptVariant.TemplateId"/>.</summary>
+    Template = 5,
 }

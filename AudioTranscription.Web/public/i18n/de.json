@@ -10,7 +10,8 @@
       "account": "Passwort ändern",
       "organize": "Organisieren",
       "glossaries": "Glossar",
-      "queue": "Warteschlange"
+      "queue": "Warteschlange",
+      "templates": "Vorlagen"
     },
     "connection": {
       "live": "Live verbunden",
@@ -104,7 +105,8 @@
       "summary": "Zusammenfassung",
       "bulletPoints": "Stichpunkte",
       "actionItems": "Aufgaben",
-      "translate": "Übersetzung ({{ language }})"
+      "translate": "Übersetzung ({{ language }})",
+      "template": "Vorlagenergebnis"
     },
     "cancelledInfo": "Die Transkription wurde abgebrochen.",
     "subtitles": {
@@ -116,7 +118,10 @@
       "translate": "Übersetzen",
       "translateLanguage": "Zielsprache",
       "failed": "Erstellung fehlgeschlagen.",
-      "unknownError": "Unbekannter Fehler"
+      "unknownError": "Unbekannter Fehler",
+      "templateLabel": "Vorlage",
+      "templatePlaceholder": "Vorlage wählen…",
+      "applyTemplate": "Vorlage anwenden"
     },
     "sharedBy": "Geteilt von {{ email }}",
     "retention": {
@@ -495,5 +500,30 @@
     "cancel": "Abbrechen",
     "titleLabel": "Kapitelüberschrift",
     "summaryLabel": "Kapitelzusammenfassung"
+  },
+  "templates": {
+    "title": "Nachbearbeitungs-Vorlagen",
+    "intro": "Vorlagen machen aus einem Transkript ein strukturiertes Ergebnis wie Protokoll, Beschlüsse oder Aufgaben. Eingebaute Vorlagen lassen sich nicht ändern.",
+    "loadFailed": "Die Vorlagen konnten nicht geladen werden.",
+    "builtIn": "Eingebaut",
+    "createTitle": "Neue Vorlage",
+    "editTitle": "Vorlage bearbeiten",
+    "name": "Name",
+    "description": "Beschreibung",
+    "prompt": "Prompt",
+    "promptHint": "Anweisungen an das Modell. Platzhalter: {{SPEAKERS}} (benannte Sprecher), {{LANGUAGE}}. Bis zu 4000 Zeichen.",
+    "schema": "Ausgabeschema (JSON)",
+    "schemaHint": "JSON-Schema der Antwort mit den Typen object, array, string, integer, number und boolean. Titel („title“) werden zu Überschriften.",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "edit": "Vorlage {{name}} bearbeiten",
+    "delete": "Vorlage {{name}} löschen",
+    "confirmDelete": "Löschen?",
+    "saved": "Vorlage gespeichert.",
+    "deleted": "Vorlage gelöscht.",
+    "saveFailed": "Die Vorlage konnte nicht gespeichert werden.",
+    "deleteFailed": "Die Vorlage konnte nicht gelöscht werden.",
+    "empty": "Es gibt keine Vorlagen.",
+    "pageTitle": "Vorlagen · Transkription"
   }
 }

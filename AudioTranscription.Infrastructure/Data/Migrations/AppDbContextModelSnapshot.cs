@@ -295,6 +295,69 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.ToTable("JobTags", (string)null);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.PostprocessingTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsBuiltIn")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("OutputSchema")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Prompt")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("PostprocessingTemplates", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("5a1b0c10-0000-4000-8000-000000000001"),
+                            Description = "Zusammenfassung, Beschlüsse und Aufgaben einer Besprechung",
+                            IsBuiltIn = true,
+                            Name = "Besprechungsprotokoll",
+                            OutputSchema = "{\"type\":\"object\",\"required\":[\"summary\"],\"properties\":{\n  \"title\":{\"type\":\"string\"},\n  \"summary\":{\"type\":\"string\",\"title\":\"Zusammenfassung\"},\n  \"decisions\":{\"type\":\"array\",\"title\":\"Beschlüsse\",\"items\":{\"type\":\"string\"}},\n  \"tasks\":{\"type\":\"array\",\"title\":\"Aufgaben\",\"items\":{\"type\":\"object\",\"required\":[\"task\"],\"properties\":{\n    \"task\":{\"type\":\"string\"},\"owner\":{\"type\":\"string\",\"title\":\"Verantwortlich\"},\"due\":{\"type\":\"string\",\"title\":\"Fällig\"}}}}}}",
+                            Prompt = "Write minutes of the meeting: a short title, a summary of two to four sentences, the decisions that were made, and the tasks that were assigned, each with its owner and due date if they are mentioned. Use only what is said in the transcript; do not invent facts, names or dates. Leave out a field when the transcript does not say anything about it. Write in {{LANGUAGE}}. Speakers named in the transcript: {{SPEAKERS}}. Name a person as owner only if they are one of these speakers."
+                        },
+                        new
+                        {
+                            Id = new Guid("5a1b0c10-0000-4000-8000-000000000002"),
+                            Description = "Alle Beschlüsse mit Begründung",
+                            IsBuiltIn = true,
+                            Name = "Entscheidungsliste",
+                            OutputSchema = "{\"type\":\"object\",\"required\":[\"decisions\"],\"properties\":{\n  \"decisions\":{\"type\":\"array\",\"title\":\"Beschlüsse\",\"items\":{\"type\":\"object\",\"required\":[\"decision\"],\"properties\":{\n    \"decision\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\",\"title\":\"Begründung\"}}}}}}",
+                            Prompt = "List every decision that was made in the conversation, each with a short reason if one is given. Use only what is said in the transcript; do not invent facts, names or dates. Leave out a field when the transcript does not say anything about it. Write in {{LANGUAGE}}. Speakers named in the transcript: {{SPEAKERS}}. Name a person as owner only if they are one of these speakers."
+                        },
+                        new
+                        {
+                            Id = new Guid("5a1b0c10-0000-4000-8000-000000000003"),
+                            Description = "Aufgabenliste mit Verantwortlichen und Terminen",
+                            IsBuiltIn = true,
+                            Name = "Aufgaben mit Verantwortlichen",
+                            OutputSchema = "{\"type\":\"object\",\"required\":[\"tasks\"],\"properties\":{\n  \"tasks\":{\"type\":\"array\",\"title\":\"Aufgaben\",\"items\":{\"type\":\"object\",\"required\":[\"task\"],\"properties\":{\n    \"task\":{\"type\":\"string\"},\"owner\":{\"type\":\"string\",\"title\":\"Verantwortlich\"},\"due\":{\"type\":\"string\",\"title\":\"Fällig\"}}}}}}",
+                            Prompt = "List every task that was assigned or agreed on, with the person responsible and the due date if they are mentioned. Use only what is said in the transcript; do not invent facts, names or dates. Leave out a field when the transcript does not say anything about it. Write in {{LANGUAGE}}. Speakers named in the transcript: {{SPEAKERS}}. Name a person as owner only if they are one of these speakers."
+                        });
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.SegmentEdit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -450,10 +513,15 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Text")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TemplateId");
 
                     b.HasIndex("AudioJobId", "Mode", "TargetLanguage");
 
@@ -840,6 +908,11 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasForeignKey("AudioJobId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("AudioTranscription.Domain.Entities.PostprocessingTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

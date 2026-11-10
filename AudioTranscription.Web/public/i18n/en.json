@@ -10,7 +10,8 @@
       "account": "Change password",
       "organize": "Organize",
       "glossaries": "Glossary",
-      "queue": "Queue"
+      "queue": "Queue",
+      "templates": "Templates"
     },
     "connection": {
       "live": "Live connected",
@@ -104,7 +105,8 @@
       "summary": "Summary",
       "bulletPoints": "Bullet points",
       "actionItems": "Action items",
-      "translate": "Translation ({{ language }})"
+      "translate": "Translation ({{ language }})",
+      "template": "Template result"
     },
     "cancelledInfo": "The transcription was cancelled.",
     "subtitles": {
@@ -116,7 +118,10 @@
       "translate": "Translate",
       "translateLanguage": "Target language",
       "failed": "Generation failed.",
-      "unknownError": "Unknown error"
+      "unknownError": "Unknown error",
+      "templateLabel": "Template",
+      "templatePlaceholder": "Choose a template…",
+      "applyTemplate": "Apply template"
     },
     "sharedBy": "Shared by {{ email }}",
     "retention": {
@@ -495,5 +500,30 @@
     "cancel": "Cancel",
     "titleLabel": "Chapter title",
     "summaryLabel": "Chapter summary"
+  },
+  "templates": {
+    "title": "Post-processing templates",
+    "intro": "Templates turn a transcript into a structured result such as minutes, decisions or tasks. Built-in templates cannot be changed.",
+    "loadFailed": "The templates could not be loaded.",
+    "builtIn": "Built-in",
+    "createTitle": "New template",
+    "editTitle": "Edit template",
+    "name": "Name",
+    "description": "Description",
+    "prompt": "Prompt",
+    "promptHint": "Instructions to the model. Placeholders: {{SPEAKERS}} (named speakers), {{LANGUAGE}}. Up to 4000 characters.",
+    "schema": "Output schema (JSON)",
+    "schemaHint": "JSON schema of the answer with the types object, array, string, integer, number and boolean. Titles (\"title\") become headings.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit template {{name}}",
+    "delete": "Delete template {{name}}",
+    "confirmDelete": "Delete?",
+    "saved": "Template saved.",
+    "deleted": "Template deleted.",
+    "saveFailed": "The template could not be saved.",
+    "deleteFailed": "The template could not be deleted.",
+    "empty": "There are no templates.",
+    "pageTitle": "Templates · Transcription"
   }
 }

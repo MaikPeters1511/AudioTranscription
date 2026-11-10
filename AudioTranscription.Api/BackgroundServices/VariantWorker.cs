@@ -4,6 +4,7 @@ using AudioTranscription.Api.Telemetry;
 using AudioTranscription.Infrastructure.Telemetry;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Domain.Enums;
+using AudioTranscription.Domain.Templates;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -80,13 +81,28 @@ public class VariantWorker(
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            variant.Text = await generator.GenerateAsync(variant.Mode, job.RawTranscript, variant.TargetLanguage, stoppingToken);
+            variant.Text = variant.Mode == PostProcessingMode.Template
+                ? await GenerateFromTemplateAsync(scope.ServiceProvider, dbContext, variant, job, stoppingToken)
+                : await generator.GenerateAsync(variant.Mode, job.RawTranscript, variant.TargetLanguage, stoppingToken);
             variant.Status = VariantStatus.Completed;
             variant.ErrorMessage = null;
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             throw; // shutdown: leave the variant Pending so it is recovered and retried after restart
+        }
+        catch (Exception ex) when (variant.Mode == PostProcessingMode.Template)
+        {
+            // Template results are checked against a schema; users get a fixed message, the details go to the log
+            logger.LogError(ex, "Template variant generation failed for {VariantId} (job {JobId})", variant.Id, variant.AudioJobId);
+            variant.Status = VariantStatus.Failed;
+            variant.ErrorMessage = ex switch
+            {
+                TemplateOutputException => InvalidOutputMessage,
+                InvalidOperationException { Message: TemplateGoneMessage } => TemplateGoneMessage,
+                _ => GenerationFailureMessage,
+            };
+            activity?.SetStatus(ActivityStatusCode.Error);
         }
         catch (Exception ex)
         {
@@ -104,6 +120,38 @@ public class VariantWorker(
         variant.CompletedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(stoppingToken);
         await NotifyCompleted(notifier, variant);
+    }
+
+    public const string InvalidOutputMessage = "Das Sprachmodell hat kein gültiges Ergebnis für diese Vorlage geliefert.";
+    public const string TemplateGoneMessage = "Die Vorlage existiert nicht mehr.";
+    public const string GenerationFailureMessage = "Das Ergebnis konnte nicht erzeugt werden. Ist das Sprachmodell erreichbar?";
+
+    /// <summary>
+    /// Runs a template (S26). Named speakers (a name was chosen, not the default "Sprecher N") are put in front of what
+    /// they said and are the only people the result may name as owners.
+    /// </summary>
+    private static async Task<string> GenerateFromTemplateAsync(
+        IServiceProvider services, AppDbContext dbContext, Domain.Entities.TranscriptVariant variant, Domain.Entities.AudioJob job, CancellationToken cancellationToken)
+    {
+        var generator = services.GetRequiredService<ITemplateVariantGenerator>();
+        var template = variant.TemplateId is { } templateId
+            ? await dbContext.PostprocessingTemplates.FindAsync([templateId], cancellationToken)
+            : null;
+        if (template is null)
+            throw new InvalidOperationException(TemplateGoneMessage);
+
+        var speakers = await dbContext.JobSpeakers
+            .Where(s => s.AudioJobId == job.Id && s.DisplayName != null && s.DisplayName != "")
+            .ToDictionaryAsync(s => s.Index, s => s.DisplayName!, cancellationToken);
+        var transcript = job.RawTranscript!;
+        if (speakers.Count > 0)
+        {
+            var segments = await dbContext.TranscriptSegments.Where(s => s.AudioJobId == job.Id).OrderBy(s => s.Index).ToListAsync(cancellationToken);
+            if (segments.Count > 0)
+                transcript = SpeakerTranscript.Build(segments, speakers);
+        }
+
+        return await generator.GenerateAsync(template, transcript, speakers.Values.Distinct().ToList(), cancellationToken);
     }
 
     private static async Task NotifyCompleted(IJobNotifier notifier, Domain.Entities.TranscriptVariant variant)

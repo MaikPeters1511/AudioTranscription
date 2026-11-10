@@ -18,6 +18,11 @@ const job: AudioJob = {
   rawTranscript: 'Hallo Welt',
 } as AudioJob;
 
+const templates = [
+  { id: 't1', name: 'Besprechungsprotokoll', description: '', prompt: 'p', outputSchema: '{}', isBuiltIn: true },
+  { id: 't2', name: 'Aufgaben', description: '', prompt: 'p', outputSchema: '{}', isBuiltIn: true },
+];
+
 const options = { models: ['Base'], defaultModel: 'Base', languages: ['de', 'en'], postProcessingEnabled: true };
 
 describe('JobDetailComponent post-processing actions (S10-T6)', () => {
@@ -39,6 +44,9 @@ describe('JobDetailComponent post-processing actions (S10-T6)', () => {
     jobService.variants.set(variants);
     fixture.detectChanges();
     http.expectOne('/api/transcription-options').flush({ ...options, postProcessingEnabled });
+    if (postProcessingEnabled) {
+      http.expectOne('/api/templates').flush(templates);
+    }
     fixture.detectChanges();
     return fixture;
   }
@@ -148,5 +156,68 @@ describe('JobDetailComponent post-processing actions (S10-T6)', () => {
       .flush({ title: 'Conflict', detail: 'Job ist nicht abgeschlossen.' }, { status: 409, statusText: 'Conflict' });
 
     expect(toastError).toHaveBeenCalledWith('Job ist nicht abgeschlossen.');
+  });
+
+  describe('templates (S26)', () => {
+    const select = (fixture: ComponentFixture<JobDetailComponent>) => fixture.nativeElement.querySelector('#template-select') as HTMLSelectElement;
+    const apply = (fixture: ComponentFixture<JobDetailComponent>) =>
+      fixture.nativeElement.querySelector('[data-testid="template-apply"]') as HTMLButtonElement;
+
+    function choose(fixture: ComponentFixture<JobDetailComponent>, id: string) {
+      select(fixture).value = id;
+      select(fixture).dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    it('lists the templates and keeps the apply button off until one is chosen', () => {
+      const fixture = render();
+
+      expect(Array.from(select(fixture).options).map((o) => o.textContent?.trim())).toEqual(['Choose a template…', 'Besprechungsprotokoll', 'Aufgaben']);
+      expect(apply(fixture).disabled).toBe(true);
+    });
+
+    it('requests a template variant with the chosen template', () => {
+      const fixture = render();
+      choose(fixture, 't2');
+
+      apply(fixture).click();
+
+      const post = http.expectOne({ url: '/api/audio-jobs/job-1/variants', method: 'POST' });
+      expect(post.request.body).toEqual({ mode: PostProcessingMode.Template, targetLanguage: undefined, templateId: 't2' });
+      post.flush({ id: 'v9', mode: PostProcessingMode.Template, templateId: 't2', templateName: 'Aufgaben', status: VariantStatus.Pending, createdAtUtc: '2026-09-24T10:02:00Z' });
+      fixture.detectChanges();
+      expect(apply(fixture).getAttribute('aria-busy')).toBe('true');
+    });
+
+    it('only blocks the template that is running', () => {
+      const fixture = render(true, [
+        { id: 'v9', mode: PostProcessingMode.Template, templateId: 't1', status: VariantStatus.Pending, createdAtUtc: '2026-09-24T10:00:00Z' },
+      ]);
+
+      choose(fixture, 't1');
+      expect(apply(fixture).disabled).toBe(true);
+      choose(fixture, 't2');
+      expect(apply(fixture).disabled).toBe(false);
+    });
+
+    it('names a finished template variant after its template', () => {
+      const fixture = render(true, [
+        { id: 'v9', mode: PostProcessingMode.Template, templateId: 't1', templateName: 'Besprechungsprotokoll', status: VariantStatus.Completed, text: '# Protokoll', createdAtUtc: '2026-09-24T10:00:00Z' },
+      ]);
+
+      const tabs = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim());
+      expect(tabs).toContain('Besprechungsprotokoll');
+    });
+
+    it('offers no template picker when there are no templates', () => {
+      const fixture = TestBed.createComponent(JobDetailComponent);
+      jobService.selectedJob.set(job);
+      fixture.detectChanges();
+      http.expectOne('/api/transcription-options').flush(options);
+      http.expectOne('/api/templates').flush([]);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="template-picker"]')).toBeNull();
+    });
   });
 });
