@@ -32,6 +32,8 @@ public class AudioJob
     /// transcript nor the upload is removed by the retention service while this is set.
     /// </summary>
     public bool RetentionLocked { get; set; }
+    /// <summary>The owner's folder the job is filed in (S20), or null for the top level.</summary>
+    public Guid? FolderId { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
 }

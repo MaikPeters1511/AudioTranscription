@@ -335,16 +335,21 @@ public static class AudioJobEndpoints
         AppDbContext dbContext,
         JobAccessService access,
         JobProgressStore progressStore,
+        [FromQuery] Guid? tag = null,
+        [FromQuery] Guid? folder = null,
+        [FromQuery] bool favorite = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        // Only the user's own jobs and those shared with them
+        // Only the user's own jobs and those shared with them, narrowed by the user's tag, folder and favorites (S20)
         var userId = JobAccessService.GetUserId(http.User) ?? string.Empty;
         var visibleIds = access.VisibleJobIds(userId);
-        var visible = dbContext.AudioJobs.Where(j => visibleIds.Contains(j.Id));
+        var visible = dbContext.AudioJobs
+            .Where(j => visibleIds.Contains(j.Id))
+            .Filter(dbContext, userId, tag, folder, favorite);
 
         var totalCount = await visible.CountAsync();
 
@@ -359,10 +364,14 @@ public static class AudioJobEndpoints
                     j.Status, j.Language, j.DurationSeconds,
                     j.CreatedAtUtc, j.CompletedAtUtc, null, null, null),
                 j.OwnerId,
+                j.FolderId,
             })
             .ToListAsync();
 
         var ownerEmails = await OwnerEmailsAsync(dbContext, rows.Select(r => r.OwnerId));
+        var pageIds = rows.Select(r => r.Dto.Id).ToList();
+        var tagsByJob = await JobOrganization.TagsOfAsync(dbContext, userId, pageIds);
+        var favorites = await JobOrganization.FavoritesAmongAsync(dbContext, userId, pageIds);
 
         // Progress lives in memory, not in the database
         var items = rows.Select(r => r.Dto with
@@ -370,6 +379,10 @@ public static class AudioJobEndpoints
             ProgressPercent = r.Dto.Status == AudioJobStatus.Processing ? progressStore.Get(r.Dto.Id) : null,
             IsOwner = r.OwnerId == userId,
             SharedByEmail = r.OwnerId == userId || r.OwnerId is null ? null : ownerEmails.GetValueOrDefault(r.OwnerId),
+            Tags = tagsByJob.GetValueOrDefault(r.Dto.Id) ?? [],
+            IsFavorite = favorites.Contains(r.Dto.Id),
+            // Folders are the owner's own structure: a reader of a shared job has none
+            FolderId = r.OwnerId == userId ? r.FolderId : null,
         }).ToList();
 
         return TypedResults.Ok(new PaginatedResult<AudioJobListDto>(items, totalCount, page, pageSize));
@@ -405,6 +418,8 @@ public static class AudioJobEndpoints
 
         var userId = JobAccessService.GetUserId(http.User);
         var isOwner = job.OwnerId == userId;
+        var detailTags = userId is null ? [] : await JobOrganization.TagsOfAsync(dbContext, userId, [job.Id]);
+        var isFavorite = userId is not null && (await JobOrganization.FavoritesAmongAsync(dbContext, userId, [job.Id])).Contains(job.Id);
         var sharedBy = isOwner || job.OwnerId is null
             ? null
             : (await OwnerEmailsAsync(dbContext, [job.OwnerId])).GetValueOrDefault(job.OwnerId);
@@ -417,6 +432,7 @@ public static class AudioJobEndpoints
             job.Model, job.RequestedLanguage, job.DiarizationRequested,
             job.Status == AudioJobStatus.Processing ? progressStore.Get(job.Id) : null,
             isOwner, sharedBy,
-            job.RetentionLocked, DeleteAt(job, retention.Value)));
+            job.RetentionLocked, DeleteAt(job, retention.Value),
+            detailTags.GetValueOrDefault(job.Id) ?? [], isFavorite, isOwner ? job.FolderId : null));
     }
 }

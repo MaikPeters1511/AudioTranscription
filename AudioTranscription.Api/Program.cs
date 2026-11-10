@@ -233,6 +233,7 @@ app.MapVariantEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();
 app.MapJobShareEndpoints();
+app.MapJobOrganizationEndpoints();
 
 app.Run();
 public partial class Program { }
