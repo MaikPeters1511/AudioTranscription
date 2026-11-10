@@ -147,12 +147,14 @@ public static class AudioJobEndpoints
         job.ErrorMessage = null;
         job.RawTranscript = null;
         job.CompletedAtUtc = null;
+        job.StartedAtUtc = null;
+        job.QueuedAtUtc = DateTime.UtcNow;
         // Variants (S10) were generated from the old raw transcript, which is gone once retried
         dbContext.TranscriptVariants.RemoveRange(dbContext.TranscriptVariants.Where(v => v.AudioJobId == id));
         await dbContext.SaveChangesAsync();
 
         await notifier.NotifyAsync(job.Id, "JobStatusChanged", ToListDto(job));
-        await queue.EnqueueAsync(new TranscriptionJobRequest(job.Id, filePath));
+        await queue.EnqueueAsync(new TranscriptionJobRequest(job.Id, filePath, job.Priority));
 
         return TypedResults.Accepted($"/api/audio-jobs/{id}");
     }
@@ -333,7 +335,8 @@ public static class AudioJobEndpoints
             DiarizationRequested = upload.Diarize,
             InitialPrompt = initialPrompt,
             OwnerId = ownerId,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            QueuedAtUtc = DateTime.UtcNow
         };
 
         dbContext.AudioJobs.Add(audioJob);

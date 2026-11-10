@@ -9,7 +9,8 @@
       "users": "Users",
       "account": "Change password",
       "organize": "Organize",
-      "glossaries": "Glossary"
+      "glossaries": "Glossary",
+      "queue": "Queue"
     },
     "connection": {
       "live": "Live connected",
@@ -392,5 +393,57 @@
     "duplicate": "A glossary with this name already exists.",
     "invalid": "Please check name and terms (no duplicates, at most 200 terms of 100 characters).",
     "failed": "The glossary could not be saved."
+  },
+  "queue": {
+    "pageTitle": "Queue · Transcription",
+    "title": "Queue",
+    "intro": "Your jobs that are running or waiting for transcription. Higher priority runs first; equal priorities run in upload order.",
+    "empty": "Nothing is queued right now.",
+    "totalWaiting": "{{ count }} job(s) waiting in total, including other users' jobs.",
+    "running": "Running",
+    "columns": {
+      "position": "Position",
+      "file": "File",
+      "priority": "Priority",
+      "wait": "Estimated wait",
+      "actions": "Actions"
+    },
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "custom": "Custom ({{ value }})"
+    },
+    "priorityOf": "Priority of {{ name }}",
+    "cancel": "Cancel",
+    "cancelJob": "Cancel {{ name }}",
+    "lessThanMinute": "< 1 min",
+    "minutes": "{{ count }} min",
+    "hoursMinutes": "{{ hours }} h {{ minutes }} min",
+    "errors": {
+      "started": "The job already started; its priority can no longer be changed.",
+      "generic": "The queue could not be updated. Please try again."
+    }
+  },
+  "uploadBatch": {
+    "title": "Uploading files",
+    "cancelAll": "Cancel all",
+    "cancelFile": "Cancel upload of {{ name }}",
+    "fileProgress": "Upload progress of {{ name }}",
+    "summary": "{{ done }} of {{ total }} uploaded",
+    "failedCount": "{{ count }} failed",
+    "cancelledCount": "{{ count }} cancelled",
+    "status": {
+      "waiting": "Waiting",
+      "uploading": "Uploading",
+      "done": "Uploaded",
+      "error": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "allDone": "{{ count }} files uploaded. Processing started.",
+    "showQueue": "Show queue",
+    "showJobs": "Show jobs",
+    "uploadMore": "Upload more files",
+    "hint": "You can select several files at once; up to 3 are uploaded in parallel."
   }
 }

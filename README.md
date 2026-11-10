@@ -20,6 +20,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - ⏱️ **Zeitstempel und Untertitel** — Export als `.srt`/`.vtt`, Audio-Player mit mitlaufendem Transkript (Klick auf einen Satz springt dorthin)
 - 📄 **Weitere Exportformate** — Transkript und nachbearbeitete Fassungen als Word (DOCX), Markdown, JSON oder PDF, optional mit Zeitstempeln und Sprechernamen (Export-Menü in der Detailansicht)
 - 📚 **Glossar für Fachbegriffe** — eigene Begriffslisten, die beim Upload wählbar sind und Whisper als Initial-Prompt für Namen und Fachwörter mitgegeben werden (zu lange Listen werden gemeldet statt still abgeschnitten)
+- 📥 **Batch-Upload und Warteschlange** — mehrere Dateien auf einmal hochladen (bis zu 3 parallel, Fortschritt und Abbruch je Datei, ein Fehler stoppt die anderen nicht); die Warteschlange zeigt Position, geschätzte Wartezeit und erlaubt Priorität ändern und Abbrechen
 - 🧠 **Nachbearbeitung mit Ollama** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
 - 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
 - 🏷️ **Tags, Ordner und Favoriten** — jeder Benutzer ordnet seine Jobs persönlich (auch geteilte), filtert die Liste und die Suche danach und verwaltet alles unter „Organisieren“
@@ -274,6 +275,8 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/audio-jobs/{id}/export?format=docx\|md\|json\|pdf&variant=&timestamps=&speakers=` | Export als Word, Markdown, JSON (`schemaVersion`) oder PDF, wahlweise für eine nachbearbeitete Fassung (`variant`=Variant-Id); `400` bei unbekanntem Format, `409` wenn Job/Variante nicht fertig, `404` bei fremder Variante |
 | `GET` `POST` | `/api/glossaries` | Eigene Glossare (Name + Begriffe) auflisten / anlegen; `400` bei Duplikaten, zu langen Begriffen oder wenn die Begriffe Whispers Prompt-Fenster (≈224 Tokens) sprengen, `409` bei doppeltem Namen |
 | `PUT` `DELETE` | `/api/glossaries/{id}` | Glossar ersetzen / löschen (`404` für fremde Glossare); bestehende Jobs behalten ihren gespeicherten Prompt |
+| `GET` | `/api/queue` | Eigene laufende (Position 0) und wartende Jobs mit Position, Priorität und geschätzter Wartezeit; die Positionen zählen die Jobs aller Benutzer, gelistet werden nur eigene. Die Schätzung nutzt die Verarbeitungsgeschwindigkeit der letzten fertigen Jobs (Dateigröße als Näherung für die Audiolänge) und ist `null`, solange noch kein Job fertig ist |
+| `PUT` | `/api/audio-jobs/{id}/priority` | Priorität eines wartenden Jobs setzen (`{"priority": -100..100}`, höher läuft zuerst, bei Gleichstand gilt die Upload-Reihenfolge); `400` außerhalb des Bereichs, `409` wenn der Job nicht mehr wartet, `404` für fremde Jobs |
 | `GET` | `/api/audio-jobs/{id}/speakers` | Erkannte Sprecher eines Jobs mit aufgelöstem Namen (`Sprecher N` bis umbenannt) |
 | `PUT` | `/api/audio-jobs/{id}/speakers/{index}` | Sprecher umbenennen (`{ displayName }`, max. 100 Zeichen); `404` bei unbekanntem Job/Sprecher |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |

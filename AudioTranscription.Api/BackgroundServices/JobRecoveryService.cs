@@ -25,7 +25,7 @@ public class JobRecoveryService(
 
         var openJobs = await dbContext.AudioJobs
             .Where(j => j.Status == AudioJobStatus.Pending || j.Status == AudioJobStatus.Processing)
-            .OrderBy(j => j.CreatedAtUtc)
+            .OrderBy(j => j.QueuedAtUtc ?? j.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         if (openJobs.Count == 0)
@@ -45,7 +45,7 @@ public class JobRecoveryService(
             }
 
             job.Status = AudioJobStatus.Pending;
-            toEnqueue.Add(new TranscriptionJobRequest(job.Id, filePath));
+            toEnqueue.Add(new TranscriptionJobRequest(job.Id, filePath, job.Priority));
         }
 
         // Persist state changes before the worker can pick up any of the jobs

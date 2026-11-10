@@ -11,11 +11,13 @@ import { PageTitleService } from '../../i18n/page-title.service';
 import { languageName } from '../../i18n/language-names';
 import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
 import { RecorderComponent } from '../recorder/recorder.component';
+import { UploadBatchComponent } from '../upload-batch/upload-batch.component';
+import { validateUploadFile } from './upload-validation';
 
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, RecorderComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, RecorderComponent, UploadBatchComponent],
   template: `
     <div class="max-w-2xl mx-auto">
       <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
@@ -27,7 +29,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
           class="tab"
           [class.tab-active]="mode() === 'file'"
           [attr.aria-selected]="mode() === 'file'"
-          [disabled]="uploading()"
+          [disabled]="locked()"
           (click)="mode.set('file')"
         >
           {{ 'upload.tabs.file' | transloco }}
@@ -38,7 +40,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
           class="tab"
           [class.tab-active]="mode() === 'record'"
           [attr.aria-selected]="mode() === 'record'"
-          [disabled]="uploading()"
+          [disabled]="locked()"
           (click)="mode.set('record')"
         >
           {{ 'upload.tabs.record' | transloco }}
@@ -54,7 +56,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
               id="upload-model"
               class="select w-full"
               aria-describedby="upload-model-hint"
-              [disabled]="uploading()"
+              [disabled]="locked()"
               [value]="selectedModel()"
               (change)="selectedModel.set($any($event.target).value)"
             >
@@ -69,7 +71,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
             <select
               id="upload-language"
               class="select w-full"
-              [disabled]="uploading()"
+              [disabled]="locked()"
               [value]="selectedLanguage()"
               (change)="selectedLanguage.set($any($event.target).value)"
             >
@@ -89,7 +91,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
               id="upload-glossary"
               class="select w-full"
               aria-describedby="upload-glossary-hint"
-              [disabled]="uploading()"
+              [disabled]="locked()"
               [value]="selectedGlossary()"
               (change)="selectedGlossary.set($any($event.target).value)"
             >
@@ -111,7 +113,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
                 id="upload-diarize"
                 type="checkbox"
                 class="checkbox"
-                [disabled]="uploading()"
+                [disabled]="locked()"
                 [checked]="diarize()"
                 (change)="diarize.set($any($event.target).checked)"
               />
@@ -121,7 +123,9 @@ import { RecorderComponent } from '../recorder/recorder.component';
         }
       }
 
-      @if (mode() === 'file') {
+      @if (batchFiles(); as batch) {
+        <app-upload-batch [files]="batch" [settings]="transcriptionSettings()" (closed)="batchFiles.set(null)" />
+      } @else if (mode() === 'file') {
         <!-- Drop Zone -->
         <div
           class="border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300"
@@ -146,6 +150,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
                 <p class="text-sm text-base-content/60 mt-1">{{ 'upload.dropHint' | transloco }}</p>
               </div>
               <p class="text-xs text-base-content/40">{{ 'upload.formats' | transloco }}</p>
+              <p class="text-xs text-base-content/40">{{ 'uploadBatch.hint' | transloco }}</p>
             </div>
           } @else {
             <div class="flex flex-col items-center gap-4">
@@ -170,6 +175,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
         <input
           #fileInput
           type="file"
+          multiple
           class="hidden"
           [attr.aria-label]="'upload.dropZone' | transloco"
           accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mkv,.mov,audio/mpeg,audio/wav,audio/mp4,audio/ogg,video/mp4,video/webm,video/x-matroska,video/quicktime"
@@ -232,6 +238,10 @@ export class UploadComponent implements OnInit {
   errorMessage = signal('');
   successMessage = signal('');
   selectedFileName = signal('');
+  /** Files of the running multi-file upload (S34); null while no batch is active. */
+  batchFiles = signal<File[] | null>(null);
+  /** Settings and mode cannot change while files are being uploaded. */
+  locked = computed(() => this.uploading() || this.batchFiles() !== null);
 
   readonly autoLanguage = AUTO_LANGUAGE;
   options = signal<TranscriptionOptions | null>(null);
@@ -246,13 +256,6 @@ export class UploadComponent implements OnInit {
     const uiLanguage = this.activeLang();
     return (this.options()?.languages ?? []).map((code) => ({ code, name: languageName(code, uiLanguage) }));
   });
-
-  private readonly maxSize = 500_000_000; // S14: matches the API's Upload:MaxFileSizeBytes default
-  private readonly allowedTypes = [
-    'audio/mpeg', 'audio/wav', 'audio/x-wav',
-    'audio/mp4', 'audio/x-m4a', 'audio/ogg', 'audio/webm',
-    'video/mp4', 'video/webm', 'video/x-matroska', 'video/quicktime',
-  ];
 
   ngOnInit(): void {
     this.pageTitle.set('upload.pageTitle');
@@ -287,17 +290,23 @@ export class UploadComponent implements OnInit {
     this.isDragging.set(false);
     if (this.uploading()) return;
 
-    const files = event.dataTransfer?.files;
-    if (files?.length) {
-      this.processFile(files[0]);
-    }
+    this.handleFiles(Array.from(event.dataTransfer?.files ?? []));
   }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      this.processFile(input.files[0]);
-      input.value = '';
+    this.handleFiles(Array.from(input.files ?? []));
+    input.value = '';
+  }
+
+  /** One file takes the single-upload path (and opens the job); several run as a batch (S34). */
+  private handleFiles(files: File[]): void {
+    if (files.length === 1) {
+      this.processFile(files[0]);
+    } else if (files.length > 1) {
+      this.errorMessage.set('');
+      this.successMessage.set('');
+      this.batchFiles.set(files);
     }
   }
 
@@ -319,15 +328,11 @@ export class UploadComponent implements OnInit {
     this.successMessage.set('');
 
     // Client-side validation
-    if (file.size > this.maxSize) {
+    const violation = validateUploadFile(file);
+    if (violation) {
       this.errorMessage.set(
-        this.transloco.translate('upload.tooLarge', { size: this.audioJobService.formatFileSize(file.size) })
+        this.transloco.translate(`upload.${violation}`, { size: this.audioJobService.formatFileSize(file.size) })
       );
-      return;
-    }
-
-    if (!this.allowedTypes.includes(file.type) && !this.isAllowedExtension(file.name)) {
-      this.errorMessage.set(this.transloco.translate('upload.invalidType'));
       return;
     }
 
@@ -353,14 +358,10 @@ export class UploadComponent implements OnInit {
     });
   }
 
-  private transcriptionSettings() {
-    return this.options()
+  /** Settings sent with every upload; a stable object so the batch input does not change on each check. */
+  readonly transcriptionSettings = computed(() =>
+    this.options()
       ? { model: this.selectedModel(), language: this.selectedLanguage(), diarize: this.diarize(), glossaryId: this.selectedGlossary() }
-      : {};
-  }
-
-  private isAllowedExtension(name: string): boolean {
-    const ext = name.toLowerCase().split('.').pop();
-    return ['mp3', 'wav', 'm4a', 'ogg', 'webm', 'mp4', 'mkv', 'mov'].includes(ext || '');
-  }
+      : {},
+  );
 }
