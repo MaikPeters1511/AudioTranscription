@@ -52,6 +52,18 @@ export const routes: Routes = [
       import('./components/queue/queue.component').then((m) => m.QueueComponent),
   },
   {
+    path: 'api-keys',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/api-keys/api-keys.component').then((m) => m.ApiKeysComponent),
+  },
+  {
+    path: 'webhooks',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/webhooks/webhooks.component').then((m) => m.WebhooksComponent),
+  },
+  {
     path: 'account',
     canActivate: [authGuard],
     loadComponent: () =>
