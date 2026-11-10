@@ -34,6 +34,12 @@ export const routes: Routes = [
       import('./components/job-detail/job-detail.component').then((m) => m.JobDetailComponent),
   },
   {
+    path: 'organize',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/organize/organize.component').then((m) => m.OrganizeComponent),
+  },
+  {
     path: 'account',
     canActivate: [authGuard],
     loadComponent: () =>

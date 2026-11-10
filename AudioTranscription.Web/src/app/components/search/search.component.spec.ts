@@ -22,8 +22,12 @@ describe('SearchComponent', () => {
     vi.useRealTimers();
   });
 
-  function render() {
+  function render(tags: unknown[] = [], folders: unknown[] = []) {
     const fixture = TestBed.createComponent(SearchComponent);
+    fixture.detectChanges();
+    // The filters' tags and folders (S20)
+    http.expectOne('/api/tags').flush(tags);
+    http.expectOne('/api/folders').flush(folders);
     fixture.detectChanges();
     return { fixture, el: fixture.nativeElement as HTMLElement };
   }
@@ -47,7 +51,7 @@ describe('SearchComponent', () => {
     const { el } = render();
 
     expect(el.textContent).toContain('Type a word to search');
-    http.expectNone(() => true);
+    http.expectNone((r) => r.url === '/api/search');
   });
 
   it('debounces requests: only fires once typing settles', () => {
@@ -58,7 +62,7 @@ describe('SearchComponent', () => {
     type(fixture, el, 'Za');
     vi.advanceTimersByTime(100);
     type(fixture, el, 'Zauberer');
-    http.expectNone(() => true);
+    http.expectNone((r) => r.url === '/api/search');
 
     vi.advanceTimersByTime(300);
 
@@ -134,7 +138,39 @@ describe('SearchComponent', () => {
     type(fixture, el, '');
     vi.advanceTimersByTime(300);
 
-    http.expectNone(() => true);
+    http.expectNone((r) => r.url === '/api/search');
     expect(el.textContent).toContain('Type a word to search');
+  });
+
+  it('offers the user\'s tags and folders and narrows the search to the chosen one at once', async () => {
+    const { fixture, el } = render(
+      [{ id: 'tag-1', name: 'Budget' }],
+      [{ id: 'f-1', name: 'Projekte' }, { id: 'f-2', name: 'Alpha', parentId: 'f-1' }],
+    );
+    await vi.advanceTimersByTimeAsync(0); // the tags and folders arrive
+    fixture.detectChanges();
+    type(fixture, el, 'Zauberer');
+    vi.advanceTimersByTime(300);
+    http.expectOne((r) => r.url === '/api/search').flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+
+    const folders = el.querySelectorAll('#search-folder option');
+    expect(Array.from(folders).map((o) => o.textContent?.trim())).toEqual(['All', 'Projekte', 'Alpha']);
+    const tag = el.querySelector('#search-tag') as HTMLSelectElement;
+    tag.value = 'tag-1';
+    tag.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    vi.advanceTimersByTime(300);
+
+    const request = http.expectOne((r) => r.url === '/api/search');
+    expect(request.request.params.get('tag')).toBe('tag-1');
+    expect(request.request.params.has('folder')).toBe(false);
+    request.flush({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+  });
+
+  it('labels the filters', () => {
+    const { el } = render();
+
+    expect(el.querySelector('label[for=search-tag]')).not.toBeNull();
+    expect(el.querySelector('label[for=search-folder]')).not.toBeNull();
   });
 });

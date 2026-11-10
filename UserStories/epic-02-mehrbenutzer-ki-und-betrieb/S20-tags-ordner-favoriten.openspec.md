@@ -38,6 +38,14 @@ Mit wachsender Zahl an Transkripten wird die Jobliste unübersichtlich. Benutzer
 - Löschen eines Ordners: Jobs wandern auf die oberste Ebene, Unterordner eine Ebene nach oben (bei Namenskonflikt mit Zusatz „(2)“). Löschen eines Tags entfernt ihn von allen Jobs.
 - Migration `AddJobOrganization` (mit `dotnet ef` erzeugt), Daten: `Tags`, `JobTags`, `Folders`, `JobFavorites`, `AudioJobs.FolderId`.
 
+## 4b. Umsetzung Frontend (zweiter PR)
+- Job-Liste: Filterleiste (Favoriten als `aria-pressed`-Schalter, Tag, Ordner als eingerückte Auswahl, „Filter zurücksetzen“), Stern pro Job und Tag-Badges; ein Stern öffnet den Job nicht. Ohne Treffer meldet die Liste „Keine Jobs für diese Filter“ statt zum ersten Upload aufzufordern.
+- Detailansicht: Favorit, Tags (Auswahl mit Häkchen, ersetzt die eigenen Tags am Job) und für den Eigentümer der Ordner. Ein Leser eines geteilten Jobs sieht Favorit und Tags, aber keine Ordnerauswahl.
+- Neue Seite `/organize` („Organisieren“): Tags anlegen (Name, Farbe) und löschen, Ordner anlegen, umbenennen, verschieben und löschen; Löschen verlangt eine zweite Bestätigung.
+- Suche: Auswahl für Tag und Ordner, die die Suche sofort neu auslöst.
+- DE/EN, Tastatur und ARIA; Fehler erscheinen als übersetzte Meldung, nie mit dem Text des Servers.
+- Tests: Unit-Tests für Service, Liste, Detail-Organisation, Verwaltungsseite und Suche sowie zwei gemockte E2E-Flows (Tag setzen und danach filtern, Favoriten-Filter). Der E2E-Test gegen den echten Stack folgt mit S31 Stufe 2.
+
 ## 5. Acceptance Criteria (DoD)
 - [ ] Filter funktionieren einzeln und kombiniert, Berechtigungen aus S19 gelten.
 - [ ] Swagger und E2E-Test für Tag-Filter.

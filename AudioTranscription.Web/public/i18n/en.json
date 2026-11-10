@@ -7,7 +7,8 @@
       "main": "Main navigation",
       "search": "Search",
       "users": "Users",
-      "account": "Change password"
+      "account": "Change password",
+      "organize": "Organize"
     },
     "connection": {
       "live": "Live connected",
@@ -56,7 +57,20 @@
       "next": "Next page",
       "page": "Page {{ page }}"
     },
-    "sharedBy": "Shared by {{ email }}"
+    "sharedBy": "Shared by {{ email }}",
+    "filter": {
+      "label": "Filter jobs",
+      "favorites": "Favorites",
+      "tag": "Tag",
+      "folder": "Folder",
+      "all": "All",
+      "reset": "Reset filters",
+      "noMatch": "No jobs match these filters."
+    },
+    "favorite": {
+      "add": "Mark {{ fileName }} as favorite",
+      "remove": "Remove favorite from {{ fileName }}"
+    }
   },
   "jobDetail": {
     "pageTitle": "{{ fileName }} · Transcription",
@@ -221,7 +235,12 @@
     "hint": "Type a word to search across all your transcripts.",
     "loading": "Searching…",
     "empty": "No results for \"{{ query }}\".",
-    "resultCount": "{{ count }} result(s)"
+    "resultCount": "{{ count }} result(s)",
+    "filter": {
+      "tag": "Tag",
+      "folder": "Folder",
+      "all": "All"
+    }
   },
   "admin": {
     "users": {
@@ -281,6 +300,52 @@
     "error": {
       "unknownUser": "There is no user with this email address, or the job already belongs to you.",
       "generic": "That did not work. Please try again."
+    }
+  },
+  "organize": {
+    "title": "Organize",
+    "pageTitle": "Organize · Transcription",
+    "loadFailed": "Tags and folders could not be loaded.",
+    "failed": "That did not work. Please try again.",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "confirmTag": "Remove the tag from all jobs?",
+    "confirmFolder": "Delete the folder? Its jobs and subfolders move up one level.",
+    "tags": {
+      "title": "Tags",
+      "name": "Name",
+      "color": "Color",
+      "add": "Create tag",
+      "empty": "No tags yet.",
+      "deleteFor": "Delete tag {{ name }}",
+      "error": {
+        "duplicate": "A tag with this name already exists.",
+        "invalid": "Please enter a name of at most 50 characters."
+      }
+    },
+    "folders": {
+      "title": "Folders",
+      "name": "Name",
+      "parent": "Parent folder",
+      "topLevel": "Top level",
+      "add": "Create folder",
+      "empty": "No folders yet.",
+      "editFor": "Edit folder {{ name }}",
+      "deleteFor": "Delete folder {{ name }}",
+      "error": {
+        "duplicate": "A folder with this name already exists here.",
+        "invalid": "Please check the name (at most 100 characters) and that the folder is not moved into itself."
+      }
+    },
+    "job": {
+      "label": "Favorite, tags and folder",
+      "favorite": "Favorite",
+      "tags": "Tags ({{ count }})",
+      "noTags": "Create tags under “Organize” first.",
+      "folder": "Folder",
+      "noFolder": "No folder"
     }
   }
 }

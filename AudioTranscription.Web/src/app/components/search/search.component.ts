@@ -6,6 +6,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { SearchService } from '../../services/search.service';
 import { PaginatedResult, SearchHit } from '../../models/audio-job.model';
 import { PageTitleService } from '../../i18n/page-title.service';
+import { OrganizeService } from '../../services/organize.service';
 
 /**
  * Full-text search across all transcripts (S13): a debounced search box and a results list that
@@ -29,6 +30,28 @@ import { PageTitleService } from '../../i18n/page-title.service';
           [value]="query()"
           (input)="query.set($any($event.target).value)"
         />
+      </div>
+
+      <!-- Optionally narrow the search to one of the user's tags or folders (S20) -->
+      <div class="flex flex-wrap gap-3 mb-6">
+        <div class="flex flex-col gap-1">
+          <label for="search-tag" class="text-xs font-medium">{{ 'search.filter.tag' | transloco }}</label>
+          <select id="search-tag" class="select select-sm" data-testid="search-tag" (change)="tag.set($any($event.target).value)">
+            <option value="" [selected]="!tag()">{{ 'search.filter.all' | transloco }}</option>
+            @for (t of organize.tags(); track t.id) {
+              <option [value]="t.id" [selected]="t.id === tag()">{{ t.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="search-folder" class="text-xs font-medium">{{ 'search.filter.folder' | transloco }}</label>
+          <select id="search-folder" class="select select-sm" data-testid="search-folder" (change)="folder.set($any($event.target).value)">
+            <option value="" [selected]="!folder()">{{ 'search.filter.all' | transloco }}</option>
+            @for (f of organize.folderOptions(); track f.id) {
+              <option [value]="f.id" [selected]="f.id === folder()">{{ indent(f.depth) }}{{ f.name }}</option>
+            }
+          </select>
+        </div>
       </div>
 
       <p id="search-status" class="sr-only" aria-live="polite">{{ statusText() }}</p>
@@ -71,6 +94,9 @@ export class SearchComponent {
   private transloco = inject(TranslocoService);
 
   readonly query = signal('');
+  readonly organize = inject(OrganizeService);
+  readonly tag = signal('');
+  readonly folder = signal('');
   readonly loading = signal(false);
   readonly results = signal<PaginatedResult<SearchHit> | null>(null);
 
@@ -90,11 +116,15 @@ export class SearchComponent {
   constructor() {
     this.pageTitle.set('search.pageTitle');
 
-    toObservable(this.query)
+    // The user's tags and folders for the filters; the search works without them if loading fails
+    this.organize.load().catch(() => undefined);
+
+    // The text is debounced; choosing a tag or folder searches again at once
+    toObservable(computed(() => ({ query: this.query(), tag: this.tag(), folder: this.folder() })))
       .pipe(
         debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((query) => {
+        distinctUntilChanged((a, b) => a.query === b.query && a.tag === b.tag && a.folder === b.folder),
+        switchMap(({ query, tag, folder }) => {
           const trimmed = query.trim();
           if (!trimmed) {
             this.results.set(null);
@@ -102,7 +132,7 @@ export class SearchComponent {
             return of(null);
           }
           this.loading.set(true);
-          return this.searchService.search(trimmed);
+          return this.searchService.search(trimmed, 1, 20, { tag: tag || undefined, folder: folder || undefined });
         }),
         takeUntilDestroyed(),
       )
@@ -112,6 +142,10 @@ export class SearchComponent {
           this.results.set(result);
         }
       });
+  }
+
+  indent(depth: number): string {
+    return '\u00a0\u00a0'.repeat(depth);
   }
 
   before(hit: SearchHit): string {

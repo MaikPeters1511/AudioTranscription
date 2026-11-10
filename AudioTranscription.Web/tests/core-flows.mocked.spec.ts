@@ -157,3 +157,41 @@ test.describe('speakers and deleting', () => {
     expect(api.jobs.has(job.id)).toBe(false);
   });
 });
+
+test.describe('tags and favorites (S20)', () => {
+  test('a job tagged in its detail view is found by the tag filter in the list', async ({ page }) => {
+    api.tags.push({ id: 'tag-budget', name: 'Budget', color: '#ff8800' });
+    const tagged = api.addJob({ fileName: 'budget-meeting.mp3', rawTranscript: 'Budgetplanung' });
+    api.addJob({ fileName: 'weekly.mp3', rawTranscript: 'Allerlei' });
+    await signIn(page, `/jobs/${tagged.id}`);
+
+    await page.getByTestId('tags-summary').click();
+    await page.getByTestId('tags-menu').getByLabel('Budget').check();
+    await expect(page.getByTestId('tags-summary')).toContainText('(1)');
+
+    await page.getByRole('link', { name: 'Zurück zur Liste' }).click();
+    await expect(page.getByRole('row', { name: /weekly\.mp3/ })).toBeVisible();
+    await page.getByLabel('Tag', { exact: true }).selectOption({ label: 'Budget' });
+
+    await expect(page.getByRole('row', { name: /budget-meeting\.mp3/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /weekly\.mp3/ })).toHaveCount(0);
+    await expect(page.getByTestId('tag').first()).toHaveText('Budget');
+
+    await page.getByTestId('filter-reset').click();
+    await expect(page.getByRole('row', { name: /weekly\.mp3/ })).toBeVisible();
+  });
+
+  test('the favorites filter shows only starred jobs, and a star toggle does not open the job', async ({ page }) => {
+    api.addJob({ fileName: 'liebling.mp3', rawTranscript: 'a' });
+    api.addJob({ fileName: 'gewoehnlich.mp3', rawTranscript: 'b' });
+    await signIn(page, '/jobs');
+
+    await page.getByRole('button', { name: 'liebling.mp3 als Favorit markieren' }).click();
+    await expect(page).toHaveURL(/\/jobs$/);
+    await expect(page.getByRole('button', { name: 'Favorit für liebling.mp3 entfernen' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.getByTestId('filter-favorites').click();
+    await expect(page.getByRole('row', { name: /liebling\.mp3/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /gewoehnlich\.mp3/ })).toHaveCount(0);
+  });
+});
