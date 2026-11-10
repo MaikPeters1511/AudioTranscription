@@ -69,5 +69,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/template-admin/template-admin.component').then((m) => m.TemplateAdminComponent),
   },
+  {
+    path: 'chat',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/chat/chat.component').then((m) => m.ChatComponent),
+  },
   { path: '**', redirectTo: 'upload' },
 ];

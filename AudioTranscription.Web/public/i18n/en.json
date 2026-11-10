@@ -11,7 +11,8 @@
       "organize": "Organize",
       "glossaries": "Glossary",
       "queue": "Queue",
-      "templates": "Templates"
+      "templates": "Templates",
+      "chat": "Chat"
     },
     "connection": {
       "live": "Live connected",
@@ -129,7 +130,8 @@
       "lock": "Protect from automatic deletion",
       "lockedByOwner": "Protected from automatic deletion by its owner.",
       "failed": "The protection could not be changed. Please try again."
-    }
+    },
+    "askAbout": "Ask about this recording"
   },
   "upload": {
     "title": "Upload audio",
@@ -536,5 +538,38 @@
     "deleteFailed": "The template could not be deleted.",
     "empty": "There are no templates.",
     "pageTitle": "Templates · Transcription"
+  },
+  "chat": {
+    "title": "Chat with your transcripts",
+    "pageTitle": "Chat · Transcription",
+    "history": "Conversations",
+    "new": "New conversation",
+    "delete": "Delete conversation {{title}}",
+    "unavailable": "The chat is not available on this server. It needs the semantic search and a language model.",
+    "provider": {
+      "local": "Answers are produced locally with {{model}} ({{provider}}).",
+      "external": "External service: questions and passages of your transcripts are sent to {{provider}} ({{model}})."
+    },
+    "scope": {
+      "label": "What to ask about",
+      "job": "This recording",
+      "all": "All recordings",
+      "allHint": "Questions refer to all your recordings and those shared with you."
+    },
+    "messages": "Conversation",
+    "you": "You",
+    "assistant": "Assistant",
+    "sources": "Sources",
+    "citation": "Source {{number}} at {{time}}",
+    "question": "Your question",
+    "hint": "Enter sends, Shift+Enter starts a new line. Answers are based only on your transcripts.",
+    "send": "Send",
+    "stop": "Stop",
+    "error": {
+      "unavailable": "The answer could not be produced. Is the language model reachable?",
+      "rateLimit": "Too many questions. Please wait a moment.",
+      "notFound": "The recording or conversation was not found.",
+      "failed": "Something went wrong. Please try again."
+    }
   }
 }

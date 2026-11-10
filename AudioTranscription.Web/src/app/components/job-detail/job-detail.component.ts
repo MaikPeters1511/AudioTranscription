@@ -61,6 +61,11 @@ import { languageName } from '../../i18n/language-names';
               @if (job.isOwner !== false) {
                 <app-job-share [jobId]="job.id" />
               }
+              @if (job.status === AudioJobStatus.Completed) {
+                <a class="btn btn-sm btn-outline" data-testid="job-ask" [routerLink]="['/chat']" [queryParams]="{ job: job.id }">
+                  {{ 'jobDetail.askAbout' | transloco }}
+                </a>
+              }
               <app-job-actions [job]="job" />
             </div>
           </div>

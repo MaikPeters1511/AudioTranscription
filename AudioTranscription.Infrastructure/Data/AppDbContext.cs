@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
     public DbSet<SegmentEdit> SegmentEdits => Set<SegmentEdit>();
     public DbSet<UploadSession> UploadSessions => Set<UploadSession>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ConversationMessage> ChatMessages => Set<ConversationMessage>();
     public DbSet<EmbeddingIndexState> EmbeddingIndexStates => Set<EmbeddingIndexState>();
     public DbSet<PostprocessingTemplate> PostprocessingTemplates => Set<PostprocessingTemplate>();
     public DbSet<TranscriptChapter> TranscriptChapters => Set<TranscriptChapter>();

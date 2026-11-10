@@ -53,6 +53,13 @@ services:
       - Embedding__Dimensions=${EMBEDDING_DIMENSIONS:-1024}
       - Embedding__Endpoint=${EMBEDDING_OLLAMA_ENDPOINT:-}
       - Embedding__ApiKey=${EMBEDDING_OPENAI_API_KEY:-}
+      # S24: chat with the transcripts. Local Ollama by default (same server as the embedding model); an external
+      # provider only with CHAT_PROVIDER=OpenAI and a key. The page always shows which one answers.
+      - Chat__Provider=${CHAT_PROVIDER:-Ollama}
+      - Chat__Model=${CHAT_MODEL:-llama3.2}
+      - Chat__Endpoint=${CHAT_OLLAMA_ENDPOINT:-${EMBEDDING_OLLAMA_ENDPOINT:-}}
+      - Chat__ApiKey=${CHAT_OPENAI_API_KEY:-}
+      - Chat__RequestsPerMinute=${CHAT_REQUESTS_PER_MINUTE:-20}
     ports:
       - "8080:8080"
     volumes:
