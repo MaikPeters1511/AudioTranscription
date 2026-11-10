@@ -24,6 +24,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<JobFavorite> JobFavorites => Set<JobFavorite>();
     public DbSet<Glossary> Glossaries => Set<Glossary>();
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<Webhook> Webhooks => Set<Webhook>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

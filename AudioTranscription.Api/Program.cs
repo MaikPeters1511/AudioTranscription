@@ -4,6 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using AudioTranscription.Api.Health;
 using AudioTranscription.Api.Telemetry;
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Automation;
 using AudioTranscription.Api.Auth;
 using AudioTranscription.Api.BackgroundServices;
 using AudioTranscription.Api.Configuration;
@@ -14,10 +15,13 @@ using AudioTranscription.Domain.Export;
 using AudioTranscription.Infrastructure.Export;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -88,6 +92,53 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
     builder.Services.AddHostedService<ChapterWorker>();
 }
 
+// Automation (S28, ADR 0009): API keys, webhooks, watched folders
+// Webhook secrets are encrypted with Data Protection. Without persisted keys they (and cookie sessions) do not survive
+// a restart of a container, so the operator can point DataProtection:KeysPath to a persistent folder.
+if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } dataProtectionKeysPath)
+    builder.Services.AddDataProtection().SetApplicationName("AudioTranscription")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
+builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.SectionName));
+builder.Services.AddSingleton<WebhookSecretProtector>();
+builder.Services.AddScoped<WebhookSender>();
+builder.Services.AddScoped<IWebhookDispatcher, WebhookDispatcher>();
+builder.Services.AddScoped<WebhookDeliveryProcessor>();
+builder.Services.AddHostedService<WebhookDeliveryService>();
+// Own client (no shared resilience/service-discovery defaults): no redirects, target address checked when connecting
+builder.Services.AddSingleton(sp => WebhookHttpClient.Create(sp.GetRequiredService<IOptions<WebhookOptions>>().Value));
+builder.Services.AddOptions<WatchOptions>()
+    .Bind(builder.Configuration.GetSection(WatchOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<WatchOptions>, WatchOptionsValidator>();
+builder.Services.AddScoped<FolderWatchProcessor>();
+var watchSettings = builder.Configuration.GetSection(WatchOptions.SectionName).Get<WatchOptions>();
+if (watchSettings is { Enabled: true, Folders.Count: > 0 })
+    builder.Services.AddHostedService<FolderWatchService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Requests with an API key: per authenticated key. Requests whose key was refused count per remote address, so
+    // someone who knows only a key's public prefix cannot use up that key's budget.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        if (!ApiKeyAuthentication.IsApiKeyRequest(context.Request))
+            return RateLimitPartition.GetNoLimiter("session");
+        var partition = context.User.FindFirst(ApiKeyAuthentication.KeyIdClaim)?.Value is { } keyId
+            ? "key:" + keyId
+            : "ip:" + context.Connection.RemoteIpAddress;
+        var perMinute = Math.Max(1, context.RequestServices.GetRequiredService<IOptions<ApiKeyOptions>>().Value.RequestsPerMinute);
+        return RateLimitPartition.GetFixedWindowLimiter(partition, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+        });
+    });
+    options.AddPolicy(WebhookEndpoints.TestRateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            JobAccessService.GetUserId(context.User) ?? "ip:" + context.Connection.RemoteIpAddress,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
+
 // Add SignalR
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITranscriptExporter, MarkdownExporter>(); // S21
@@ -99,7 +150,7 @@ builder.Services.AddScoped<IJobNotifier, JobNotifier>();
 
 // OpenAPI (EN-3): describes every mapped endpoint, served under the same auth policy as the rest
 // of the API (the fallback policy below), not anonymously.
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer<OpenApiSecuritySchemes>());
 
 // Readiness checks (S29-T4) for /health (served in Development only, see ServiceDefaults)
 var healthChecks = builder.Services.AddHealthChecks()
@@ -141,6 +192,23 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+
+// API keys (S28, ADR 0009): a request that carries a key is authenticated by the key scheme, every other request
+// as before (cookie session or Identity bearer token).
+const string AppAuthScheme = "AppAuth";
+// Default scheme of AddIdentityApiEndpoints (its constant is internal): Identity bearer token or application cookie
+const string IdentityBearerAndApplicationScheme = "Identity.BearerAndApplication";
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = AppAuthScheme;
+        options.DefaultAuthenticateScheme = AppAuthScheme;
+        options.DefaultChallengeScheme = AppAuthScheme;
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.Scheme, _ => { })
+    .AddPolicyScheme(AppAuthScheme, AppAuthScheme, options => options.ForwardDefaultSelector = context =>
+        ApiKeyAuthentication.IsApiKeyRequest(context.Request)
+            ? ApiKeyAuthentication.Scheme
+            : IdentityBearerAndApplicationScheme);
 
 // Every endpoint requires a signed-in user unless it explicitly allows anonymous access
 builder.Services.AddAuthorizationBuilder()
@@ -231,6 +299,8 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<ApiKeyScopeMiddleware>(); // what an API key may reach (S28)
+app.UseRateLimiter();
 app.UseAuthorization();
 app.UseResumableUploads(); // tus protocol under /api/uploads, S27
 app.MapDefaultEndpoints();
@@ -259,6 +329,8 @@ app.MapJobShareEndpoints();
 app.MapJobOrganizationEndpoints();
 app.MapGlossaryEndpoints();
 app.MapQueueEndpoints();
+app.MapApiKeyEndpoints();
+app.MapWebhookEndpoints();
 
 app.Run();
 public partial class Program { }

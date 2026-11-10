@@ -7,6 +7,7 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Automatisierung (S28):** API-Keys für Skripte (SHA-256-Hash, Scopes `jobs:read`/`jobs:write`, Ablauf, Rate-Limit), signierte Webhooks (`job.completed`/`job.failed`, HMAC-SHA256, Wiederholung mit Backoff, Zustellungsprotokoll, SSRF-Schutz), Ordner-Watch mit neustartsicherer Verarbeitung, Verwaltungsseiten „API-Keys“ und „Webhooks“ (DE/EN) und OpenAPI-Auth-Schemata. Entscheidungen in ADR 0009.
 - **Initialer Admin-Account:** `InitialUserSeeder` legt beim ersten Start optional einen Admin-Benutzer aus der Konfiguration an (`Auth:InitialUser:Email`/`Password`), inkl. automatischer `Admin`-Rolle.
 - **OpenAPI-Dokumentation (EN-3):** `GET /openapi/v1.json` liefert eine vollständige, maschinenlesbare Beschreibung aller Endpunkte.
 - **GPU-Beschleunigung (S15):** Konfigurierbare Whisper-Runtime-Reihenfolge (`Whisper:RuntimeOrder`) mit automatischem CPU-Fallback; CUDA-fähiges Docker-Image (`--target final-cuda`) und `docker compose --profile gpu`.
