@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Telemetry;
+using AudioTranscription.Infrastructure.Telemetry;
 using AudioTranscription.Api.Dtos;
 using AudioTranscription.Api.Storage;
 using AudioTranscription.Domain.Diarization;
@@ -110,6 +113,21 @@ public class TranscriptionWorker : BackgroundService
             return job.Status;
         }
 
+        // One span and one set of metrics per job that is really processed (not for skipped or missing ones)
+        using var activity = AppTelemetry.Source.StartActivity("transcription.job");
+        activity?.SetTag("job.id", job.Id.ToString());
+        activity?.SetTag("job.model", job.Model);
+        var metrics = services.GetService<TranscriptionMetrics>();
+        var stopwatch = Stopwatch.StartNew();
+        void Finish(string outcome, double? audioSeconds)
+        {
+            metrics?.JobFinished(outcome, job.Model, stopwatch.Elapsed, audioSeconds);
+            activity?.SetTag("job.outcome", outcome);
+            // No exception message in the span: it can contain paths or content
+            if (outcome == TranscriptionOutcome.Failed)
+                activity?.SetStatus(ActivityStatusCode.Error);
+        }
+
         // Update status to Processing
         job.Status = AudioJobStatus.Processing;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -145,6 +163,7 @@ public class TranscriptionWorker : BackgroundService
             dbContext.TranscriptSegments.AddRange(segments);
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            Finish(TranscriptionOutcome.Completed, job.DurationSeconds);
             await NotifyStatusChanged(notifier, job);
 
             _logger.LogInformation(
@@ -160,6 +179,7 @@ public class TranscriptionWorker : BackgroundService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
         {
             _logger.LogInformation("Job {JobId} was cancelled by a user", request.JobId);
+            Finish(TranscriptionOutcome.Cancelled, null);
             return await MarkCancelledAsync(dbContext, notifier, job, stoppingToken);
         }
         catch (Exception ex)
@@ -171,6 +191,7 @@ public class TranscriptionWorker : BackgroundService
             job.CompletedAtUtc = DateTime.UtcNow;
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            Finish(TranscriptionOutcome.Failed, null);
             await NotifyStatusChanged(notifier, job);
             return AudioJobStatus.Failed;
         }
@@ -192,6 +213,7 @@ public class TranscriptionWorker : BackgroundService
             return;
         }
 
+        using var span = AppTelemetry.Source.StartActivity("transcription.diarize");
         try
         {
             var speakerIntervals = await diarizationService.DiarizeAsync(audioFilePath, expectedSpeakerCount: null, cancellationToken);
@@ -206,6 +228,7 @@ public class TranscriptionWorker : BackgroundService
         }
         catch (Exception ex)
         {
+            span?.SetStatus(ActivityStatusCode.Error);
             _logger.LogWarning(ex, "Speaker diarization failed for job {JobId}; segments are kept without a speaker", jobId);
         }
     }

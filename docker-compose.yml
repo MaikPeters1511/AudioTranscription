@@ -27,6 +27,8 @@ services:
       - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
       # S14: single source of truth for the upload size limit, also used by the web service below
       - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
+      # S29: empty = no export; with the observability profile set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8080:8080"
     volumes:
@@ -73,6 +75,43 @@ services:
       - NGINX_CLIENT_MAX_BODY_SIZE=${UPLOAD_MAX_FILE_SIZE_MB:-500}M
     ports:
       - "80:80"
+
+  # S29-T3: metrics dashboard, opt-in via `docker compose --profile observability up`.
+  # Set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 in .env so the API sends its telemetry to the collector.
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: audio-transcription-otel
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./docker/observability/otel-collector.yaml:/etc/otel/config.yaml:ro
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.55.0
+    container_name: audio-transcription-prometheus
+    depends_on:
+      - otel-collector
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.3.0
+    container_name: audio-transcription-grafana
+    depends_on:
+      - prometheus
+    environment:
+      # Local only; change it when exposing Grafana. Anonymous access stays off.
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
 
 volumes:
   sql-data:

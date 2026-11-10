@@ -15,20 +15,45 @@ public class TranscriptionQueue
             SingleWriter = false
         });
 
+    // A single-reader channel cannot report its length, so the queue counts itself
+    private int _count;
+
+    /// <summary>Jobs waiting to be picked up by the worker (reported as a metric, S29).</summary>
+    public int Count => Volatile.Read(ref _count);
+
     public async ValueTask EnqueueAsync(TranscriptionJobRequest request, CancellationToken cancellationToken = default)
     {
-        await _channel.Writer.WriteAsync(request, cancellationToken);
+        Interlocked.Increment(ref _count);
+        try
+        {
+            await _channel.Writer.WriteAsync(request, cancellationToken);
+        }
+        catch
+        {
+            Interlocked.Decrement(ref _count);
+            throw;
+        }
     }
 
     /// <summary>
     /// Non-blocking read, used by tests to inspect the queue.
     /// </summary>
-    internal bool TryRead([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TranscriptionJobRequest request) =>
-        _channel.Reader.TryRead(out request);
-
-    public IAsyncEnumerable<TranscriptionJobRequest> ReadAllAsync(CancellationToken cancellationToken = default)
+    internal bool TryRead([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TranscriptionJobRequest request)
     {
-        return _channel.Reader.ReadAllAsync(cancellationToken);
+        var read = _channel.Reader.TryRead(out request);
+        if (read)
+            Interlocked.Decrement(ref _count);
+        return read;
+    }
+
+    public async IAsyncEnumerable<TranscriptionJobRequest> ReadAllAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var request in _channel.Reader.ReadAllAsync(cancellationToken))
+        {
+            Interlocked.Decrement(ref _count);
+            yield return request;
+        }
     }
 }
 

@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using AudioTranscription.Api.Health;
+using AudioTranscription.Api.Telemetry;
 using AudioTranscription.Api.Access;
 using AudioTranscription.Api.Auth;
 using AudioTranscription.Api.BackgroundServices;
@@ -27,6 +30,7 @@ builder.Services.Configure<UploadOptions>(
 
 // Register transcription services
 builder.Services.AddSingleton<TranscriptionQueue>();
+builder.Services.AddSingleton<TranscriptionMetrics>(); // S29: business metrics (meter "AudioTranscription")
 builder.Services.AddSingleton<JobCancellationRegistry>();
 builder.Services.AddSingleton<JobProgressStore>();
 builder.Services.AddSingleton<ITempFileStore, TempFileStore>();
@@ -83,6 +87,21 @@ builder.Services.AddScoped<IJobNotifier, JobNotifier>();
 // OpenAPI (EN-3): describes every mapped endpoint, served under the same auth policy as the rest
 // of the API (the fallback policy below), not anonymously.
 builder.Services.AddOpenApi();
+
+// Readiness checks (S29-T4) for /health (served in Development only, see ServiceDefaults)
+var healthChecks = builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
+    .AddCheck("ffmpeg", new FfmpegHealthCheck(), tags: ["ready"])
+    .Add(new HealthCheckRegistration("whisper-model", sp =>
+    {
+        var whisper = sp.GetRequiredService<IOptions<WhisperOptions>>().Value;
+        return new WhisperModelHealthCheck(Path.Combine(AppContext.BaseDirectory, whisper.ModelsDirectory), whisper.DefaultModel);
+    }, failureStatus: null, tags: ["ready"]));
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("llama3.2")))
+{
+    var ollamaAddress = new Uri(builder.Configuration.GetConnectionString("llama3.2")!);
+    healthChecks.AddCheck("ollama", new OllamaHealthCheck(new HttpClient { Timeout = TimeSpan.FromSeconds(3) }, ollamaAddress), tags: ["ready"]);
+}
 
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
