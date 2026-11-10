@@ -27,6 +27,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
 - ✏️ **Transkript-Editor** — Segmente direkt im Player korrigieren (Enter/Doppelklick, Strg+Enter speichert, Alt+P spielt das Segment ab); jede Änderung ist eine neue Version mit Verlauf, Diff und „Wiederherstellen“, das Roh-Transkript bleibt unverändert; Suche, Untertitel und Exporte nutzen die korrigierte Fassung
 - 🔁 **Wiederaufnehmbarer Upload** — Dateien ab 10 MiB werden in Chunks per tus-Protokoll hochgeladen: automatische Wiederholung bei Verbindungsabbruch, Pause/Fortsetzen, Abbruch räumt den Teil-Upload auf; kleinere Dateien und der bisherige Endpoint bleiben unverändert (siehe [ADR 0006](docs/adr/0006-resumable-upload-spike.md))
+- 📑 **Automatische Kapitel** — das lokale Sprachmodell gliedert lange Aufnahmen in Abschnitte mit Überschrift und Kurzzusammenfassung (Map-Reduce über Fenster, Grenzen auf Segmentgrenzen); Marker auf der Zeitleiste und Kapitelliste im Player, Sprung per Klick oder Tastatur, Kapitel umbenennen und löschen
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -275,6 +276,9 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST` | `/api/audio-jobs/{id}/cancel` | Wartenden oder laufenden Job abbrechen |
 | `POST` | `/api/audio-jobs/{id}/retry` | Fehlgeschlagenen oder abgebrochenen Job erneut einreihen |
 | `GET` | `/api/audio-jobs/{id}/segments` | Zeitstempel-Segmente des Roh-Transkripts, bei Diarisierung inkl. `speakerIndex`/`speakerName` (`409`, solange der Job nicht abgeschlossen ist) |
+| `POST` | `/api/audio-jobs/{id}/chapters` | Kapitelerzeugung im Hintergrund starten (ersetzt vorhandene Kapitel). `409`: Job nicht abgeschlossen oder ohne Segmente, `503`: kein Sprachmodell konfiguriert; nur für den Eigentümer |
+| `GET` | `/api/audio-jobs/{id}/chapters` | Kapitel in Reihenfolge und Zustand der Erzeugung (`None`, `Pending`, `Completed`, `Failed`) |
+| `PUT`/`DELETE` | `/api/audio-jobs/{id}/chapters/{chapterId}` | Titel/Zusammenfassung ändern bzw. Kapitel löschen (das Nachbarkapitel übernimmt den Zeitbereich); nur für den Eigentümer |
 | `PUT` | `/api/audio-jobs/{id}/segments/{index}` | Segment korrigieren: Body `{ text, expectedVersion }`; legt eine neue Version an (`409`, wenn `expectedVersion` nicht die aktuelle ist oder der Job nicht abgeschlossen ist; nur für den Eigentümer) |
 | `GET` | `/api/audio-jobs/{id}/segments/{index}/history` | Alle Versionen des Segments, neueste zuerst; Version 0 ist das Original |
 | `POST` | `/api/audio-jobs/{id}/segments/{index}/restore` | Body `{ version, expectedVersion }`; stellt eine frühere Version als neue Version wieder her (nur für den Eigentümer) |

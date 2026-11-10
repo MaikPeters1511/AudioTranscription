@@ -21,7 +21,11 @@ describe('TranscriptPlayerComponent', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // The chapter bar (S25) asks for its chapters once the segments are shown; these tests do not look at them
+    http.match('/api/audio-jobs/job-1/chapters').forEach((r) => r.flush({ status: 'None', chapters: [] }));
+    http.verify();
+  });
 
   function render(response: TranscriptSegment[] = segments) {
     const fixture = TestBed.createComponent(TranscriptPlayerComponent);
@@ -113,7 +117,11 @@ describe('TranscriptPlayerComponent speaker diarization (S11)', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // The chapter bar (S25) asks for its chapters once the segments are shown; these tests do not look at them
+    http.match('/api/audio-jobs/job-1/chapters').forEach((r) => r.flush({ status: 'None', chapters: [] }));
+    http.verify();
+  });
 
   function render() {
     const fixture = TestBed.createComponent(TranscriptPlayerComponent);
@@ -191,7 +199,11 @@ describe('TranscriptPlayerComponent search deep-link (S13)', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // The chapter bar (S25) asks for its chapters once the segments are shown; these tests do not look at them
+    http.match('/api/audio-jobs/job-1/chapters').forEach((r) => r.flush({ status: 'None', chapters: [] }));
+    http.verify();
+  });
 
   it('jumps to the given segment once segments have loaded', () => {
     const fixture = TestBed.createComponent(TranscriptPlayerComponent);
@@ -251,7 +263,11 @@ describe('TranscriptPlayerComponent transcript editor (S32)', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // The chapter bar (S25) asks for its chapters once the segments are shown; these tests do not look at them
+    http.match('/api/audio-jobs/job-1/chapters').forEach((r) => r.flush({ status: 'None', chapters: [] }));
+    http.verify();
+  });
 
   function render(canEdit = true) {
     const fixture = TestBed.createComponent(TranscriptPlayerComponent);

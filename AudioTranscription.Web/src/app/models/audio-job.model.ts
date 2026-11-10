@@ -173,6 +173,23 @@ export interface SegmentVersion {
   editedAtUtc?: string | null;
 }
 
+/** A titled section of a recording (S25); the chapters of a job follow each other without gap or overlap. */
+export interface Chapter {
+  id: string;
+  position: number;
+  startMs: number;
+  endMs: number;
+  title: string;
+  summary: string;
+}
+
+/** GET /api/audio-jobs/{id}/chapters: the chapters and the state of their generation. */
+export interface ChapterList {
+  status: 'None' | 'Pending' | 'Completed' | 'Failed';
+  errorMessage?: string | null;
+  chapters: Chapter[];
+}
+
 export type SubtitleFormat = 'srt' | 'vtt';
 
 /** A detected speaker of a diarized job (S11), with its current (possibly renamed) display name. */

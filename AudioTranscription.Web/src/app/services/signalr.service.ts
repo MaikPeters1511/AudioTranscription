@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
+import { ChapterService } from './chapter.service';
 import { AudioJobListItem, AudioJobStatus, JobProgressEvent, VariantCompletedEvent } from '../models/audio-job.model';
 import { AudioJobService } from './audio-job.service';
 
@@ -7,6 +8,7 @@ import { AudioJobService } from './audio-job.service';
 export class SignalRService {
   private hubConnection?: signalR.HubConnection;
   private audioJobService = inject(AudioJobService);
+  private chapterService = inject(ChapterService);
   readonly connected = signal(false);
 
   start(baseUrl: string): void {
@@ -56,6 +58,10 @@ export class SignalRService {
 
     this.hubConnection.on('VariantCompleted', (event: VariantCompletedEvent) => {
       this.audioJobService.refreshVariant(event.jobId);
+    });
+
+    this.hubConnection.on('ChaptersCompleted', (event: { jobId: string }) => {
+      this.chapterService.refresh(event.jobId);
     });
 
     this.hubConnection.on('JobDeleted', (id: string) => {

@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TranscriptSegment> TranscriptSegments => Set<TranscriptSegment>();
     public DbSet<SegmentEdit> SegmentEdits => Set<SegmentEdit>();
     public DbSet<UploadSession> UploadSessions => Set<UploadSession>();
+    public DbSet<TranscriptChapter> TranscriptChapters => Set<TranscriptChapter>();
+    public DbSet<ChapterRun> ChapterRuns => Set<ChapterRun>();
     public DbSet<TranscriptVariant> TranscriptVariants => Set<TranscriptVariant>();
     public DbSet<JobSpeaker> JobSpeakers => Set<JobSpeaker>();
     public DbSet<JobShare> JobShares => Set<JobShare>();
