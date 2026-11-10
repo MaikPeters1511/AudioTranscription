@@ -57,6 +57,9 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Language")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
@@ -90,11 +93,58 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasIndex("CreatedAtUtc")
                         .IsDescending();
 
+                    b.HasIndex("FolderId");
+
                     b.HasIndex("OwnerId");
 
                     b.HasIndex("Status");
 
                     b.ToTable("AudioJobs", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Folder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("OwnerId", "ParentId", "Name")
+                        .IsUnique()
+                        .HasFilter("[ParentId] IS NOT NULL");
+
+                    b.ToTable("Folders", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobFavorite", b =>
+                {
+                    b.Property<Guid>("AudioJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("AudioJobId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("JobFavorites", (string)null);
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobShare", b =>
@@ -137,6 +187,48 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("JobSpeakers", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobTag", b =>
+                {
+                    b.Property<Guid>("AudioJobId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("AudioJobId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("JobTags", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags", (string)null);
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.TranscriptSegment", b =>
@@ -407,10 +499,44 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.AudioJob", b =>
                 {
+                    b.HasOne("AudioTranscription.Domain.Entities.Folder", null)
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Folder", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AudioTranscription.Domain.Entities.Folder", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobFavorite", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
+                        .WithMany()
+                        .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobShare", b =>
@@ -433,6 +559,30 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
                         .WithMany()
                         .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.JobTag", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
+                        .WithMany()
+                        .HasForeignKey("AudioJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AudioTranscription.Domain.Entities.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

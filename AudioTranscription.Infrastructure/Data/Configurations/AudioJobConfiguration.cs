@@ -75,6 +75,14 @@ public class AudioJobConfiguration : IEntityTypeConfiguration<AudioJob>
 
         builder.HasIndex(x => x.OwnerId);
 
+        // The owner's folder (S20); a deleted folder leaves its jobs at the top level
+        builder.HasOne<Folder>()
+            .WithMany()
+            .HasForeignKey(x => x.FolderId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => x.FolderId);
+
         builder.Property(x => x.RetentionLocked)
             .IsRequired()
             .HasDefaultValue(false);

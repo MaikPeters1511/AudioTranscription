@@ -132,6 +132,33 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
     }
 
     [Fact]
+    public async Task Search_CanBeNarrowedToATagOrFolderOfTheUser_AndSomeoneElsesMatchesNothing()
+    {
+        var tagged = await SeedJobAsync("tagged.mp3", "Der Zauberer im markierten Job.");
+        var inFolder = await SeedJobAsync("filed.mp3", "Der Zauberer im abgelegten Job.");
+        await SeedJobAsync("plain.mp3", "Der Zauberer im einfachen Job.");
+        var tag = new Tag { OwnerId = TestAuthHandler.DefaultUserId, Name = "Budget" };
+        var foreignTag = new Tag { OwnerId = OtherUserId, Name = "Fremd" };
+        var folder = new Folder { OwnerId = TestAuthHandler.DefaultUserId, Name = "Projekte" };
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Tags.AddRange(tag, foreignTag);
+            db.Folders.Add(folder);
+            await db.SaveChangesAsync();
+            db.JobTags.AddRange(new JobTag { AudioJobId = tagged, TagId = tag.Id }, new JobTag { AudioJobId = tagged, TagId = foreignTag.Id });
+            (await db.AudioJobs.FindAsync(inFolder))!.FolderId = folder.Id;
+            await db.SaveChangesAsync();
+        }
+        var client = _factory.CreateClient();
+
+        (await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>($"/api/search?q=Zauberer&tag={tag.Id}"))!.Items.Select(h => h.JobId).Should().Equal(tagged);
+        (await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>($"/api/search?q=Zauberer&folder={folder.Id}"))!.Items.Select(h => h.JobId).Should().Equal(inFolder);
+        (await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>($"/api/search?q=Zauberer&tag={foreignTag.Id}"))!.Items.Should().BeEmpty("a tag of someone else matches nothing");
+        (await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Zauberer"))!.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
     public async Task Search_FindsAHitInTheRawTranscript()
     {
         var jobId = await SeedJobAsync("meeting.mp3", "Der Zauberer wanderte durch den dunklen Wald.");

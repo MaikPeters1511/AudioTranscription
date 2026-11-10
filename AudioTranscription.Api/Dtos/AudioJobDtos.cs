@@ -39,7 +39,11 @@ public record AudioJobDto(
     string? SharedByEmail = null,
     // S30: excluded from automatic deletion, and when the job will otherwise be deleted (null: never or not applicable)
     bool RetentionLocked = false,
-    DateTime? DeleteAtUtc = null
+    DateTime? DeleteAtUtc = null,
+    // S20: the requesting user's own tags, favorite mark and (for the owner) folder; null in live events
+    IReadOnlyList<TagDto>? Tags = null,
+    bool? IsFavorite = null,
+    Guid? FolderId = null
 );
 
 public record AudioJobListDto(
@@ -54,8 +58,24 @@ public record AudioJobListDto(
     int? ProgressPercent = null,
     // Only set when answering a request, not in live events (those go to several users): null means unknown
     bool? IsOwner = null,
-    string? SharedByEmail = null
+    string? SharedByEmail = null,
+    // S20: the requesting user's own tags, favorite mark and (for the owner) folder; null in live events
+    IReadOnlyList<TagDto>? Tags = null,
+    bool? IsFavorite = null,
+    Guid? FolderId = null
 );
+
+public record TagDto(Guid Id, string Name, string? Color);
+
+public record CreateTagRequest(string? Name, string? Color);
+
+public record SetJobTagsRequest(Guid[]? TagIds);
+
+public record FolderDto(Guid Id, string Name, Guid? ParentId);
+
+public record SaveFolderRequest(string? Name, Guid? ParentId);
+
+public record SetJobFolderRequest(Guid? FolderId);
 
 /// <summary>A user a job is shared with (read only).</summary>
 public record JobShareDto(string UserId, string Email);

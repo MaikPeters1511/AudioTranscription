@@ -23,6 +23,8 @@ public static class SearchEndpoints
 
     private static async Task<Results<Ok<PaginatedResult<SearchHitDto>>, ValidationProblem>> Search(
         [FromQuery] string? q,
+        [FromQuery] Guid? tag,
+        [FromQuery] Guid? folder,
         HttpContext http,
         AppDbContext dbContext,
         JobAccessService access,
@@ -47,7 +49,10 @@ public static class SearchEndpoints
         // Only jobs the user may read (own and shared, ADR 0007) can produce hits.
         var userId = JobAccessService.GetUserId(http.User) ?? string.Empty;
         var visible = access.VisibleJobIds(userId);
-        var visibleJobs = dbContext.AudioJobs.Where(j => visible.Contains(j.Id));
+        // Optionally narrowed to the user's tag and/or folder (S20); someone else's tag or folder matches nothing
+        var visibleJobs = dbContext.AudioJobs
+            .Where(j => visible.Contains(j.Id))
+            .Filter(dbContext, userId, tag, folder, favoritesOnly: false);
 
         var jobHits = await visibleJobs
             .Where(j => j.RawTranscript != null && EF.Functions.FreeText(j.RawTranscript, q))
