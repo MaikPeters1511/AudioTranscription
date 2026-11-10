@@ -9,7 +9,8 @@
       "users": "Benutzer",
       "account": "Passwort ändern",
       "organize": "Organisieren",
-      "glossaries": "Glossar"
+      "glossaries": "Glossar",
+      "queue": "Warteschlange"
     },
     "connection": {
       "live": "Live verbunden",
@@ -392,5 +393,57 @@
     "duplicate": "Ein Glossar mit diesem Namen existiert bereits.",
     "invalid": "Bitte Name und Begriffe prüfen (keine Duplikate, höchstens 200 Begriffe mit je 100 Zeichen).",
     "failed": "Das Glossar konnte nicht gespeichert werden."
+  },
+  "queue": {
+    "pageTitle": "Warteschlange · Transkription",
+    "title": "Warteschlange",
+    "intro": "Ihre Aufträge, die laufen oder auf die Transkription warten. Höhere Priorität läuft zuerst; bei gleicher Priorität gilt die Reihenfolge des Uploads.",
+    "empty": "Derzeit ist nichts in der Warteschlange.",
+    "totalWaiting": "Insgesamt warten {{ count }} Auftrag/Aufträge, einschließlich der Aufträge anderer Benutzer.",
+    "running": "Läuft",
+    "columns": {
+      "position": "Position",
+      "file": "Datei",
+      "priority": "Priorität",
+      "wait": "Geschätzte Wartezeit",
+      "actions": "Aktionen"
+    },
+    "priority": {
+      "low": "Niedrig",
+      "normal": "Normal",
+      "high": "Hoch",
+      "custom": "Benutzerdefiniert ({{ value }})"
+    },
+    "priorityOf": "Priorität von {{ name }}",
+    "cancel": "Abbrechen",
+    "cancelJob": "{{ name }} abbrechen",
+    "lessThanMinute": "< 1 Min.",
+    "minutes": "{{ count }} Min.",
+    "hoursMinutes": "{{ hours }} Std. {{ minutes }} Min.",
+    "errors": {
+      "started": "Der Auftrag hat bereits begonnen; seine Priorität kann nicht mehr geändert werden.",
+      "generic": "Die Warteschlange konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+    }
+  },
+  "uploadBatch": {
+    "title": "Dateien werden hochgeladen",
+    "cancelAll": "Alle abbrechen",
+    "cancelFile": "Upload von {{ name }} abbrechen",
+    "fileProgress": "Upload-Fortschritt von {{ name }}",
+    "summary": "{{ done }} von {{ total }} hochgeladen",
+    "failedCount": "{{ count }} fehlgeschlagen",
+    "cancelledCount": "{{ count }} abgebrochen",
+    "status": {
+      "waiting": "Wartet",
+      "uploading": "Lädt hoch",
+      "done": "Hochgeladen",
+      "error": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen"
+    },
+    "allDone": "{{ count }} Dateien hochgeladen. Die Verarbeitung wurde gestartet.",
+    "showQueue": "Warteschlange anzeigen",
+    "showJobs": "Aufträge anzeigen",
+    "uploadMore": "Weitere Dateien hochladen",
+    "hint": "Sie können mehrere Dateien auf einmal wählen; bis zu 3 werden parallel hochgeladen."
   }
 }

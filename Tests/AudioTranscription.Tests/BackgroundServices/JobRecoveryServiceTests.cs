@@ -43,6 +43,22 @@ public class JobRecoveryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Recovery_KeepsPriorityAndQueueOrder()
+    {
+        var now = DateTime.UtcNow;
+        // Created first, but queued last (retry) and without priority
+        var retried = await AddJobAsync(AudioJobStatus.Pending, now.AddHours(-3), queuedAtUtc: now.AddMinutes(-1));
+        var normal = await AddJobAsync(AudioJobStatus.Pending, now.AddMinutes(-5), queuedAtUtc: now.AddMinutes(-5));
+        var urgent = await AddJobAsync(AudioJobStatus.Pending, now.AddMinutes(-2), priority: 7, queuedAtUtc: now.AddMinutes(-2));
+
+        await CreateSut().StartAsync(CancellationToken.None);
+
+        var requests = DrainQueue();
+        requests.Select(r => r.JobId).Should().Equal(urgent.Id, normal.Id, retried.Id);
+        requests.First().Priority.Should().Be(7);
+    }
+
+    [Fact]
     public async Task Recovery_EnqueuesStoredUploadPath()
     {
         var job = await AddJobAsync(AudioJobStatus.Pending, DateTime.UtcNow);
@@ -98,10 +114,14 @@ public class JobRecoveryServiceTests : IDisposable
         _store,
         NullLogger<JobRecoveryService>.Instance);
 
-    private async Task<AudioJob> AddJobAsync(AudioJobStatus status, DateTime createdAtUtc, bool createUpload = true)
+    private async Task<AudioJob> AddJobAsync(
+        AudioJobStatus status, DateTime createdAtUtc, bool createUpload = true,
+        int priority = 0, DateTime? queuedAtUtc = null)
     {
         var job = new AudioJob
         {
+            Priority = priority,
+            QueuedAtUtc = queuedAtUtc,
             FileName = "meeting.mp3",
             ContentType = "audio/mpeg",
             Status = status,

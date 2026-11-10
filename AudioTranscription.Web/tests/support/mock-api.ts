@@ -35,6 +35,8 @@ export class MockApi {
   readonly tags: { id: string; name: string; color?: string | null }[] = [];
   readonly jobTags = new Map<string, string[]>();
   readonly favorites = new Set<string>();
+  /** Jobs waiting in the transcription queue (S34), in arrival order. */
+  readonly queue: { jobId: string; priority: number }[] = [];
   signedIn = false;
   /** Every request the UI sent, as `METHOD path`, to assert on what was (not) called. */
   readonly requests: string[] = [];
@@ -44,6 +46,13 @@ export class MockApi {
     private readonly page: Page,
     private readonly options: MockApiOptions,
   ) {}
+
+  /** Adds a pending job to the queue, as an upload would. */
+  queueJob(fileName: string): FakeJob {
+    const job = this.addJob({ fileName, status: 0 });
+    this.queue.push({ jobId: job.id, priority: 0 });
+    return job;
+  }
 
   addJob(job: Partial<FakeJob> & Pick<FakeJob, 'fileName'>): FakeJob {
     const id = job.id ?? `00000000-0000-4000-8000-${String(this.nextId++).padStart(12, '0')}`;
@@ -150,6 +159,20 @@ export class MockApi {
     }
     if (path === '/api/folders' && method === 'GET') return json(route, []);
     if (path === '/api/glossaries' && method === 'GET') return json(route, []);
+    if (path === '/api/queue' && method === 'GET') {
+      // Highest priority first, arrival order among equals (Array.sort is stable)
+      const waiting = [...this.queue].sort((a, b) => b.priority - a.priority);
+      const entries = waiting.map((q, index) => ({
+        jobId: q.jobId,
+        fileName: this.jobs.get(q.jobId)?.fileName,
+        status: 0,
+        position: index + 1,
+        priority: q.priority,
+        estimatedWaitSeconds: null,
+        estimatedProcessingSeconds: null,
+      }));
+      return json(route, { entries, totalWaiting: entries.length });
+    }
 
     if (path === '/api/audio-jobs' && method === 'GET') {
       const tag = url.searchParams.get('tag');
@@ -192,6 +215,18 @@ export class MockApi {
         const speaker = job.speakers.find((s) => s.index === Number(rename[1]));
         if (speaker) speaker.displayName = (request.postDataJSON() as { displayName: string }).displayName;
         return empty(route);
+      }
+      if (sub === 'priority' && method === 'PUT') {
+        const entry = this.queue.find((q) => q.jobId === job.id);
+        if (!entry) return json(route, { title: 'Conflict' }, 409);
+        entry.priority = (request.postDataJSON() as { priority: number }).priority;
+        return empty(route);
+      }
+      if (sub === 'cancel' && method === 'POST') {
+        const index = this.queue.findIndex((q) => q.jobId === job.id);
+        if (index >= 0) this.queue.splice(index, 1);
+        job.status = 4;
+        return empty(route, 202);
       }
       if (sub === 'variants') return json(route, []);
       if (sub === 'tags' && method === 'PUT') {

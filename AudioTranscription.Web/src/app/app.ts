@@ -46,6 +46,11 @@ import { AuthService } from './auth/auth.service';
               </a>
             </li>
             <li>
+              <a routerLink="/queue" routerLinkActive="active" class="rounded-lg">
+                {{ 'app.nav.queue' | transloco }}
+              </a>
+            </li>
+            <li>
               <a routerLink="/glossaries" routerLinkActive="active" class="rounded-lg">
                 {{ 'app.nav.glossaries' | transloco }}
               </a>

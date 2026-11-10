@@ -141,3 +141,19 @@ public record SearchHitDto(
     /// <summary>Set when the hit came from a timed segment (S06); null for a job- or variant-level hit.</summary>
     long? SegmentStartMs
 );
+
+/// <summary>A job in the queue overview (S34): position 0 is the running job, 1 and up are waiting.</summary>
+public record QueueEntryDto(
+    Guid JobId,
+    string FileName,
+    AudioJobStatus Status,
+    int Position,
+    int Priority,
+    // Null while there is no finished job to derive the processing speed from
+    double? EstimatedWaitSeconds,
+    double? EstimatedProcessingSeconds);
+
+/// <summary>The caller's own jobs in the queue; <c>TotalWaiting</c> counts waiting jobs of all users.</summary>
+public record QueueDto(IReadOnlyList<QueueEntryDto> Entries, int TotalWaiting);
+
+public record SetPriorityRequest(int? Priority);

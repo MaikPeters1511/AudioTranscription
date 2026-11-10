@@ -77,6 +77,12 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("QueuedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("RawTranscript")
                         .HasColumnType("nvarchar(max)");
 
@@ -88,6 +94,9 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

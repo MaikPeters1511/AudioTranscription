@@ -242,6 +242,7 @@ app.MapSearchEndpoints();
 app.MapJobShareEndpoints();
 app.MapJobOrganizationEndpoints();
 app.MapGlossaryEndpoints();
+app.MapQueueEndpoints();
 
 app.Run();
 public partial class Program { }

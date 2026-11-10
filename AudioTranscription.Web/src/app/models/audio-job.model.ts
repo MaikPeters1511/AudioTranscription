@@ -205,3 +205,21 @@ export interface Folder {
   name: string;
   parentId?: string | null;
 }
+
+/** A job in the queue overview (S34): position 0 is the running job, 1 and up are waiting. */
+export interface QueueEntry {
+  jobId: string;
+  fileName: string;
+  status: AudioJobStatus;
+  position: number;
+  priority: number;
+  /** Seconds until the job starts; null while no finished job allows an estimate. */
+  estimatedWaitSeconds: number | null;
+  estimatedProcessingSeconds: number | null;
+}
+
+export interface QueueOverview {
+  entries: QueueEntry[];
+  /** Waiting jobs of all users; only the caller's own are listed. */
+  totalWaiting: number;
+}

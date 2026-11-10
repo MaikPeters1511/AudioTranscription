@@ -46,6 +46,12 @@ export const routes: Routes = [
       import('./components/glossary/glossary.component').then((m) => m.GlossaryComponent),
   },
   {
+    path: 'queue',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/queue/queue.component').then((m) => m.QueueComponent),
+  },
+  {
     path: 'account',
     canActivate: [authGuard],
     loadComponent: () =>

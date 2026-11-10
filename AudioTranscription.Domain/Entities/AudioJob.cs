@@ -36,6 +36,12 @@ public class AudioJob
     public Guid? FolderId { get; set; }
     /// <summary>Whisper initial prompt of the glossary chosen at upload (S22); kept when the glossary changes or is deleted.</summary>
     public string? InitialPrompt { get; set; }
+    /// <summary>Queue priority (S34): higher runs first, equal priorities run in the order of <see cref="QueuedAtUtc"/>.</summary>
+    public int Priority { get; set; }
+    /// <summary>When the job was put into the queue (upload or retry); null for jobs that predate S34.</summary>
+    public DateTime? QueuedAtUtc { get; set; }
+    /// <summary>When the worker started processing; with the file size it yields the processing speed used for estimates.</summary>
+    public DateTime? StartedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
 }

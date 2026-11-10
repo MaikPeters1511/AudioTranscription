@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { UploadComponent } from './upload.component';
 import { translocoTesting } from '../../i18n/transloco-testing';
 
@@ -148,6 +148,82 @@ describe('UploadComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('#upload-glossary')).toBeNull();
+  });
+
+  // --- S34: several files at once ------------------------------------------
+
+  function selectFiles(fixture: ReturnType<typeof render>, files: File[]) {
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type=file]');
+    Object.defineProperty(input, 'files', { value: files });
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  }
+
+  const mp3 = (name: string) => new File(['ID3'], name, { type: 'audio/mpeg' });
+
+  it('lets the file picker select several files', () => {
+    const fixture = render();
+
+    expect(fixture.nativeElement.querySelector('input[type=file]').multiple).toBe(true);
+  });
+
+  it('uploads several files as a batch with the chosen settings, three at a time', () => {
+    const fixture = render();
+    choose(fixture, 'upload-model', 'Small');
+
+    selectFiles(fixture, ['a', 'b', 'c', 'd', 'e'].map((n) => mp3(`${n}.mp3`)));
+
+    const posts = http.match('/api/audio-jobs');
+    expect(posts).toHaveLength(3);
+    expect((posts[0].request.body as FormData).get('model')).toBe('Small');
+    expect(fixture.nativeElement.querySelectorAll('[data-testid=batch-item]')).toHaveLength(5);
+    posts.forEach((p) => p.flush({ id: 'job' }));
+  });
+
+  it('keeps the settings fixed while a batch runs', () => {
+    const fixture = render();
+
+    selectFiles(fixture, [mp3('a.mp3'), mp3('b.mp3')]);
+
+    expect(fixture.nativeElement.querySelector('#upload-model').disabled).toBe(true);
+    http.match('/api/audio-jobs').forEach((p) => p.flush({ id: 'job' }));
+  });
+
+  it('takes several dropped files as a batch', () => {
+    const fixture = render();
+    const zone: HTMLElement = fixture.nativeElement.querySelector('.border-dashed');
+    const drop = new Event('drop', { cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: { files: [mp3('a.mp3'), mp3('b.mp3')] } });
+
+    zone.dispatchEvent(drop);
+    fixture.detectChanges();
+
+    expect(http.match('/api/audio-jobs')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('[data-testid=batch-item]')).toHaveLength(2);
+  });
+
+  it('returns to the drop zone after the batch when asked to upload more', () => {
+    const fixture = render();
+    selectFiles(fixture, [mp3('a.mp3'), mp3('b.mp3')]);
+    http.match('/api/audio-jobs').forEach((p) => p.flush({ id: 'job' }));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid=batch-more]').click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid=batch-item]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[type=file]')).not.toBeNull();
+  });
+
+  it('still opens the job when exactly one file is selected', () => {
+    const fixture = render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    selectFiles(fixture, [mp3('a.mp3')]);
+
+    expect(fixture.nativeElement.querySelector('[data-testid=batch-item]')).toBeNull();
+    http.expectOne('/api/audio-jobs').flush({ id: 'job' });
+    expect(navigate).toHaveBeenCalledWith(['/jobs', 'job']);
   });
 });
 

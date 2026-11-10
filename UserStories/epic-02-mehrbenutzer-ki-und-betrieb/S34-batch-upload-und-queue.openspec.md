@@ -30,3 +30,14 @@ Mehrere Dateien sollen auf einmal hochgeladen werden können. Eine Warteschlange
 
 ## 5. Acceptance Criteria (DoD)
 - [ ] 10 Dateien lassen sich in einem Zug hochladen, Reihenfolge und Abbruch funktionieren (E2E).
+
+## 6. Umsetzung
+
+- **Queue:** `TranscriptionQueue` ist jetzt eine In-Memory-Prioritätswarteschlange (höchste Priorität zuerst, bei Gleichstand FIFO nach Ankunft; Priorität wartender Jobs änderbar). Die Priorität steht zusätzlich am Job (`AudioJob.Priority`, Migration `AddQueuePriority`), damit sie einen Neustart überlebt: `JobRecoveryService` reiht nach `QueuedAtUtc` (sonst `CreatedAtUtc`) ein und gibt die Priorität mit.
+- **Neue Felder:** `Priority`, `QueuedAtUtc` (gesetzt bei Upload und Retry) und `StartedAtUtc` (gesetzt vom Worker). Letzteres war in der Spec nicht genannt, wird aber für die Schätzung gebraucht (Verarbeitungszeit = `CompletedAtUtc - StartedAtUtc`).
+- **Endpoints:** `GET /api/queue` und `PUT /api/audio-jobs/{id}/priority` (statt `/api/jobs/...`, passend zu den übrigen Job-Routen; Zugriff über `RequireJobAccess`, fremde Jobs → 404).
+- **Schätzung:** Die Audiolänge wartender Jobs ist erst nach der Transkription bekannt, daher dient die Dateigröße als Näherung: Sekunden pro Byte aus den letzten 20 fertigen Jobs, angewandt auf den Rest des laufenden Jobs und alle Jobs davor. Ohne fertigen Job gibt es keine Schätzung (`null`, in der UI „–“).
+- **Abbruch (S09):** Ein abgebrochener wartender Job bleibt bis zum Überspringen durch den Worker in der Queue, wird in der Übersicht aber ausgeblendet und die Positionen werden neu gezählt.
+- **Frontend:** `<app-upload-batch>` (bis zu 3 parallele Uploads, Fortschritt und Abbrechen je Datei und für alle, Fehler einer Datei stoppen die anderen nicht, `aria-live`-Zusammenfassung); eine einzelne Datei behält den bisherigen Ablauf (Weiterleitung zum Job). Die Seite `/queue` (`QueueComponent`) aktualisiert sich alle 5 Sekunden.
+- **Nicht gemessen/offen:** Der E2E-Test (`batch-queue.mocked.spec.ts`, 10 Dateien, Priorität, Abbruch) läuft nur in der CI, Playwright-Browser sind lokal nicht installiert. Eine Umsortierung per Drag & Drop gibt es nicht; die Priorität wird über Stufen (Niedrig/Normal/Hoch) gewählt.
+

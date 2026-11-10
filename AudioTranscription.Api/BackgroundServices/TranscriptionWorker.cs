@@ -130,6 +130,7 @@ public class TranscriptionWorker : BackgroundService
 
         // Update status to Processing
         job.Status = AudioJobStatus.Processing;
+        job.StartedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
         await NotifyStatusChanged(notifier, job);
 
