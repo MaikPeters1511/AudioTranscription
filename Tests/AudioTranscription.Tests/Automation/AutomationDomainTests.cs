@@ -14,7 +14,7 @@ public class ApiKeyTokenTests
 
         token.Key.Should().StartWith($"at_{token.Prefix}_");
         token.Prefix.Should().MatchRegex("^[A-Za-z0-9]{8}$");
-        token.Key.Split('_').Last().Length.Should().BeGreaterThanOrEqualTo(43);
+        token.Key[$"at_{token.Prefix}_".Length..].Length.Should().BeGreaterThanOrEqualTo(43);
         token.Hash.Should().HaveCount(32);
     }
 

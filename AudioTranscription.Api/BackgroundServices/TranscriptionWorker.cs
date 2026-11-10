@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Automation;
+using AudioTranscription.Domain.Automation;
 using AudioTranscription.Api.Telemetry;
 using AudioTranscription.Infrastructure.Telemetry;
 using AudioTranscription.Api.Dtos;
@@ -166,6 +168,7 @@ public class TranscriptionWorker : BackgroundService
             await dbContext.SaveChangesAsync(cancellationToken);
             Finish(TranscriptionOutcome.Completed, job.DurationSeconds);
             await NotifyStatusChanged(notifier, job);
+            await EnqueueWebhooksAsync(services, job, WebhookEvents.JobCompleted, cancellationToken);
 
             _logger.LogInformation(
                 "Job {JobId} completed: {CharCount} chars, language={Language}, duration={Duration:F1}s",
@@ -197,6 +200,7 @@ public class TranscriptionWorker : BackgroundService
             await dbContext.SaveChangesAsync(cancellationToken);
             Finish(TranscriptionOutcome.Failed, null);
             await NotifyStatusChanged(notifier, job);
+            await EnqueueWebhooksAsync(services, job, WebhookEvents.JobFailed, cancellationToken);
             return AudioJobStatus.Failed;
         }
     }
@@ -234,6 +238,20 @@ public class TranscriptionWorker : BackgroundService
         {
             span?.SetStatus(ActivityStatusCode.Error);
             _logger.LogWarning(ex, "Speaker diarization failed for job {JobId}; segments are kept without a speaker", jobId);
+        }
+    }
+
+    /// <summary>Queues the owner's webhooks (S28). Never fails the job itself.</summary>
+    private async Task EnqueueWebhooksAsync(IServiceProvider services, AudioJob job, string eventName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (services.GetService<IWebhookDispatcher>() is { } dispatcher)
+                await dispatcher.EnqueueAsync(job, eventName, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to queue webhook deliveries for job {JobId}", job.Id);
         }
     }
 

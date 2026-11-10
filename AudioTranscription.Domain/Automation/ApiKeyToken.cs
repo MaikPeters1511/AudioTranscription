@@ -22,14 +22,14 @@ public sealed record ApiKeyToken(string Key, string Prefix, byte[] Hash)
         });
         var secret = Base64Url(RandomNumberGenerator.GetBytes(32));
         var key = $"{Marker}{prefix}_{secret}";
-        return new ApiKeyToken(key, prefix, Hash(key));
+        return new ApiKeyToken(key, prefix, HashOf(key));
     }
 
-    public static byte[] Hash(string key) => SHA256.HashData(Encoding.UTF8.GetBytes(key));
+    public static byte[] HashOf(string key) => SHA256.HashData(Encoding.UTF8.GetBytes(key));
 
     /// <summary>Constant-time comparison of the key's hash with the stored one.</summary>
     public static bool Verify(string key, byte[] storedHash) =>
-        CryptographicOperations.FixedTimeEquals(Hash(key), storedHash);
+        CryptographicOperations.FixedTimeEquals(HashOf(key), storedHash);
 
     /// <summary>Extracts the prefix of a well-formed key; false for anything else (no lookup is made then).</summary>
     public static bool TryParsePrefix(string? key, out string prefix)
@@ -75,6 +75,10 @@ public static class ApiKeyScopes
 
     public static string RequiredFor(string httpMethod) =>
         HttpMethods.IsReadOnly(httpMethod) ? JobsRead : JobsWrite;
+
+    /// <summary>Resumable uploads (tus) also use HEAD to ask for the offset; everything below /api/uploads is writing.</summary>
+    public static string RequiredFor(string path, string httpMethod) =>
+        path.StartsWith("/api/uploads", StringComparison.OrdinalIgnoreCase) ? JobsWrite : RequiredFor(httpMethod);
 
     /// <summary>Keys reach the job API only: never key, webhook, admin or account management.</summary>
     public static bool IsPathAllowed(string path) =>

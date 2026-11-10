@@ -1,4 +1,6 @@
 using AudioTranscription.Api.Access;
+using AudioTranscription.Api.Automation;
+using AudioTranscription.Domain.Automation;
 using AudioTranscription.Api.Telemetry;
 using AudioTranscription.Tests.Telemetry;
 using System.Diagnostics;
@@ -518,6 +520,69 @@ public class TranscriptionWorkerTests : IDisposable
         request!.VariantId.Should().Be(variants.Single().Id);
     }
 
+    // ---- S28: webhooks
+
+    [Fact]
+    public async Task ProcessJob_QueuesWebhooks_ForACompletedJob()
+    {
+        var dispatcher = new Mock<IWebhookDispatcher>();
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, webhookDispatcher: dispatcher.Object);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        dispatcher.Verify(d => d.EnqueueAsync(It.Is<AudioJob>(j => j.Id == jobId && j.Status == AudioJobStatus.Completed),
+            WebhookEvents.JobCompleted, It.IsAny<CancellationToken>()), Times.Once);
+        dispatcher.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessJob_QueuesWebhooks_ForAFailedJob()
+    {
+        var dispatcher = new Mock<IWebhookDispatcher>();
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, webhookDispatcher: dispatcher.Object);
+        TranscriptionThrows(new InvalidOperationException("boom"));
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        dispatcher.Verify(d => d.EnqueueAsync(It.Is<AudioJob>(j => j.Id == jobId && j.Status == AudioJobStatus.Failed),
+            WebhookEvents.JobFailed, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessJob_DoesNotQueueWebhooks_ForACancelledJob()
+    {
+        var dispatcher = new Mock<IWebhookDispatcher>();
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, webhookDispatcher: dispatcher.Object);
+        _transcription
+            .Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<TranscriptionSettings>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .Returns<string, TranscriptionSettings, IProgress<int>?, CancellationToken>((_, _, _, ct) =>
+            {
+                _registry.Cancel(jobId);
+                ct.ThrowIfCancellationRequested();
+                return Task.FromResult(new TranscriptionResult("unreachable", null, null));
+            });
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        dispatcher.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessJob_StaysCompleted_WhenQueueingTheWebhooksFails()
+    {
+        var dispatcher = new Mock<IWebhookDispatcher>();
+        dispatcher.Setup(d => d.EnqueueAsync(It.IsAny<AudioJob>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("db down"));
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, webhookDispatcher: dispatcher.Object);
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        using var scope = _provider!.CreateScope();
+        (await scope.ServiceProvider.GetRequiredService<AppDbContext>().AudioJobs.FindAsync(jobId))!.Status.Should().Be(AudioJobStatus.Completed);
+    }
+
     private async Task<(TranscriptionWorker Worker, Guid JobId, string File)> ArrangeAsync(
         bool deleteAfterTranscription,
         ITempFileStore? store = null,
@@ -528,7 +593,8 @@ public class TranscriptionWorkerTests : IDisposable
         bool diarizationRequested = false,
         string model = "Base",
         string? requestedLanguage = null,
-        string? initialPrompt = null)
+        string? initialPrompt = null,
+        IWebhookDispatcher? webhookDispatcher = null)
     {
         var options = Options.Create(new UploadOptions
         {
@@ -557,6 +623,8 @@ public class TranscriptionWorkerTests : IDisposable
             services.AddSingleton(variantGenerator);
         if (diarizationService is not null)
             services.AddSingleton(diarizationService);
+        if (webhookDispatcher is not null)
+            services.AddSingleton(webhookDispatcher);
         _provider = services.BuildServiceProvider();
         _collector = new MetricsCollector(_provider.GetRequiredService<IMeterFactory>());
 

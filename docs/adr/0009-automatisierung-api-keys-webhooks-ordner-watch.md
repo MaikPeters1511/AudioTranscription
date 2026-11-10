@@ -23,7 +23,7 @@ Skripte, n8n oder Zapier sollen die API ohne Browser-Login nutzen, über ein „
 8. **Ablauf:** optional (`expiresAt`), höchstens 365 Tage. Pro Benutzer höchstens 20 Keys.
 9. **Nie in Logs:** Der Key wird nirgends protokolliert, weder im Handler noch in Fehlermeldungen. Geloggt wird höchstens das Präfix. Ein Test prüft das mit einem aufzeichnenden Logger.
 10. **`LastUsedAt`** wird höchstens einmal pro Minute und Key geschrieben, damit kein Request einen Schreibzugriff auslöst.
-11. **Rate-Limit:** Ein fester Zeitfenster-Limiter begrenzt Requests mit Key pro Präfix (bei ungültigem Format pro Remote-IP), Standard 300 pro Minute (`ApiKeys:RequestsPerMinute`). Zusätzlich begrenzt ein Limiter `POST /api/webhooks/{id}/test` pro Benutzer auf 10 pro Minute. Brute Force gegen das Geheimnis ist wegen 256 Bit nicht praktikabel; das Limit schützt vor Last.
+11. **Rate-Limit:** Ein fester Zeitfenster-Limiter begrenzt Requests mit Key pro Präfix (bei ungültigem Format pro Remote-IP), Standard 300 pro Minute (`ApiKeys:RequestsPerMinute`). Zusätzlich begrenzt ein Limiter `POST /api/webhooks/{id}/test` pro Benutzer auf 10 pro Minute. Der Limiter läuft nach der Authentifizierung (der Webhook-Test-Limiter braucht den Benutzer); ungültige Keys kosten höchstens einen indizierten Lookup nach dem Präfix und werden ebenfalls gezählt. Brute Force gegen das Geheimnis ist wegen 256 Bit nicht praktikabel; das Limit schützt vor Last.
 
 ### 2. Webhooks
 
@@ -38,6 +38,7 @@ Skripte, n8n oder Zapier sollen die API ohne Browser-Login nutzen, über ein „
 5. **Zustellung mit Wiederholung (Outbox):** Beim Abschluss eines Jobs entsteht pro passendem Webhook eine Zeile `WebhookDeliveries` (Status `Pending`). Ein Hintergrunddienst arbeitet fällige Zeilen ab. Das überlebt Neustarts und blockiert die Transkription nie. Erfolg ist jede 2xx-Antwort. Bei allem anderen (Status ≠ 2xx, Timeout, Verbindungsfehler, Weiterleitung) folgt ein neuer Versuch mit wachsendem Abstand: **30 s, 2 min, 10 min, 1 h, 6 h** (insgesamt 6 Versuche, `Webhooks:RetryDelays` / `MaxAttempts`). Danach steht die Zustellung auf `Failed`. `4xx` außer 408/429 wird nicht wiederholt (der Empfänger hat sie ausdrücklich abgelehnt). Das Protokoll (`GET /api/webhooks/{id}/deliveries`) zeigt Ereignis, Status, Versuche, letzten HTTP-Status und eine **kurze, bereinigte** Fehlerklasse (z. B. `timeout`, `http 500`), nie den Antwortkörper des Ziels und nie Stacktraces. Zustellungen werden nach 30 Tagen gelöscht.
 6. **Test:** `POST /api/webhooks/{id}/test` sendet sofort ein `webhook.test` mit genau einem Versuch und liefert die Zustellung zurück.
 7. **Grenzen:** höchstens 10 Webhooks pro Benutzer, Timeout 10 s pro Versuch, Antwortkörper werden nicht gelesen.
+8. **Eigener HTTP-Client:** Webhooks nutzen keinen Factory-Client. Die Standard-Resilienz (eigene Wiederholungen) und die Service-Discovery der ServiceDefaults sollen hier nicht greifen: Wiederholungen gehören ins Zustellungsprotokoll, und das Ziel muss genau das geprüfte sein.
 
 ### 3. SSRF-Schutz für Webhook-Ziele
 
