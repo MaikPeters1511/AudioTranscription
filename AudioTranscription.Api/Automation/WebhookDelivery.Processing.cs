@@ -121,6 +121,12 @@ public class WebhookDeliveryProcessor(
         {
             result = await sender.SendAsync(hook, secrets.Unprotect(hook.ProtectedSecret), delivery, cancellationToken);
         }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            // The Data Protection keys changed (not persisted?): retrying cannot help, the operator has to act
+            logger.LogError("Webhook delivery {DeliveryId}: the signing secret cannot be decrypted; check the Data Protection key storage", delivery.Id);
+            result = new WebhookSendResult(null, "secret unreadable", Permanent: true);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Only the type is logged: the message may carry the target address

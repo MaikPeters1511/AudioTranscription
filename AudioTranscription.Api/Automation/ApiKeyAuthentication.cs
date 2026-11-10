@@ -23,6 +23,8 @@ public static class ApiKeyAuthentication
 {
     public const string Scheme = "ApiKey";
     public const string HeaderName = "X-Api-Key";
+    /// <summary>Claim with the id of the key that authenticated the request.</summary>
+    public const string KeyIdClaim = "api_key_id";
 
     /// <summary>
     /// The key of the request: <c>X-Api-Key</c>, or <c>Authorization: Bearer at_…</c>. Other bearer tokens (ASP.NET Core
@@ -90,6 +92,7 @@ public class ApiKeyAuthenticationHandler(
         {
             new(ClaimTypes.NameIdentifier, stored.OwnerId),
             new(ClaimTypes.Name, user.UserName ?? stored.OwnerId),
+            new(ApiKeyAuthentication.KeyIdClaim, stored.Id.ToString()),
         };
         claims.AddRange(stored.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => new Claim(ApiKeyScopes.ClaimType, s)));
         // No role claims: a key never acts as an administrator

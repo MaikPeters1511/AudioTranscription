@@ -30,6 +30,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 📑 **Automatische Kapitel** — das lokale Sprachmodell gliedert lange Aufnahmen in Abschnitte mit Überschrift und Kurzzusammenfassung (Map-Reduce über Fenster, Grenzen auf Segmentgrenzen); Marker auf der Zeitleiste und Kapitelliste im Player, Sprung per Klick oder Tastatur, Kapitel umbenennen und löschen
 - 📝 **Protokoll-Vorlagen** — strukturierte Nachbearbeitung mit Vorlagen (eingebaut: Besprechungsprotokoll, Entscheidungsliste, Aufgaben mit Verantwortlichen; eigene Vorlagen durch Admins): das Ergebnis wird gegen ein JSON-Schema geprüft und als Markdown gerendert, Verantwortliche erscheinen nur für benannte Sprecher
 - 🧠 **Semantische Suche** — Suche in natürlicher Sprache über Embeddings in Qdrant („Wann ging es ums Geld?“ findet die Budgetrunde): Modi Wörtlich, Bedeutung und Kombiniert (Reciprocal Rank Fusion mit der Volltextsuche); Modell lokal über Ollama (`bge-m3`), OpenAI nur per ausdrücklicher Konfiguration; Berechtigungen serverseitig erzwungen (siehe [ADR 0010](docs/adr/0010-semantische-suche-embeddings.md))
+- 🤖 **Automatisierung** — API-Keys für Skripte (gehasht gespeichert, Scopes, Ablauf, jederzeit entziehbar), signierte Webhooks mit Wiederholung und Zustellungsprotokoll für n8n/Zapier und ein überwachter Ordner („Datei ablegen, Transkript erhalten“); SSRF-geschützt (siehe [ADR 0009](docs/adr/0009-automatisierung-api-keys-webhooks-ordner-watch.md) und [Automatisierung](#-automatisierung))
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -223,6 +224,106 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
 
 `Upload:MaxFileSizeBytes` bestimmt außer der serverseitigen Prüfung auch die Kestrel- (`MaxRequestBodySize`) und Formular-Limits (`FormOptions.MultipartBodyLengthLimit`, siehe `Program.cs`) — es genügt, hier einen Wert zu ändern. Videos (MP4/WebM/MKV/MOV) werden akzeptiert, aber nur ihre Tonspur wird transkribiert (ffmpeg `-vn`). Beim docker-compose-Setup wird derselbe Wert zusätzlich für nginx' `client_max_body_size` gebraucht (sonst würde nginx große Uploads schon vor der API abweisen); dort steuert die Umgebungsvariable `UPLOAD_MAX_FILE_SIZE_MB` (Default 500) beide Seiten gemeinsam.
 
+## 🤖 Automatisierung
+
+Drei Wege, die Anwendung ohne Browser zu nutzen. Die Entscheidungen dahinter stehen in [ADR 0009](docs/adr/0009-automatisierung-api-keys-webhooks-ordner-watch.md).
+
+### API-Keys für Skripte
+
+Unter **API-Keys** in der Anwendung legst du einen Key an (Name, Berechtigungen, Ablauf: 30/90/365 Tage oder nie). Der Key wird **nur einmal** angezeigt und danach nur als Hash gespeichert; verlierst du ihn, entziehst du ihn und legst einen neuen an.
+
+| Berechtigung | erlaubt |
+|---|---|
+| `jobs:read` | Aufträge, Transkripte, Untertitel, Exporte und die Suche lesen (`GET`) |
+| `jobs:write` | Aufträge hochladen, ändern, abbrechen und löschen (`POST`/`PUT`/`DELETE`, tus-Uploads) |
+
+Ein Key sieht genau die Aufträge seines Besitzers und erreicht nur `/api/audio-jobs`, `/api/uploads` und `/api/search`. Key-, Webhook-, Admin- und Konto-Verwaltung bleiben der Browser-Sitzung vorbehalten (`403` für Keys). Ungültige, abgelaufene oder entzogene Keys sowie Keys deaktivierter Benutzer antworten mit `401`, fehlende Berechtigung mit `403`, zu viele Anfragen (Standard 300 pro Minute und Key, `ApiKeys:RequestsPerMinute`) mit `429`.
+
+```bash
+# Aufträge auflisten (Bearer oder Header X-Api-Key)
+curl -H "Authorization: Bearer at_AbCdEfGh_…" https://transkription.example.com/api/audio-jobs
+
+# Datei hochladen (jobs:write); language ist optional
+curl -H "X-Api-Key: at_AbCdEfGh_…" \
+     -F "file=@besprechung.mp3" -F "language=de" \
+     https://transkription.example.com/api/audio-jobs
+
+# Transkript als Markdown holen (jobs:read)
+curl -H "Authorization: Bearer at_AbCdEfGh_…" -o protokoll.md \
+     "https://transkription.example.com/api/audio-jobs/<id>/export?format=md"
+```
+
+Den Key nie in URLs, Skripte im Repository oder Logs schreiben; als Umgebungsvariable oder Secret des Werkzeugs ablegen.
+
+### Webhooks (n8n, Zapier, …)
+
+Unter **Webhooks** hinterlegst du eine **öffentliche https-Adresse** und wählst die Ereignisse `job.completed` (Transkript fertig) und `job.failed`. Das Signaturgeheimnis (`whsec_…`) wird einmal angezeigt. Mit **Testen** sendest du sofort ein signiertes `webhook.test`; der Verlauf zeigt Status, Versuche und den HTTP-Status jeder Zustellung.
+
+Jeder Aufruf ist ein `POST` mit JSON ohne Transkript und ohne Fehlertexte (Datenschutz); den Inhalt holt der Empfänger bei Bedarf mit einem API-Key:
+
+```json
+{
+  "event": "job.completed",
+  "deliveryId": "6f1c2a52-…",
+  "createdAt": "2026-11-10T12:00:00Z",
+  "data": { "jobId": "…", "fileName": "besprechung.mp3", "status": "Completed",
+            "language": "de", "durationSeconds": 1832.4, "completedAt": "2026-11-10T11:59:58Z" }
+}
+```
+
+| Header | Inhalt |
+|---|---|
+| `X-Webhook-Id` | ID der Zustellung, bei allen Wiederholungen gleich (Duplikate erkennen) |
+| `X-Webhook-Event` | Ereignisname |
+| `X-Webhook-Timestamp` | Unix-Sekunden |
+| `X-Webhook-Signature` | `v1=` + Hex-HMAC-SHA256 über `"<Timestamp>.<Body>"` mit dem Geheimnis |
+
+**Signatur prüfen** (Node.js; den rohen Body verwenden, nicht den geparsten):
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function isValid(secret, headers, rawBody) {
+  const timestamp = headers['x-webhook-timestamp'];
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false; // Replay-Schutz
+  const expected = 'v1=' + createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex');
+  const given = headers['x-webhook-signature'] ?? '';
+  return given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+```
+
+Python: `hmac.new(secret.encode(), f"{timestamp}.{body}".encode(), hashlib.sha256).hexdigest()` und mit `hmac.compare_digest` gegen den Header ohne `v1=` vergleichen.
+
+**n8n:** Einen *Webhook*-Trigger (Methode `POST`, „Raw Body“ aktivieren) anlegen, dessen **Production URL** hier eintragen und mit einem *Crypto*-Knoten (HMAC, SHA256, Hex) oder einem *Code*-Knoten die Signatur wie oben prüfen. Danach holt ein *HTTP Request*-Knoten mit dem API-Key (`Authorization: Bearer …`) den Export unter `/api/audio-jobs/{jobId}/export?format=md`. **Zapier:** *Webhooks by Zapier → Catch Hook* genauso; die Signaturprüfung geht dort im *Code*-Schritt.
+
+**Zustellung und Wiederholung:** Jede 2xx-Antwort gilt als Erfolg. Bei Timeout (10 s), Verbindungsfehler, `5xx`, `408`, `429` und Weiterleitungen folgt ein neuer Versuch nach **30 s, 2 min, 10 min, 1 h und 6 h** (6 Versuche insgesamt, danach „Fehlgeschlagen“); andere `4xx` werden nicht wiederholt. Die Zustellungen liegen in der Datenbank und überstehen Neustarts; mindestens einmal heißt auch, dass ein Empfänger gelegentlich dieselbe `X-Webhook-Id` zweimal sieht. Zustellungen werden nach 30 Tagen gelöscht.
+
+**SSRF-Schutz:** Nur `https` (ohne Zugangsdaten in der URL), keine Ziele in Loopback-, privaten, Link-Local- (Cloud-Metadaten `169.254.169.254`) oder CGNAT-Netzen, auch nicht über einen DNS-Namen, der dorthin zeigt (die Adresse wird beim Verbinden geprüft), und **keine Weiterleitungen**. Liegt dein n8n im selben Docker-Netz, erlaubt der Betreiber das ausdrücklich mit `Webhooks:AllowPrivateTargets=true` (docker-compose: `WEBHOOKS_ALLOW_PRIVATE_TARGETS=true`); `Webhooks:AllowHttp=true` erlaubt zusätzlich unverschlüsseltes `http`.
+
+**Wichtig für den Betrieb:** Die Geheimnisse sind mit ASP.NET Core Data Protection verschlüsselt. Die Schlüssel müssen einen Neustart überleben (`DataProtection:KeysPath` auf einen persistenten Ordner; docker-compose macht das mit dem Volume `api-dataprotection`), sonst sind Geheimnisse und Anmeldesitzungen danach ungültig.
+
+### Ordner-Watch („Datei ablegen, Transkript erhalten“)
+
+Der Betreiber (nicht die Benutzer) legt in der Konfiguration überwachte Ordner fest; jede abgelegte Datei wird ein Auftrag des Zielbenutzers:
+
+```json
+"Watch": {
+  "PollIntervalSeconds": 10,
+  "StableSeconds": 5,
+  "Folders": [
+    { "Path": "/data/inbox", "User": "anna@example.com", "Model": "Base", "Language": "de" }
+  ]
+}
+```
+
+(Als Umgebungsvariablen: `Watch__Folders__0__Path`, `Watch__Folders__0__User`, …; `Model` und `Language` sind optional.)
+
+- Gelesen werden nur Dateien **direkt im Ordner**, keine Unterordner, keine versteckten Dateien (Punkt am Anfang) und **keine Symlinks**. Erlaubt sind `mp3 wav m4a ogg webm mp4 mkv mov`; der Inhalt wird wie beim Upload an den Magic Bytes geprüft, das Größenlimit ist `Upload:MaxFileSizeBytes`.
+- Eine Datei wird erst übernommen, wenn sie `StableSeconds` unverändert ist (halb kopierte Dateien werden nicht gelesen).
+- Nach dem Anlegen des Auftrags wird das Original nach `processed/` **verschoben**, abgelehnte Dateien (falscher Typ, zu groß, kein Audio) nach `rejected/`. Beides sind Unterordner des überwachten Ordners.
+- **Neustart-sicher:** Die Auftrags-ID wird aus Ordner, Dateiname, Größe und Änderungszeit abgeleitet. Bricht der Dienst zwischen Anlegen und Verschieben ab, erkennt der nächste Durchlauf den vorhandenen Auftrag und verschiebt die Datei nur noch.
+- Gibt es den Zielbenutzer nicht oder ist er deaktiviert, bleibt der Ordner unberührt (Warnung im Log). Pro Ordner genau ein Benutzer; Ordner dürfen sich nicht überlappen. Der Dienst gehört nur auf **eine** API-Instanz.
+
 ## 🎛️ Whisper-Modelle
 
 Beim Upload wählt man ein Modell aus `Whisper:AllowedModels` (Standard: `Whisper:DefaultModel`) und die Sprache der Aufnahme aus `Whisper:SupportedLanguages` oder „Automatisch erkennen“. Eine vorgegebene Sprache verbessert die Erkennung, vor allem bei kurzen oder nicht-englischen Aufnahmen.
@@ -259,7 +360,7 @@ Whisper.net kann Modelle über CUDA (NVIDIA) oder CoreML (Apple Silicon) statt a
 
 ## 📡 API-Übersicht
 
-Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `401`.
+Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `401`. Skripte können sich statt mit der Browser-Sitzung mit einem [API-Key](#api-keys-für-skripte) anmelden (`Authorization: Bearer at_…` oder Header `X-Api-Key`); `GET /openapi/v1.json` beschreibt beide Schemata (`SessionCookie`, `ApiKey`, `BearerApiKey`).
 
 **OpenAPI-Spezifikation:** `GET /openapi/v1.json` liefert die vollständige, maschinenlesbare Beschreibung aller Endpunkte (ASP.NET Cores eingebaute `AddOpenApi`/`MapOpenApi`-Unterstützung), ebenfalls hinter der Standard-Auth-Policy.
 
@@ -302,6 +403,12 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/search/modes` | Ob die semantische und kombinierte Suche nutzbar sind (`{ semantic, indexStatus }`) |
 | `POST` | `/api/admin/search/reindex` | Admin: Index neu aufbauen (löscht die Collection, indexiert alle abgeschlossenen Jobs mit dem konfigurierten Modell); `409`, solange ein Neuaufbau läuft |
 | `GET` | `/api/admin/search/status` | Admin: Zustand des Index (`NotConfigured`, `NotBuilt`, `Ready`, `Stale`), Modell und Fortschritt eines laufenden Neuaufbaus |
+| `GET` `POST` | `/api/api-keys` | Eigene API-Keys auflisten (nie der Key selbst) / anlegen (`{ name, scopes, expiresAt? }`, höchstens 20, Ablauf höchstens 365 Tage; der Key steht nur in dieser Antwort). Nur mit Browser-Sitzung, nicht mit einem Key |
+| `DELETE` | `/api/api-keys/{id}` | Key entziehen (wirkt sofort); fremde Keys `404` |
+| `GET` `POST` | `/api/webhooks` | Eigene Webhooks auflisten / anlegen (`{ url, events }`, höchstens 10; URL nur öffentliches https, sonst `400`; das Signaturgeheimnis steht nur in dieser Antwort) |
+| `PUT` `DELETE` | `/api/webhooks/{id}` | Webhook ändern (`{ url, events, isActive? }`, Geheimnis bleibt) / löschen samt Zustellungsprotokoll; fremde `404` |
+| `POST` | `/api/webhooks/{id}/test` | Signiertes `webhook.test` sofort mit einem Versuch senden, liefert die Zustellung zurück; 10 pro Minute und Benutzer, danach `429` |
+| `GET` | `/api/webhooks/{id}/deliveries` | Zustellungsprotokoll (die letzten 100, neueste zuerst): Ereignis, Status `pending`/`succeeded`/`failed`, Versuche, HTTP-Status, kurze Fehlerklasse |
 | `WS` | `/hubs/transcription` | SignalR-Hub für Live-Statusupdates (`JobCreated`, `JobStatusChanged`, `JobProgress`, `VariantCompleted`, `JobDeleted`) |
 
 ## 🛠️ Tech-Stack

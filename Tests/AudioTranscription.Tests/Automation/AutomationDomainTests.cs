@@ -236,6 +236,12 @@ public class WebhookTargetPolicyTests
     [InlineData("::ffff:10.1.2.3")]
     [InlineData("::ffff:169.254.169.254")]
     [InlineData("ff02::1")]
+    [InlineData("64:ff9b::7f00:1")]          // NAT64 prefix with 127.0.0.1 inside
+    [InlineData("64:ff9b::a00:1")]           // NAT64 with 10.0.0.1
+    [InlineData("64:ff9b::a9fe:a9fe")]       // NAT64 with 169.254.169.254
+    [InlineData("2002:7f00:1::")]            // 6to4 with 127.0.0.1
+    [InlineData("2002:a00:1::1")]            // 6to4 with 10.0.0.1
+    [InlineData("::7f00:1")]                 // IPv4-compatible 127.0.0.1
     public void IsBlockedAddress_BlocksInternalAddresses(string address)
     {
         WebhookTargetPolicy.IsBlockedAddress(IPAddress.Parse(address), allowPrivate: false).Should().BeTrue();
@@ -249,6 +255,8 @@ public class WebhookTargetPolicyTests
     [InlineData("100.63.255.255")]
     [InlineData("2606:4700:4700::1111")]
     [InlineData("::ffff:8.8.8.8")]
+    [InlineData("64:ff9b::808:808")]         // NAT64 with 8.8.8.8
+    [InlineData("2002:808:808::1")]          // 6to4 with 8.8.8.8
     public void IsBlockedAddress_AllowsPublicAddresses(string address)
     {
         WebhookTargetPolicy.IsBlockedAddress(IPAddress.Parse(address), allowPrivate: false).Should().BeFalse();

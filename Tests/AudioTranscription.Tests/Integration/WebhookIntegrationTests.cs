@@ -429,6 +429,26 @@ public class WebhookIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public async Task ASecretThatCannotBeDecrypted_FailsTheDeliveryForGood_WithoutSending()
+    {
+        await CreateAsync(_host.Alice);
+        var jobId = await _host.AddJobAsync(_host.Alice);
+        await _host.WithDbAsync(async db =>
+        {
+            (await db.Webhooks.SingleAsync()).ProtectedSecret = "not-a-protected-payload";
+            await db.SaveChangesAsync();
+        });
+        await EnqueueAsync(jobId, WebhookEvents.JobCompleted);
+
+        await ProcessDueAsync();
+
+        _host.Receiver.Requests.Should().BeEmpty();
+        var delivery = await _host.WithDbAsync(db => db.WebhookDeliveries.SingleAsync());
+        delivery.Status.Should().Be(WebhookDeliveryStatus.Failed);
+        delivery.LastError.Should().Be("secret unreadable");
+    }
+
+    [Fact]
     public async Task OldDeliveries_AreRemoved()
     {
         var created = await CreateAsync(_host.Alice);

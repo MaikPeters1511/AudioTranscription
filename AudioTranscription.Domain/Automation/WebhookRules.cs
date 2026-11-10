@@ -135,12 +135,30 @@ public static class WebhookTargetPolicy
         {
             if (address.IsIPv6Multicast || address.IsIPv6LinkLocal || address.IsIPv6SiteLocal) return true;
             if (address.Equals(IPAddress.IPv6Any)) return true;
+            var b = address.GetAddressBytes();
+            // An IPv4 address hidden in an IPv6 one (NAT64 64:ff9b::/96, 6to4 2002::/16, IPv4-compatible ::a.b.c.d)
+            // is judged like the IPv4 address itself
+            if (EmbeddedIPv4(b) is { } embedded)
+                return IsBlockedAddress(embedded, allowPrivate);
             if (allowPrivate) return false;
             if (IPAddress.IsLoopback(address)) return true;
-            var b = address.GetAddressBytes();
             return (b[0] & 0xFE) == 0xFC;                                 // fc00::/7 unique local
         }
 
         return true; // unknown address family
+    }
+
+    private static IPAddress? EmbeddedIPv4(byte[] b)
+    {
+        // 64:ff9b::/96
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xFF && b[3] == 0x9B && b[4..12].All(x => x == 0))
+            return new IPAddress(b[12..16]);
+        // 2002::/16: the IPv4 address follows the prefix
+        if (b[0] == 0x20 && b[1] == 0x02)
+            return new IPAddress(b[2..6]);
+        // ::a.b.c.d (but not :: and ::1, which are handled as such)
+        if (b[..12].All(x => x == 0) && !(b[12..15].All(x => x == 0) && b[15] <= 1))
+            return new IPAddress(b[12..16]);
+        return null;
     }
 }

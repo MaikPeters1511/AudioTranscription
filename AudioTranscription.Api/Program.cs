@@ -17,6 +17,7 @@ using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,11 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 }
 
 // Automation (S28, ADR 0009): API keys, webhooks, watched folders
+// Webhook secrets are encrypted with Data Protection. Without persisted keys they (and cookie sessions) do not survive
+// a restart of a container, so the operator can point DataProtection:KeysPath to a persistent folder.
+if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } dataProtectionKeysPath)
+    builder.Services.AddDataProtection().SetApplicationName("AudioTranscription")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
 builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.SectionName));
 builder.Services.AddSingleton<WebhookSecretProtector>();
@@ -112,14 +118,14 @@ if (watchSettings is { Enabled: true, Folders.Count: > 0 })
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // Requests with an API key: per key (per address if the key is malformed). Browser sessions are not limited here.
+    // Requests with an API key: per authenticated key. Requests whose key was refused count per remote address, so
+    // someone who knows only a key's public prefix cannot use up that key's budget.
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
-        var key = ApiKeyAuthentication.ReadKey(context.Request);
-        if (key is null)
+        if (!ApiKeyAuthentication.IsApiKeyRequest(context.Request))
             return RateLimitPartition.GetNoLimiter("session");
-        var partition = AudioTranscription.Domain.Automation.ApiKeyToken.TryParsePrefix(key, out var prefix)
-            ? "key:" + prefix
+        var partition = context.User.FindFirst(ApiKeyAuthentication.KeyIdClaim)?.Value is { } keyId
+            ? "key:" + keyId
             : "ip:" + context.Connection.RemoteIpAddress;
         var perMinute = Math.Max(1, context.RequestServices.GetRequiredService<IOptions<ApiKeyOptions>>().Value.RequestsPerMinute);
         return RateLimitPartition.GetFixedWindowLimiter(partition, _ => new FixedWindowRateLimiterOptions
