@@ -3,6 +3,7 @@ import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import {
   AudioJob,
   AudioJobListItem,
+  Tag,
   JobShare,
   AudioJobStatus,
   CreateAudioJobResponse,
@@ -27,6 +28,13 @@ function upsertVariant(variants: TranscriptVariant[], variant: TranscriptVariant
   return [...variants, variant];
 }
 
+/** Filters of the job list (S20); all given conditions apply together. */
+export interface JobFilters {
+  tag?: string;
+  folder?: string;
+  favorite?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AudioJobService {
   private http = inject(HttpClient);
@@ -48,14 +56,26 @@ export class AudioJobService {
     Math.ceil(this.totalCount() / this.pageSize())
   );
 
+  /** Narrows the job list to the user's tag, folder and/or favorites (S20). */
+  readonly filters = signal<JobFilters>({});
+
+  setFilters(filters: JobFilters): void {
+    this.filters.set(filters);
+    this.loadJobs(1);
+  }
+
   loadJobs(page = 1): void {
     this.loading.set(true);
     this.currentPage.set(page);
 
+    const { tag, folder, favorite } = this.filters();
+    const params: Record<string, string> = { page: page.toString(), pageSize: this.pageSize().toString() };
+    if (tag) params['tag'] = tag;
+    if (folder) params['folder'] = folder;
+    if (favorite) params['favorite'] = 'true';
+
     this.http
-      .get<PaginatedResult<AudioJobListItem>>(this.baseUrl, {
-        params: { page: page.toString(), pageSize: this.pageSize().toString() },
-      })
+      .get<PaginatedResult<AudioJobListItem>>(this.baseUrl, { params })
       .subscribe({
         next: (result) => {
           this.jobs.set(result.items);
@@ -297,6 +317,9 @@ export class AudioJobService {
           ...job,
           isOwner: job.isOwner ?? existing.isOwner,
           sharedByEmail: job.sharedByEmail ?? existing.sharedByEmail,
+          tags: job.tags ?? existing.tags,
+          isFavorite: job.isFavorite ?? existing.isFavorite,
+          folderId: job.folderId ?? existing.folderId,
         };
         return updated;
       }
@@ -308,6 +331,14 @@ export class AudioJobService {
   async setRetentionLock(id: string, locked: boolean): Promise<void> {
     await firstValueFrom(this.http.put(`${this.baseUrl}/${id}/retention-lock`, { locked }));
     await this.refreshJob(id);
+  }
+
+  /** Applies a change the user just made (tags, favorite, folder) to the list and the open job. */
+  patchJob(id: string, patch: Partial<Pick<AudioJob, 'tags' | 'isFavorite' | 'folderId'>>): void {
+    this.jobs.update((current) => current.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+    if (this.selectedJob()?.id === id) {
+      this.selectedJob.update((job) => (job ? { ...job, ...patch } : job));
+    }
   }
 
   // --- sharing (S19) -------------------------------------------------------------

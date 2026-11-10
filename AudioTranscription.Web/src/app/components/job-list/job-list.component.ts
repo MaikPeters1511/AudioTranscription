@@ -2,8 +2,9 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
-import { AudioJobService } from '../../services/audio-job.service';
-import { AudioJobStatus } from '../../models/audio-job.model';
+import { AudioJobService, JobFilters } from '../../services/audio-job.service';
+import { OrganizeService } from '../../services/organize.service';
+import { AudioJob, AudioJobListItem, AudioJobStatus } from '../../models/audio-job.model';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { TranslocoPipe } from '@jsverse/transloco';
@@ -55,6 +56,41 @@ import { PageTitleService } from '../../i18n/page-title.service';
         </div>
       </div>
 
+      <!-- Filters (S20): favorites, one tag, one folder; all given conditions apply together -->
+      <div class="flex flex-wrap items-end gap-3 mb-4" role="group" [attr.aria-label]="'jobList.filter.label' | transloco">
+        <button
+          type="button"
+          class="btn btn-sm"
+          data-testid="filter-favorites"
+          [class.btn-warning]="jobService.filters().favorite"
+          [attr.aria-pressed]="!!jobService.filters().favorite"
+          (click)="toggleFavorites()"
+        >
+          <span aria-hidden="true">★</span> {{ 'jobList.filter.favorites' | transloco }}
+        </button>
+        <div class="flex flex-col gap-1">
+          <label for="filter-tag" class="text-xs font-medium">{{ 'jobList.filter.tag' | transloco }}</label>
+          <select id="filter-tag" class="select select-sm" data-testid="filter-tag" (change)="setTag($any($event.target).value)">
+            <option value="" [selected]="!jobService.filters().tag">{{ 'jobList.filter.all' | transloco }}</option>
+            @for (tag of organize.tags(); track tag.id) {
+              <option [value]="tag.id" [selected]="tag.id === jobService.filters().tag">{{ tag.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="filter-folder" class="text-xs font-medium">{{ 'jobList.filter.folder' | transloco }}</label>
+          <select id="filter-folder" class="select select-sm" data-testid="filter-folder" (change)="setFolder($any($event.target).value)">
+            <option value="" [selected]="!jobService.filters().folder">{{ 'jobList.filter.all' | transloco }}</option>
+            @for (folder of organize.folderOptions(); track folder.id) {
+              <option [value]="folder.id" [selected]="folder.id === jobService.filters().folder">{{ indent(folder.depth) }}{{ folder.name }}</option>
+            }
+          </select>
+        </div>
+        @if (hasFilters()) {
+          <button type="button" class="btn btn-ghost btn-sm" data-testid="filter-reset" (click)="resetFilters()">{{ 'jobList.filter.reset' | transloco }}</button>
+        }
+      </div>
+
       @if (jobService.loading()) {
         <!-- Skeleton Loading -->
         <div class="space-y-3">
@@ -68,8 +104,13 @@ import { PageTitleService } from '../../i18n/page-title.service';
           <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
           </svg>
-          <p class="mt-4 text-lg text-base-content/50">{{ 'jobList.empty' | transloco }}</p>
-          <a routerLink="/upload" class="btn btn-primary mt-4">{{ 'jobList.emptyCta' | transloco }}</a>
+          @if (hasFilters()) {
+            <p class="mt-4 text-lg text-base-content/50">{{ 'jobList.filter.noMatch' | transloco }}</p>
+            <button type="button" class="btn mt-4" (click)="resetFilters()">{{ 'jobList.filter.reset' | transloco }}</button>
+          } @else {
+            <p class="mt-4 text-lg text-base-content/50">{{ 'jobList.empty' | transloco }}</p>
+            <a routerLink="/upload" class="btn btn-primary mt-4">{{ 'jobList.emptyCta' | transloco }}</a>
+          }
         </div>
       } @else {
         <!-- Job Table (desktop) -->
@@ -90,8 +131,26 @@ import { PageTitleService } from '../../i18n/page-title.service';
             <tbody [@listAnimation]="jobService.jobs().length">
               @for (job of jobService.jobs(); track job.id) {
                 <tr class="hover:bg-base-200/50 cursor-pointer" [routerLink]="['/jobs', job.id]">
-                  <td class="font-medium max-w-[200px] truncate">
-                    {{ job.fileName }}
+                  <td class="font-medium max-w-[240px]">
+                    <span class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs btn-circle"
+                        data-testid="star"
+                        [attr.aria-pressed]="!!job.isFavorite"
+                        [attr.aria-label]="(job.isFavorite ? 'jobList.favorite.remove' : 'jobList.favorite.add') | transloco: { fileName: job.fileName }"
+                        (click)="toggleFavorite($event, job)"
+                        (keydown)="$event.stopPropagation()"
+                      ><span aria-hidden="true">{{ job.isFavorite ? '★' : '☆' }}</span></button>
+                      <span class="truncate">{{ job.fileName }}</span>
+                    </span>
+                    @if ((job.tags ?? []).length > 0) {
+                      <span class="flex flex-wrap gap-1 mt-1">
+                        @for (tag of job.tags; track tag.id) {
+                          <span class="badge badge-outline badge-xs" data-testid="tag" [style.border-color]="tag.color">{{ tag.name }}</span>
+                        }
+                      </span>
+                    }
                     @if (job.isOwner === false && job.sharedByEmail) {
                       <span class="block text-xs font-normal text-base-content/60 truncate">{{ 'jobList.sharedBy' | transloco: { email: job.sharedByEmail } }}</span>
                     }
@@ -136,7 +195,24 @@ import { PageTitleService } from '../../i18n/page-title.service';
               <div class="card-body p-4 gap-2">
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
-                    <p class="font-medium truncate">{{ job.fileName }}</p>
+                    <p class="font-medium truncate flex items-center gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs btn-circle shrink-0"
+                        data-testid="star-mobile"
+                        [attr.aria-pressed]="!!job.isFavorite"
+                        [attr.aria-label]="(job.isFavorite ? 'jobList.favorite.remove' : 'jobList.favorite.add') | transloco: { fileName: job.fileName }"
+                        (click)="toggleFavorite($event, job)"
+                      ><span aria-hidden="true">{{ job.isFavorite ? '★' : '☆' }}</span></button>
+                      <span class="truncate">{{ job.fileName }}</span>
+                    </p>
+                    @if ((job.tags ?? []).length > 0) {
+                      <p class="flex flex-wrap gap-1 mt-1">
+                        @for (tag of job.tags; track tag.id) {
+                          <span class="badge badge-outline badge-xs" [style.border-color]="tag.color">{{ tag.name }}</span>
+                        }
+                      </p>
+                    }
                     @if (job.isOwner === false && job.sharedByEmail) {
                       <p class="text-xs text-base-content/60 truncate">{{ 'jobList.sharedBy' | transloco: { email: job.sharedByEmail } }}</p>
                     }
@@ -197,6 +273,7 @@ import { PageTitleService } from '../../i18n/page-title.service';
 })
 export class JobListComponent implements OnInit {
   jobService = inject(AudioJobService);
+  readonly organize = inject(OrganizeService);
   private pageTitle = inject(PageTitleService);
   AudioJobStatus = AudioJobStatus;
 
@@ -208,6 +285,48 @@ export class JobListComponent implements OnInit {
   ngOnInit(): void {
     this.pageTitle.set('jobList.pageTitle');
     this.jobService.loadJobs();
+    // The filters need the user's tags and folders; the list works without them if loading fails
+    this.organize.load().catch(() => undefined);
+  }
+
+  hasFilters(): boolean {
+    const { tag, folder, favorite } = this.jobService.filters();
+    return !!tag || !!folder || !!favorite;
+  }
+
+  indent(depth: number): string {
+    return '\u00a0\u00a0'.repeat(depth);
+  }
+
+  toggleFavorites(): void {
+    this.applyFilters({ favorite: !this.jobService.filters().favorite });
+  }
+
+  setTag(tag: string): void {
+    this.applyFilters({ tag: tag || undefined });
+  }
+
+  setFolder(folder: string): void {
+    this.applyFilters({ folder: folder || undefined });
+  }
+
+  resetFilters(): void {
+    this.jobService.setFilters({});
+  }
+
+  private applyFilters(change: Partial<JobFilters>): void {
+    this.jobService.setFilters({ ...this.jobService.filters(), ...change });
+  }
+
+  /** The row is a link: the star must not open the job. */
+  async toggleFavorite(event: Event, job: AudioJobListItem): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      await this.organize.setFavorite(job.id, !job.isFavorite);
+    } catch {
+      // The star keeps showing the truth because nothing was changed locally
+    }
   }
 
   refresh(): void {

@@ -4,6 +4,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { JobActionsComponent } from '../job-actions/job-actions.component';
 import { JobShareComponent } from '../job-share/job-share.component';
+import { JobOrganizeComponent } from '../job-organize/job-organize.component';
+import { OrganizeService } from '../../services/organize.service';
 import { TranscriptPlayerComponent } from '../transcript-player/transcript-player.component';
 import { JobProgressComponent } from '../job-progress/job-progress.component';
 import { AudioJobService } from '../../services/audio-job.service';
@@ -16,7 +18,7 @@ import { languageName } from '../../i18n/language-names';
 @Component({
   selector: 'app-job-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobShareComponent, TranscriptPlayerComponent, JobProgressComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, JobActionsComponent, JobShareComponent, JobOrganizeComponent, TranscriptPlayerComponent, JobProgressComponent],
   template: `
     <div class="max-w-4xl mx-auto">
       <a routerLink="/jobs" class="btn btn-ghost btn-sm mb-4 gap-1">
@@ -61,6 +63,8 @@ import { languageName } from '../../i18n/language-names';
             </div>
           </div>
         </div>
+
+        <app-job-organize [job]="job" />
 
         <!-- Automatic deletion (S30): shown only when it applies or the job was locked against it -->
         @if (job.deleteAtUtc || job.retentionLocked) {
@@ -319,6 +323,7 @@ export class JobDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toastService = inject(ToastService);
+  private organize = inject(OrganizeService);
   private pageTitle = inject(PageTitleService);
   private transloco = inject(TranslocoService);
   private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
@@ -422,6 +427,8 @@ export class JobDetailComponent implements OnInit {
       this.jobService.loadJob(id);
       this.jobService.loadVariants(id);
     }
+    // Tags and folders for the organize controls; the page works without them if loading fails
+    this.organize.load().catch(() => undefined);
     this.jobService.loadTranscriptionOptions().subscribe({
       next: (options) => {
         this.transcriptionOptions.set(options);

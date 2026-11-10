@@ -31,6 +31,10 @@ const empty = (route: Route, status = 204) => route.fulfill({ status });
 
 export class MockApi {
   readonly jobs = new Map<string, FakeJob>();
+  /** The signed-in user's tags (S20); tag ids per job and favorite jobs are kept per fake job id. */
+  readonly tags: { id: string; name: string; color?: string | null }[] = [];
+  readonly jobTags = new Map<string, string[]>();
+  readonly favorites = new Set<string>();
   signedIn = false;
   /** Every request the UI sent, as `METHOD path`, to assert on what was (not) called. */
   readonly requests: string[] = [];
@@ -59,8 +63,17 @@ export class MockApi {
     await this.page.route(/\/(api|hubs)\//, (route) => this.handle(route));
   }
 
+  private organization(job: FakeJob) {
+    return {
+      tags: (this.jobTags.get(job.id) ?? []).map((id) => this.tags.find((t) => t.id === id)).filter(Boolean),
+      isFavorite: this.favorites.has(job.id),
+      folderId: null,
+    };
+  }
+
   private listItem(job: FakeJob) {
     return {
+      ...this.organization(job),
       id: job.id,
       fileName: job.fileName,
       fileSizeBytes: 2048,
@@ -128,8 +141,22 @@ export class MockApi {
       return this.search(route, url.searchParams.get('q') ?? '');
     }
 
+    if (path === '/api/tags' && method === 'GET') return json(route, this.tags);
+    if (path === '/api/tags' && method === 'POST') {
+      const body = request.postDataJSON() as { name: string; color?: string };
+      const tag = { id: `tag-${this.tags.length + 1}`, name: body.name, color: body.color ?? null };
+      this.tags.push(tag);
+      return json(route, tag, 201);
+    }
+    if (path === '/api/folders' && method === 'GET') return json(route, []);
+
     if (path === '/api/audio-jobs' && method === 'GET') {
-      const items = [...this.jobs.values()].map((j) => this.listItem(j));
+      const tag = url.searchParams.get('tag');
+      const favorite = url.searchParams.get('favorite') === 'true';
+      const items = [...this.jobs.values()]
+        .filter((j) => !tag || (this.jobTags.get(j.id) ?? []).includes(tag))
+        .filter((j) => !favorite || this.favorites.has(j.id))
+        .map((j) => this.listItem(j));
       return json(route, { items, totalCount: items.length, page: 1, pageSize: 20 });
     }
     if (path === '/api/audio-jobs' && method === 'POST') {
@@ -166,6 +193,15 @@ export class MockApi {
         return empty(route);
       }
       if (sub === 'variants') return json(route, []);
+      if (sub === 'tags' && method === 'PUT') {
+        this.jobTags.set(job.id, (request.postDataJSON() as { tagIds: string[] }).tagIds);
+        return empty(route);
+      }
+      if (sub === 'favorite') {
+        if (method === 'PUT') this.favorites.add(job.id);
+        else this.favorites.delete(job.id);
+        return empty(route);
+      }
       if (sub === 'audio') return route.fulfill({ status: 404 });
     }
 

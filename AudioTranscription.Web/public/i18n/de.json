@@ -7,7 +7,8 @@
       "main": "Hauptnavigation",
       "search": "Suche",
       "users": "Benutzer",
-      "account": "Passwort ändern"
+      "account": "Passwort ändern",
+      "organize": "Organisieren"
     },
     "connection": {
       "live": "Live verbunden",
@@ -56,7 +57,20 @@
       "next": "Nächste Seite",
       "page": "Seite {{ page }}"
     },
-    "sharedBy": "Geteilt von {{ email }}"
+    "sharedBy": "Geteilt von {{ email }}",
+    "filter": {
+      "label": "Jobs filtern",
+      "favorites": "Favoriten",
+      "tag": "Tag",
+      "folder": "Ordner",
+      "all": "Alle",
+      "reset": "Filter zurücksetzen",
+      "noMatch": "Keine Jobs für diese Filter."
+    },
+    "favorite": {
+      "add": "{{ fileName }} als Favorit markieren",
+      "remove": "Favorit für {{ fileName }} entfernen"
+    }
   },
   "jobDetail": {
     "pageTitle": "{{ fileName }} · Transkription",
@@ -221,7 +235,12 @@
     "hint": "Gib ein Wort ein, um alle Transkripte zu durchsuchen.",
     "loading": "Suche läuft…",
     "empty": "Keine Treffer für „{{ query }}“.",
-    "resultCount": "{{ count }} Treffer"
+    "resultCount": "{{ count }} Treffer",
+    "filter": {
+      "tag": "Tag",
+      "folder": "Ordner",
+      "all": "Alle"
+    }
   },
   "admin": {
     "users": {
@@ -281,6 +300,52 @@
     "error": {
       "unknownUser": "Für diese E-Mail-Adresse gibt es keinen Benutzer, oder der Job gehört dir bereits.",
       "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
+    }
+  },
+  "organize": {
+    "title": "Organisieren",
+    "pageTitle": "Organisieren · Transkription",
+    "loadFailed": "Tags und Ordner konnten nicht geladen werden.",
+    "failed": "Das hat nicht geklappt. Bitte versuche es erneut.",
+    "delete": "Löschen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "edit": "Bearbeiten",
+    "confirmTag": "Tag von allen Jobs entfernen?",
+    "confirmFolder": "Ordner löschen? Jobs und Unterordner wandern eine Ebene nach oben.",
+    "tags": {
+      "title": "Tags",
+      "name": "Name",
+      "color": "Farbe",
+      "add": "Tag anlegen",
+      "empty": "Noch keine Tags.",
+      "deleteFor": "Tag {{ name }} löschen",
+      "error": {
+        "duplicate": "Einen Tag mit diesem Namen gibt es schon.",
+        "invalid": "Bitte gib einen Namen mit höchstens 50 Zeichen an."
+      }
+    },
+    "folders": {
+      "title": "Ordner",
+      "name": "Name",
+      "parent": "Übergeordneter Ordner",
+      "topLevel": "Oberste Ebene",
+      "add": "Ordner anlegen",
+      "empty": "Noch keine Ordner.",
+      "editFor": "Ordner {{ name }} bearbeiten",
+      "deleteFor": "Ordner {{ name }} löschen",
+      "error": {
+        "duplicate": "Einen Ordner mit diesem Namen gibt es hier schon.",
+        "invalid": "Bitte prüfe den Namen (höchstens 100 Zeichen) und dass der Ordner nicht in sich selbst liegt."
+      }
+    },
+    "job": {
+      "label": "Favorit, Tags und Ordner",
+      "favorite": "Favorit",
+      "tags": "Tags ({{ count }})",
+      "noTags": "Lege zuerst unter „Organisieren“ Tags an.",
+      "folder": "Ordner",
+      "noFolder": "Kein Ordner"
     }
   }
 }
