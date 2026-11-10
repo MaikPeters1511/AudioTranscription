@@ -23,7 +23,7 @@ describe('UploadComponent', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  function render(options: object | null = transcriptionOptions) {
+  function render(options: object | null = transcriptionOptions, glossaries: object[] = []) {
     const fixture = TestBed.createComponent(UploadComponent);
     fixture.detectChanges();
     const request = http.expectOne('/api/transcription-options');
@@ -32,6 +32,7 @@ describe('UploadComponent', () => {
     } else {
       request.flush(null, { status: 500, statusText: 'Server Error' });
     }
+    http.expectOne('/api/glossaries').flush(glossaries);
     fixture.detectChanges();
     return fixture;
   }
@@ -128,6 +129,26 @@ describe('UploadComponent', () => {
     expect(body.has('model')).toBe(false);
     expect(body.has('language')).toBe(false);
   });
+
+  it('offers the glossaries and sends the chosen one with the upload (S22)', async () => {
+    const fixture = render(transcriptionOptions, [{ id: 'g1', name: 'Projekt Alpha', terms: ['A'], estimatedTokens: 1, maxTokens: 224 }]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#upload-glossary option:nth-child(2)')?.textContent).toContain('Projekt Alpha');
+    choose(fixture, 'upload-glossary', 'g1');
+    selectFile(fixture, new File(['ID3'], 'meeting.mp3', { type: 'audio/mpeg' }));
+
+    expect((http.expectOne('/api/audio-jobs').request.body as FormData).get('glossaryId')).toBe('g1');
+  });
+
+  it('hides the glossary select when the user has no glossary (S22)', async () => {
+    const fixture = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#upload-glossary')).toBeNull();
+  });
 });
 
 describe('UploadComponent browser recording (S12)', () => {
@@ -145,6 +166,7 @@ describe('UploadComponent browser recording (S12)', () => {
     const fixture = TestBed.createComponent(UploadComponent);
     fixture.detectChanges();
     http.expectOne('/api/transcription-options').flush(transcriptionOptions);
+    http.expectOne('/api/glossaries').flush([]);
     fixture.detectChanges();
     return fixture;
   }
@@ -189,6 +211,7 @@ describe('UploadComponent speaker diarization (S11)', () => {
     const fixture = TestBed.createComponent(UploadComponent);
     fixture.detectChanges();
     http.expectOne('/api/transcription-options').flush(options);
+    http.expectOne('/api/glossaries').flush([]);
     fixture.detectChanges();
     return fixture;
   }

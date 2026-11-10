@@ -1,10 +1,11 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
+import { GlossaryService } from '../../services/glossary.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { PageTitleService } from '../../i18n/page-title.service';
 import { languageName } from '../../i18n/language-names';
@@ -14,7 +15,7 @@ import { RecorderComponent } from '../recorder/recorder.component';
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, TranslocoPipe, RecorderComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, RecorderComponent],
   template: `
     <div class="max-w-2xl mx-auto">
       <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
@@ -81,6 +82,28 @@ import { RecorderComponent } from '../recorder/recorder.component';
             </select>
           </div>
         </div>
+        @if (glossaryService.glossaries().length > 0) {
+          <div class="flex flex-col gap-1 mb-6">
+            <label for="upload-glossary" class="text-sm font-medium">{{ 'upload.settings.glossary' | transloco }}</label>
+            <select
+              id="upload-glossary"
+              class="select w-full"
+              aria-describedby="upload-glossary-hint"
+              [disabled]="uploading()"
+              [value]="selectedGlossary()"
+              (change)="selectedGlossary.set($any($event.target).value)"
+            >
+              <option value="" [selected]="!selectedGlossary()">{{ 'upload.settings.glossaryNone' | transloco }}</option>
+              @for (glossary of glossaryService.glossaries(); track glossary.id) {
+                <option [value]="glossary.id" [selected]="glossary.id === selectedGlossary()">{{ glossary.name }}</option>
+              }
+            </select>
+            <p id="upload-glossary-hint" class="text-xs text-base-content/60">
+              {{ 'upload.settings.glossaryHint' | transloco }}
+              <a routerLink="/glossaries" class="link">{{ 'upload.settings.glossaryManage' | transloco }}</a>
+            </p>
+          </div>
+        }
         @if (opts.diarizationEnabled) {
           <div class="form-control mb-6">
             <label for="upload-diarize" class="label cursor-pointer justify-start gap-3 w-fit">
@@ -215,6 +238,8 @@ export class UploadComponent implements OnInit {
   selectedModel = signal('');
   selectedLanguage = signal(AUTO_LANGUAGE);
   diarize = signal(false);
+  readonly glossaryService = inject(GlossaryService);
+  selectedGlossary = signal('');
   private activeLang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
   /** Selectable languages in the configured order, named in the UI language. */
   languageOptions = computed(() => {
@@ -239,6 +264,8 @@ export class UploadComponent implements OnInit {
       // Uploads still work without the selects: the server uses its default model and detection
       error: () => this.options.set(null),
     });
+    // The glossary select simply stays hidden when the list cannot be loaded
+    this.glossaryService.load().catch(() => this.glossaryService.glossaries.set([]));
   }
 
   onDragOver(event: DragEvent): void {
@@ -328,7 +355,7 @@ export class UploadComponent implements OnInit {
 
   private transcriptionSettings() {
     return this.options()
-      ? { model: this.selectedModel(), language: this.selectedLanguage(), diarize: this.diarize() }
+      ? { model: this.selectedModel(), language: this.selectedLanguage(), diarize: this.diarize(), glossaryId: this.selectedGlossary() }
       : {};
   }
 

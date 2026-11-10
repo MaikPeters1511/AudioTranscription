@@ -149,6 +149,7 @@ export class MockApi {
       return json(route, tag, 201);
     }
     if (path === '/api/folders' && method === 'GET') return json(route, []);
+    if (path === '/api/glossaries' && method === 'GET') return json(route, []);
 
     if (path === '/api/audio-jobs' && method === 'GET') {
       const tag = url.searchParams.get('tag');

@@ -34,6 +34,8 @@ public class AudioJob
     public bool RetentionLocked { get; set; }
     /// <summary>The owner's folder the job is filed in (S20), or null for the top level.</summary>
     public Guid? FolderId { get; set; }
+    /// <summary>Whisper initial prompt of the glossary chosen at upload (S22); kept when the glossary changes or is deleted.</summary>
+    public string? InitialPrompt { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
 }

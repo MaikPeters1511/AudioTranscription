@@ -308,6 +308,18 @@ public class TranscriptionWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessJob_PassesTheStoredGlossaryPromptToTranscription()
+    {
+        var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, initialPrompt: "Kubernetes, Müller GmbH");
+        TranscriptionSucceeds();
+
+        await worker.ProcessJobAsync(new TranscriptionJobRequest(jobId, file), CancellationToken.None);
+
+        _transcription.Verify(t => t.TranscribeAsync(
+            file, new TranscriptionSettings("Base", null, "Kubernetes, Müller GmbH"), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessJob_WithoutRequestedLanguage_UsesLanguageDetection()
     {
         var (worker, jobId, file) = await ArrangeAsync(deleteAfterTranscription: true, model: "Base");
@@ -515,7 +527,8 @@ public class TranscriptionWorkerTests : IDisposable
         IDiarizationService? diarizationService = null,
         bool diarizationRequested = false,
         string model = "Base",
-        string? requestedLanguage = null)
+        string? requestedLanguage = null,
+        string? initialPrompt = null)
     {
         var options = Options.Create(new UploadOptions
         {
@@ -557,7 +570,8 @@ public class TranscriptionWorkerTests : IDisposable
             {
                 OwnerId = "owner-id",
                 Id = jobId, FileName = "meeting.mp3", ContentType = "audio/mpeg", Status = status,
-                Model = model, RequestedLanguage = requestedLanguage, DiarizationRequested = diarizationRequested
+                Model = model, RequestedLanguage = requestedLanguage, DiarizationRequested = diarizationRequested,
+                InitialPrompt = initialPrompt
             });
             await db.SaveChangesAsync();
         }

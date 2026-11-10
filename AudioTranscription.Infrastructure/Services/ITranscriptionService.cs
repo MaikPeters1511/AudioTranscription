@@ -21,7 +21,8 @@ public record SegmentResult(TimeSpan Start, TimeSpan End, string Text);
 /// </summary>
 /// <param name="Model">Whisper model name as listed in <see cref="WhisperOptions.AllowedModels"/>.</param>
 /// <param name="Language">ISO-639-1 code, or null to detect the language.</param>
-public record TranscriptionSettings(string Model, string? Language);
+/// <param name="InitialPrompt">Glossary terms handed to Whisper as initial prompt (S22), or null.</param>
+public record TranscriptionSettings(string Model, string? Language, string? InitialPrompt = null);
 
 /// <summary>
 /// Abstraction for the transcription engine.

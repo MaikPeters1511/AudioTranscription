@@ -6,6 +6,7 @@ using AudioTranscription.Api.Storage;
 using AudioTranscription.Api.Uploads;
 using AudioTranscription.Api.Validation;
 using AudioTranscription.Domain.Entities;
+using AudioTranscription.Domain.Glossary;
 using AudioTranscription.Domain.Enums;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
@@ -259,6 +260,28 @@ public static class AudioJobEndpoints
             settingErrors["language"] = [$"Language '{upload.Language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
         if (upload.Diarize && !diarizationOptions.Value.Enabled)
             settingErrors["diarize"] = ["Speaker diarization is not configured on this server."];
+
+        // A glossary (S22) must be the user's own; someone else's id is as good as a missing one
+        string? initialPrompt = null;
+        if (!string.IsNullOrWhiteSpace(upload.GlossaryId))
+        {
+            if (!Guid.TryParse(upload.GlossaryId, out var glossaryId))
+            {
+                settingErrors["glossaryId"] = ["Must be a valid glossary id."];
+            }
+            else
+            {
+                var terms = await dbContext.Glossaries
+                    .Where(g => g.Id == glossaryId && g.OwnerId == ownerId)
+                    .Select(g => g.Terms.OrderBy(t => t.Position).Select(t => t.Term).ToList())
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (terms is null)
+                    settingErrors["glossaryId"] = ["Unknown glossary."];
+                else if (terms.Count > 0)
+                    initialPrompt = GlossaryPrompt.Build(terms);
+            }
+        }
+
         if (settingErrors.Count > 0)
         {
             if (upload.FilePath is not null)
@@ -308,6 +331,7 @@ public static class AudioJobEndpoints
             Model = resolvedModel,
             RequestedLanguage = resolvedLanguage,
             DiarizationRequested = upload.Diarize,
+            InitialPrompt = initialPrompt,
             OwnerId = ownerId,
             CreatedAtUtc = DateTime.UtcNow
         };

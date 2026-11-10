@@ -8,7 +8,8 @@
       "search": "Search",
       "users": "Users",
       "account": "Change password",
-      "organize": "Organize"
+      "organize": "Organize",
+      "glossaries": "Glossary"
     },
     "connection": {
       "live": "Live connected",
@@ -143,7 +144,11 @@
       "modelHint": "Larger models are more accurate but slower. A model is downloaded the first time it is used.",
       "language": "Language of the recording",
       "auto": "Detect automatically",
-      "diarize": "Detect who is speaking (speaker diarization); runs fully offline and may take longer."
+      "diarize": "Detect who is speaking (speaker diarization); runs fully offline and may take longer.",
+      "glossary": "Glossary",
+      "glossaryNone": "No glossary",
+      "glossaryHint": "Helps Whisper with names and technical terms.",
+      "glossaryManage": "Manage glossaries"
     },
     "tabs": {
       "file": "Upload file",
@@ -361,5 +366,31 @@
     "speakers": "Speaker names",
     "download": "Download",
     "downloadLabel": "Download export"
+  },
+  "glossary": {
+    "pageTitle": "Glossary",
+    "title": "Glossary",
+    "intro": "Names and technical terms Whisper should spell correctly when transcribing. Selectable on upload.",
+    "loadFailed": "The glossaries could not be loaded.",
+    "createTitle": "New glossary",
+    "editTitle": "Edit glossary",
+    "name": "Name",
+    "terms": "Terms",
+    "termsHint": "One term per line.",
+    "tokens": "About {{used}} of {{max}} tokens",
+    "tooLong": "The glossary is too long for Whisper. Please remove terms.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete glossary?",
+    "listTitle": "My glossaries",
+    "empty": "No glossaries yet.",
+    "termCount": "{{count}} terms",
+    "editFor": "Edit glossary {{name}}",
+    "deleteFor": "Delete glossary {{name}}",
+    "duplicate": "A glossary with this name already exists.",
+    "invalid": "Please check name and terms (no duplicates, at most 200 terms of 100 characters).",
+    "failed": "The glossary could not be saved."
   }
 }

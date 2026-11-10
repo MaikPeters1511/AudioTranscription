@@ -69,6 +69,11 @@ public record TagDto(Guid Id, string Name, string? Color);
 
 public record CreateTagRequest(string? Name, string? Color);
 
+/// <summary>A glossary with its terms and how much of Whisper's prompt window they use (S22).</summary>
+public record GlossaryDto(Guid Id, string Name, List<string> Terms, int EstimatedTokens, int MaxTokens);
+
+public record SaveGlossaryRequest(string? Name, List<string>? Terms);
+
 public record SetJobTagsRequest(Guid[]? TagIds);
 
 public record FolderDto(Guid Id, string Name, Guid? ParentId);

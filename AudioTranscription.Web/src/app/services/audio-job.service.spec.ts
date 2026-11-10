@@ -332,6 +332,18 @@ describe('AudioJobService speaker diarization (S11)', () => {
     expect(body.get('diarize')).toBe('true');
   });
 
+  it('sends the glossary id with the upload when chosen (S22)', () => {
+    service.uploadFile(file(), { glossaryId: 'g1' }).subscribe();
+
+    expect((http.expectOne('/api/audio-jobs').request.body as FormData).get('glossaryId')).toBe('g1');
+  });
+
+  it('does not send a glossary id when none is chosen (S22)', () => {
+    service.uploadFile(file(), { glossaryId: '' }).subscribe();
+
+    expect((http.expectOne('/api/audio-jobs').request.body as FormData).has('glossaryId')).toBe(false);
+  });
+
   it('does not send diarize when not requested', () => {
     service.uploadFile(file()).subscribe();
 

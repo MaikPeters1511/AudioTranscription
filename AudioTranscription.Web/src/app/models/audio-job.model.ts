@@ -138,6 +138,17 @@ export interface TranscriptionSettings {
   language?: string;
   /** Requests speaker diarization (S11); only sent when {@link TranscriptionOptions.diarizationEnabled}. */
   diarize?: boolean;
+  /** Glossary whose terms become Whisper's initial prompt (S22). */
+  glossaryId?: string;
+}
+
+/** A user's list of names and technical terms (S22). */
+export interface Glossary {
+  id: string;
+  name: string;
+  terms: string[];
+  estimatedTokens: number;
+  maxTokens: number;
 }
 
 /** Timed part of the raw transcript (GET /api/audio-jobs/{id}/segments). */

@@ -25,7 +25,8 @@ public static class MultipartUploadParser
         bool FileTooLarge,
         string? Model,
         string? Language,
-        bool Diarize)
+        bool Diarize,
+        string? GlossaryId = null)
     {
         public bool HasFile => FilePath is not null;
     }
@@ -54,6 +55,7 @@ public static class MultipartUploadParser
         string? model = null;
         string? language = null;
         var diarize = false;
+        string? glossaryId = null;
 
         var reader = new MultipartReader(boundary, request.Body);
         var section = await reader.ReadNextSectionAsync(cancellationToken);
@@ -96,6 +98,7 @@ public static class MultipartUploadParser
                 {
                     case "model": model = value; break;
                     case "language": language = value; break;
+                    case "glossaryId": glossaryId = value; break;
                     case "diarize": diarize = bool.TryParse(value, out var parsed) && parsed; break;
                 }
             }
@@ -108,7 +111,7 @@ public static class MultipartUploadParser
 
         return new Result(
             fileName, fileContentType, fileTooLarge ? null : filePath, fileSizeBytes,
-            headerBytes.AsMemory(0, headerBytesRead), fileTooLarge, model, language, diarize);
+            headerBytes.AsMemory(0, headerBytesRead), fileTooLarge, model, language, diarize, glossaryId);
     }
 
     private static string? GetBoundary(string? contentType)

@@ -60,6 +60,10 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                     b.Property<Guid?>("FolderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("InitialPrompt")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<string>("Language")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
@@ -129,6 +133,55 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasFilter("[ParentId] IS NOT NULL");
 
                     b.ToTable("Folders", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Glossary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Glossaries", (string)null);
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.GlossaryTerm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("GlossaryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GlossaryId", "Position");
+
+                    b.ToTable("GlossaryTerms", (string)null);
                 });
 
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobFavorite", b =>
@@ -524,6 +577,24 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Glossary", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.GlossaryTerm", b =>
+                {
+                    b.HasOne("AudioTranscription.Domain.Entities.Glossary", null)
+                        .WithMany("Terms")
+                        .HasForeignKey("GlossaryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AudioTranscription.Domain.Entities.JobFavorite", b =>
                 {
                     b.HasOne("AudioTranscription.Domain.Entities.AudioJob", null)
@@ -654,6 +725,11 @@ namespace AudioTranscription.Infrastructure.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AudioTranscription.Domain.Entities.Glossary", b =>
+                {
+                    b.Navigation("Terms");
                 });
 #pragma warning restore 612, 618
         }

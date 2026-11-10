@@ -16,6 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<JobTag> JobTags => Set<JobTag>();
     public DbSet<Folder> Folders => Set<Folder>();
     public DbSet<JobFavorite> JobFavorites => Set<JobFavorite>();
+    public DbSet<Glossary> Glossaries => Set<Glossary>();
+    public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
