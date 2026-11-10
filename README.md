@@ -26,6 +26,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🏷️ **Tags, Ordner und Favoriten** — jeder Benutzer ordnet seine Jobs persönlich (auch geteilte), filtert die Liste und die Suche danach und verwaltet alles unter „Organisieren“
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
 - ✏️ **Transkript-Editor** — Segmente direkt im Player korrigieren (Enter/Doppelklick, Strg+Enter speichert, Alt+P spielt das Segment ab); jede Änderung ist eine neue Version mit Verlauf, Diff und „Wiederherstellen“, das Roh-Transkript bleibt unverändert; Suche, Untertitel und Exporte nutzen die korrigierte Fassung
+- 🔁 **Wiederaufnehmbarer Upload** — Dateien ab 10 MiB werden in Chunks per tus-Protokoll hochgeladen: automatische Wiederholung bei Verbindungsabbruch, Pause/Fortsetzen, Abbruch räumt den Teil-Upload auf; kleinere Dateien und der bisherige Endpoint bleiben unverändert (siehe [ADR 0006](docs/adr/0006-resumable-upload-spike.md))
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
 - 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
 
@@ -265,6 +266,8 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `POST` | `/api/auth/logout` | Abmelden |
 | `GET` | `/api/auth/me` | Angemeldeter Benutzer (`{ email }`) |
 | `POST` | `/api/audio-jobs` | Audiodatei hochladen (`file`, optional `model`, `language` und `diarize`), Transkriptions-Job anlegen. Unbekanntes Modell/Sprache oder `diarize=true` ohne konfigurierte Diarisierung: `400` |
+| `POST`/`HEAD`/`PATCH`/`DELETE` | `/api/uploads[/{id}]` | Wiederaufnehmbarer Upload nach dem [tus-Protokoll](https://tus.io) (v1.0.0, Erweiterungen `creation`, `termination`): `POST` legt eine Sitzung an (`Upload-Length`, `Upload-Metadata` mit `filename`, `filetype` und optional `model`, `language`, `diarize`, `glossaryId`; zu große Datei `413`, falscher Typ `415`, ungültige Einstellungen `400`), `HEAD` liefert den Offset, `PATCH` hängt einen Chunk an (falscher Offset `409`). Die Sitzung gehört dem Benutzer, fremde Sitzungen sind `404`. Unvollständige Sitzungen werden nach `Upload:IncompleteSessionRetentionHours` (24) entfernt |
+| `GET` | `/api/uploads/{id}/job` | Job einer fertigen Sitzung (`200 { id }`), `409` solange Bytes fehlen, `422` wenn die zusammengesetzte Datei nicht zum Content-Type passt |
 | `GET` | `/api/transcription-options` | Wählbare Modelle, Standardmodell, Sprachen (`auto` ist immer möglich), `postProcessingEnabled`, `diarizationEnabled` |
 | `GET` | `/api/audio-jobs` | Paginierte Liste aller Jobs |
 | `GET` | `/api/audio-jobs/{id}` | Details & Transkript eines Jobs |

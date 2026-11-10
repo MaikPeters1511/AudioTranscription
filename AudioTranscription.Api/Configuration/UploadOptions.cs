@@ -27,4 +27,7 @@ public class UploadOptions
     public string TempStoragePath { get; set; } = "temp-uploads";
     public bool DeleteAfterTranscription { get; set; } = true;
     public int OrphanedFileRetentionHours { get; set; } = 24;
+
+    /// <summary>How long an unfinished resumable upload (S27, ADR 0006) is kept before it and its partial file are removed.</summary>
+    public int IncompleteSessionRetentionHours { get; set; } = 24;
 }

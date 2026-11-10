@@ -154,7 +154,10 @@
     "tabs": {
       "file": "Upload file",
       "record": "Record audio"
-    }
+    },
+    "pause": "Pause",
+    "resume": "Resume",
+    "paused": "Paused"
   },
   "toast": {
     "close": "Close"
@@ -444,7 +447,9 @@
     "showQueue": "Show queue",
     "showJobs": "Show jobs",
     "uploadMore": "Upload more files",
-    "hint": "You can select several files at once; up to 3 are uploaded in parallel."
+    "hint": "You can select several files at once; up to 3 are uploaded in parallel.",
+    "pauseFile": "Pause upload of {{name}}",
+    "resumeFile": "Resume upload of {{name}}"
   },
   "editor": {
     "edit": "Edit segment at {{time}}",

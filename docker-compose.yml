@@ -27,6 +27,8 @@ services:
       - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
       # S14: single source of truth for the upload size limit, also used by the web service below
       - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
+      # S27: how long an unfinished resumable upload is kept before it is removed
+      - Upload__IncompleteSessionRetentionHours=${UPLOAD_INCOMPLETE_RETENTION_HOURS:-24}
       # S29: empty = no export; with the observability profile set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
@@ -51,6 +53,8 @@ services:
       - Auth__InitialUser__Email=${INITIAL_USER_EMAIL:-}
       - Auth__InitialUser__Password=${INITIAL_USER_PASSWORD:-}
       - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
+      # S27: how long an unfinished resumable upload is kept before it is removed
+      - Upload__IncompleteSessionRetentionHours=${UPLOAD_INCOMPLETE_RETENTION_HOURS:-24}
     deploy:
       resources:
         reservations:

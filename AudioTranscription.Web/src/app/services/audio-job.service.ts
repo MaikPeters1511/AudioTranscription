@@ -17,6 +17,7 @@ import {
   TranscriptSegment,
   TranscriptVariant,
 } from '../models/audio-job.model';
+import { ResumableUploadService, UploadControl, isResumableUpload } from './resumable-upload.service';
 import { Observable, Subject, tap, map, filter, firstValueFrom } from 'rxjs';
 
 function upsertVariant(variants: TranscriptVariant[], variant: TranscriptVariant): TranscriptVariant[] {
@@ -39,6 +40,7 @@ export interface JobFilters {
 @Injectable({ providedIn: 'root' })
 export class AudioJobService {
   private http = inject(HttpClient);
+  private resumableUpload = inject(ResumableUploadService);
   private baseUrl = '/api/audio-jobs';
 
   // Reactive state with signals
@@ -190,7 +192,12 @@ export class AudioJobService {
   uploadFile(
     file: File,
     settings: TranscriptionSettings = {},
+    control?: UploadControl,
   ): Observable<{ progress: number; jobId?: string }> {
+    // Large files go in chunks and survive a broken connection (S27); small ones stay a single request
+    if (isResumableUpload(file)) {
+      return this.resumableUpload.upload(file, settings, control);
+    }
     const formData = new FormData();
     formData.append('file', file, file.name);
     if (settings.model) {

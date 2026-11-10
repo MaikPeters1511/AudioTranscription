@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Uploads;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using AudioTranscription.Api.Health;
 using AudioTranscription.Api.Telemetry;
@@ -63,6 +64,7 @@ builder.Services.AddOptions<RetentionOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<RetentionOptions>, RetentionOptionsValidator>();
 builder.Services.AddHostedService<OrphanedUploadCleanupService>();
+builder.Services.AddResumableUploads(); // S27, ADR 0006
 builder.Services.AddHostedService<RetentionService>();
 builder.Services.AddHostedService<JobRecoveryService>(); // must start before the worker
 builder.Services.AddHostedService<TranscriptionWorker>();
@@ -222,6 +224,7 @@ using (var scope = app.Services.CreateScope())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseResumableUploads(); // tus protocol under /api/uploads, S27
 app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapAdminUserEndpoints();
@@ -233,6 +236,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 
 // Map API endpoints
 app.MapAudioJobEndpoints();
+app.MapResumableUploadEndpoints();
 app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
 app.MapSegmentEditEndpoints();

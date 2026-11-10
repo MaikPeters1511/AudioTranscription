@@ -204,14 +204,9 @@ public static class AudioJobEndpoints
 
     private static async Task<Results<Accepted<CreateAudioJobResponse>, ValidationProblem, ProblemHttpResult>> UploadAudioJob(
         HttpRequest request,
-        AppDbContext dbContext,
-        TranscriptionQueue queue,
+        UploadJobService uploads,
         IOptions<UploadOptions> uploadOptions,
-        IOptions<WhisperOptions> whisperOptions,
-        IOptions<DiarizationOptions> diarizationOptions,
-        IJobNotifier notifier,
         ITempFileStore tempFileStore,
-        ILogger<AudioJob> logger,
         CancellationToken cancellationToken)
     {
         var options = uploadOptions.Value;
@@ -254,37 +249,9 @@ public static class AudioJobEndpoints
                 statusCode: StatusCodes.Status413PayloadTooLarge);
         }
 
-        // Model and language must come from the allowlists (see GET /api/transcription-options)
-        var settingErrors = new Dictionary<string, string[]>();
-        if (!whisperOptions.Value.TryResolveModel(upload.Model, out var resolvedModel))
-            settingErrors["model"] = [$"Model '{upload.Model}' is not available. Allowed models: {string.Join(", ", whisperOptions.Value.AllowedModels)}."];
-        if (!whisperOptions.Value.TryResolveLanguage(upload.Language, out var resolvedLanguage))
-            settingErrors["language"] = [$"Language '{upload.Language}' is not supported. Use '{WhisperOptions.AutomaticLanguage}' or one of: {string.Join(", ", whisperOptions.Value.SupportedLanguages)}."];
-        if (upload.Diarize && !diarizationOptions.Value.Enabled)
-            settingErrors["diarize"] = ["Speaker diarization is not configured on this server."];
-
-        // A glossary (S22) must be the user's own; someone else's id is as good as a missing one
-        string? initialPrompt = null;
-        if (!string.IsNullOrWhiteSpace(upload.GlossaryId))
-        {
-            if (!Guid.TryParse(upload.GlossaryId, out var glossaryId))
-            {
-                settingErrors["glossaryId"] = ["Must be a valid glossary id."];
-            }
-            else
-            {
-                var terms = await dbContext.Glossaries
-                    .Where(g => g.Id == glossaryId && g.OwnerId == ownerId)
-                    .Select(g => g.Terms.OrderBy(t => t.Position).Select(t => t.Term).ToList())
-                    .FirstOrDefaultAsync(cancellationToken);
-                if (terms is null)
-                    settingErrors["glossaryId"] = ["Unknown glossary."];
-                else if (terms.Count > 0)
-                    initialPrompt = GlossaryPrompt.Build(terms);
-            }
-        }
-
-        if (settingErrors.Count > 0)
+        var (settings, settingErrors) = await uploads.ResolveSettingsAsync(
+            new RequestedUploadSettings(upload.Model, upload.Language, upload.Diarize, upload.GlossaryId), ownerId, cancellationToken);
+        if (settings is null)
         {
             if (upload.FilePath is not null)
                 File.Delete(upload.FilePath);
@@ -322,37 +289,7 @@ public static class AudioJobEndpoints
                 statusCode: StatusCodes.Status422UnprocessableEntity);
         }
 
-        // Create database record
-        var audioJob = new AudioJob
-        {
-            Id = jobId,
-            FileName = upload.FileName!,
-            FileSizeBytes = upload.FileSizeBytes,
-            ContentType = contentType,
-            Status = AudioJobStatus.Pending,
-            Model = resolvedModel,
-            RequestedLanguage = resolvedLanguage,
-            DiarizationRequested = upload.Diarize,
-            InitialPrompt = initialPrompt,
-            OwnerId = ownerId,
-            CreatedAtUtc = DateTime.UtcNow,
-            QueuedAtUtc = DateTime.UtcNow
-        };
-
-        dbContext.AudioJobs.Add(audioJob);
-        await dbContext.SaveChangesAsync();
-
-        // Only the id is logged: file names can contain personal data
-        logger.LogInformation("Audio job {JobId} created ({FileSize} bytes)", jobId, upload.FileSizeBytes);
-
-        // Notify the owner's connected clients about the new job
-        await notifier.NotifyAsync(audioJob.Id, "JobCreated", new AudioJobListDto(
-            audioJob.Id, audioJob.FileName, audioJob.FileSizeBytes,
-            audioJob.Status, audioJob.Language, audioJob.DurationSeconds,
-            audioJob.CreatedAtUtc, audioJob.CompletedAtUtc));
-
-        // Enqueue the job for background processing
-        await queue.EnqueueAsync(new TranscriptionJobRequest(jobId, upload.FilePath!));
+        await uploads.CreateAndEnqueueAsync(jobId, ownerId, upload.FileName!, upload.FileSizeBytes, contentType, upload.FilePath!, settings);
 
         return TypedResults.Accepted($"/api/audio-jobs/{jobId}", new CreateAudioJobResponse(jobId));
     }

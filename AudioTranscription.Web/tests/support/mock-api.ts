@@ -1,4 +1,4 @@
-import { Page, Route } from '@playwright/test';
+import { Page, Request, Route } from '@playwright/test';
 
 /**
  * In-memory fake of the API for the `*.mocked.spec.ts` flows (S31). It only needs the Angular dev
@@ -39,6 +39,11 @@ export class MockApi {
   readonly favorites = new Set<string>();
   /** Jobs waiting in the transcription queue (S34), in arrival order. */
   readonly queue: { jobId: string; priority: number }[] = [];
+  /** Resumable (tus) uploads in progress (S27); the job exists once all bytes arrived. */
+  readonly tusUploads = new Map<string, { fileName: string; length: number; offset: number; jobId?: string }>();
+  /** Which PATCH request (1-based, counted over all tus uploads) loses its connection, to simulate a network drop. */
+  dropTusPatchNumber?: number;
+  private tusPatches = 0;
   signedIn = false;
   /** Every request the UI sent, as `METHOD path`, to assert on what was (not) called. */
   readonly requests: string[] = [];
@@ -95,6 +100,54 @@ export class MockApi {
       completedAtUtc: job.status === 2 ? '2026-01-01T10:01:00Z' : undefined,
       progressPercent: job.progressPercent,
     };
+  }
+
+  /** Minimal tus server: creation, offset query, chunk append and the job lookup of a finished upload. */
+  private async handleTus(route: Route, request: Request, path: string, method: string) {
+    const tusHeaders = { 'Tus-Resumable': '1.0.0', 'Cache-Control': 'no-store' };
+    const parts = path.split('/').filter(Boolean); // api, uploads, id?, job?
+    const id = parts[2];
+
+    if (!id && method === 'POST') {
+      const metadata = new Map(
+        (request.headers()['upload-metadata'] ?? '').split(',').map((pair) => {
+          const [key, value] = pair.trim().split(' ');
+          return [key, Buffer.from(value ?? '', 'base64').toString('utf-8')] as const;
+        }),
+      );
+      const uploadId = `tus${this.nextId++}`;
+      this.tusUploads.set(uploadId, {
+        fileName: metadata.get('filename') ?? 'upload',
+        length: Number(request.headers()['upload-length']),
+        offset: 0,
+      });
+      const origin = new URL(request.url()).origin;
+      return route.fulfill({ status: 201, headers: { ...tusHeaders, Location: `${origin}/api/uploads/${uploadId}` } });
+    }
+
+    const upload = id ? this.tusUploads.get(id) : undefined;
+    if (!upload) return route.fulfill({ status: 404, headers: tusHeaders });
+
+    if (parts[3] === 'job' && method === 'GET') {
+      return upload.jobId ? json(route, { id: upload.jobId }) : json(route, { title: 'Upload incomplete' }, 409);
+    }
+    if (method === 'HEAD') {
+      return route.fulfill({
+        status: 200,
+        headers: { ...tusHeaders, 'Upload-Offset': String(upload.offset), 'Upload-Length': String(upload.length) },
+      });
+    }
+    if (method === 'PATCH') {
+      this.tusPatches++;
+      if (this.tusPatches === this.dropTusPatchNumber) return route.abort('connectionreset');
+      if (Number(request.headers()['upload-offset']) !== upload.offset) return route.fulfill({ status: 409, headers: tusHeaders });
+      upload.offset += request.postDataBuffer()?.length ?? 0;
+      if (upload.offset >= upload.length) {
+        upload.jobId = this.addJob({ fileName: upload.fileName, status: 2, rawTranscript: 'Hallo Welt vom Upload', language: 'de' }).id;
+      }
+      return route.fulfill({ status: 204, headers: { ...tusHeaders, 'Upload-Offset': String(upload.offset) } });
+    }
+    return route.fulfill({ status: 204, headers: tusHeaders });
   }
 
   private detail(job: FakeJob) {
@@ -175,6 +228,8 @@ export class MockApi {
       }));
       return json(route, { entries, totalWaiting: entries.length });
     }
+
+    if (path.startsWith('/api/uploads')) return this.handleTus(route, request, path, method);
 
     if (path === '/api/audio-jobs' && method === 'GET') {
       const tag = url.searchParams.get('tag');

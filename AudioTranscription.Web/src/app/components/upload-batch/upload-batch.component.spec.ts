@@ -7,6 +7,7 @@ import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
 import { translocoTesting } from '../../i18n/transloco-testing';
 import { TranscriptionSettings } from '../../models/audio-job.model';
+import { UploadControl } from '../../services/resumable-upload.service';
 
 type Progress = { progress: number; jobId?: string };
 
@@ -24,7 +25,7 @@ class HostComponent {
 }
 
 describe('UploadBatchComponent (S34)', () => {
-  let uploads: { file: File; settings: TranscriptionSettings; subject: Subject<Progress>; unsubscribed: boolean }[];
+  let uploads: { file: File; settings: TranscriptionSettings; subject: Subject<Progress>; unsubscribed: boolean; control?: UploadControl }[];
   const toast = { success: vi.fn(), error: vi.fn(), show: vi.fn() };
 
   function render(files: File[]) {
@@ -41,9 +42,9 @@ describe('UploadBatchComponent (S34)', () => {
           provide: AudioJobService,
           useValue: {
             formatFileSize: (n: number) => `${n} B`,
-            uploadFile: (file: File, settings: TranscriptionSettings) => {
+            uploadFile: (file: File, settings: TranscriptionSettings, control?: UploadControl) => {
               const subject = new Subject<Progress>();
-              const record = { file, settings, subject, unsubscribed: false };
+              const record = { file, settings, subject, unsubscribed: false, control };
               uploads.push(record);
               // Marks the record when the component unsubscribes (cancelled upload)
               return new Observable<Progress>((subscriber) => {
@@ -218,5 +219,42 @@ describe('UploadBatchComponent (S34)', () => {
     fixture.destroy();
 
     expect(uploads.every((u) => u.unsubscribed)).toBe(true);
+  });
+
+  describe('pausing (S27)', () => {
+    const pauseButton = (el: HTMLElement) => el.querySelector<HTMLButtonElement>('[data-testid=batch-pause]');
+
+    it('offers no pause for an upload that cannot be resumed', () => {
+      const { el } = render([mp3('klein.mp3')]);
+
+      expect(pauseButton(el)).toBeNull();
+    });
+
+    it('pauses and resumes an upload that can be resumed', () => {
+      const { fixture, el } = render([mp3('gross.mp3')]);
+      const target = { pause: vi.fn(), resume: vi.fn() };
+      uploads[0].control!.attach(target);
+      fixture.detectChanges();
+
+      pauseButton(el)!.click();
+      fixture.detectChanges();
+      expect(target.pause).toHaveBeenCalled();
+      expect(pauseButton(el)!.textContent).toContain('Resume');
+      expect(pauseButton(el)!.getAttribute('aria-pressed')).toBe('true');
+
+      pauseButton(el)!.click();
+      fixture.detectChanges();
+      expect(target.resume).toHaveBeenCalled();
+      expect(pauseButton(el)!.textContent).toContain('Pause');
+    });
+
+    it('does not offer the pause once the file is done', () => {
+      const { fixture, el } = render([mp3('gross.mp3')]);
+      uploads[0].control!.attach({ pause: vi.fn(), resume: vi.fn() });
+      uploads[0].subject.next({ progress: 100, jobId: 'job-1' });
+      fixture.detectChanges();
+
+      expect(pauseButton(el)).toBeNull();
+    });
   });
 });

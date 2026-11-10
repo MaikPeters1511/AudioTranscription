@@ -12,6 +12,7 @@ import { languageName } from '../../i18n/language-names';
 import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
 import { RecorderComponent } from '../recorder/recorder.component';
 import { UploadBatchComponent } from '../upload-batch/upload-batch.component';
+import { UploadControl } from '../../services/resumable-upload.service';
 import { validateUploadFile } from './upload-validation';
 
 @Component({
@@ -163,11 +164,26 @@ import { validateUploadFile } from './upload-validation';
                   max="100"
                   [attr.aria-label]="'upload.progress' | transloco"
                 ></progress>
-                <p class="text-sm text-base-content/60 mt-1 text-center">{{ uploadProgress() }}%</p>
+                <p class="text-sm text-base-content/60 mt-1 text-center" role="status" aria-live="polite">
+                  {{ uploadControl.paused() ? ('upload.paused' | transloco) : uploadProgress() + '%' }}
+                </p>
               </div>
-              <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
-                {{ 'upload.cancel' | transloco }}
-              </button>
+              <div class="flex gap-2">
+                @if (uploadControl.resumable()) {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-ghost"
+                    data-testid="upload-pause"
+                    [attr.aria-pressed]="uploadControl.paused()"
+                    (click)="uploadControl.paused() ? uploadControl.resume() : uploadControl.pause()"
+                  >
+                    {{ (uploadControl.paused() ? 'upload.resume' : 'upload.pause') | transloco }}
+                  </button>
+                }
+                <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+                  {{ 'upload.cancel' | transloco }}
+                </button>
+              </div>
             </div>
           }
         </div>
@@ -193,9 +209,22 @@ import { validateUploadFile } from './upload-validation';
               [attr.aria-label]="'upload.progress' | transloco"
             ></progress>
           </div>
-          <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
-            {{ 'upload.cancel' | transloco }}
-          </button>
+          <div class="flex gap-2">
+            @if (uploadControl.resumable()) {
+              <button
+                type="button"
+                class="btn btn-sm btn-ghost"
+                data-testid="upload-pause"
+                [attr.aria-pressed]="uploadControl.paused()"
+                (click)="uploadControl.paused() ? uploadControl.resume() : uploadControl.pause()"
+              >
+                {{ (uploadControl.paused() ? 'upload.resume' : 'upload.pause') | transloco }}
+              </button>
+            }
+            <button class="btn btn-sm btn-ghost" (click)="cancelUpload($event)">
+              {{ 'upload.cancel' | transloco }}
+            </button>
+          </div>
         </div>
       } @else {
         <app-recorder (recorded)="onRecorded($event)" />
@@ -230,6 +259,8 @@ export class UploadComponent implements OnInit {
   private pageTitle = inject(PageTitleService);
   private transloco = inject(TranslocoService);
   private uploadSubscription?: Subscription;
+  /** Pause/resume handle of the running upload; only large files can be paused (S27). */
+  readonly uploadControl = new UploadControl();
 
   mode = signal<'file' | 'record'>('file');
   isDragging = signal(false);
@@ -340,7 +371,7 @@ export class UploadComponent implements OnInit {
     this.uploading.set(true);
     this.uploadProgress.set(0);
 
-    this.uploadSubscription = this.audioJobService.uploadFile(file, this.transcriptionSettings()).subscribe({
+    this.uploadSubscription = this.audioJobService.uploadFile(file, this.transcriptionSettings(), this.uploadControl).subscribe({
       next: (event) => {
         this.uploadProgress.set(event.progress);
         if (event.jobId) {
