@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, InjectionToken, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import * as tus from 'tus-js-client';
 import { CreateAudioJobResponse, TranscriptionSettings } from '../models/audio-job.model';
@@ -10,6 +10,12 @@ export const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 10 * 1024 * 1024;
 export const RESUMABLE_CHUNK_SIZE_BYTES = 5 * 1024 * 1024;
 /** Waits before each automatic retry of a failed chunk (exponential-ish backoff). */
 export const RESUMABLE_RETRY_DELAYS_MS = [0, 1_000, 3_000, 5_000, 10_000, 20_000];
+
+/** Creates the tus client for a file; replaced in unit tests, where no real request may be made. */
+export const TUS_UPLOAD_FACTORY = new InjectionToken<(file: File, options: tus.UploadOptions) => tus.Upload>('TUS_UPLOAD_FACTORY', {
+  providedIn: 'root',
+  factory: () => (file, options) => new tus.Upload(file, options),
+});
 
 export interface UploadProgress {
   progress: number;
@@ -63,12 +69,13 @@ export class UploadControl {
 @Injectable({ providedIn: 'root' })
 export class ResumableUploadService {
   private http = inject(HttpClient);
+  private createUpload = inject(TUS_UPLOAD_FACTORY);
 
   upload(file: File, settings: TranscriptionSettings = {}, control?: UploadControl): Observable<UploadProgress> {
     return new Observable<UploadProgress>((subscriber) => {
       let finished = false;
 
-      const upload = new tus.Upload(file, {
+      const upload = this.createUpload(file, {
         endpoint: '/api/uploads',
         chunkSize: RESUMABLE_CHUNK_SIZE_BYTES,
         retryDelays: RESUMABLE_RETRY_DELAYS_MS,

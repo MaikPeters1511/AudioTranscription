@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import {
   RESUMABLE_UPLOAD_THRESHOLD_BYTES,
   ResumableUploadService,
+  TUS_UPLOAD_FACTORY,
   UploadControl,
   isResumableUpload,
 } from './resumable-upload.service';
@@ -19,7 +20,7 @@ interface FakeUploadOptions {
   onError: (error: Error) => void;
 }
 
-const hoisted = vi.hoisted(() => {
+const hoisted = (() => {
   const instances: FakeUploadShape[] = [];
   class FakeUpload {
     url: string | null = 'http://localhost/api/uploads/abc123';
@@ -48,7 +49,7 @@ const hoisted = vi.hoisted(() => {
     }
   }
   return { instances, FakeUpload };
-});
+})();
 
 interface FakeUploadShape {
   url: string | null;
@@ -60,8 +61,6 @@ interface FakeUploadShape {
 }
 
 const instances = hoisted.instances;
-
-vi.mock('tus-js-client', () => ({ Upload: hoisted.FakeUpload }));
 
 const bigFile = (name = 'meeting.mp3') => new File([new Uint8Array(8)], name, { type: 'audio/mpeg' });
 
@@ -103,7 +102,13 @@ describe('ResumableUploadService', () => {
 
   beforeEach(() => {
     instances.length = 0;
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: TUS_UPLOAD_FACTORY, useValue: (file: File, options: unknown) => new hoisted.FakeUpload(file, options as FakeUploadOptions) },
+      ],
+    });
     service = TestBed.inject(ResumableUploadService);
     http = TestBed.inject(HttpTestingController);
   });
