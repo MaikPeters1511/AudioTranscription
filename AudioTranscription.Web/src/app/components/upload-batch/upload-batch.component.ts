@@ -5,6 +5,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { AudioJobService } from '../../services/audio-job.service';
 import { ToastService } from '../../services/toast.service';
 import { TranscriptionSettings } from '../../models/audio-job.model';
+import { UploadControl } from '../../services/resumable-upload.service';
 import { validateUploadFile } from '../upload/upload-validation';
 
 type ItemStatus = 'waiting' | 'uploading' | 'done' | 'error' | 'cancelled';
@@ -65,6 +66,20 @@ const MAX_PARALLEL_UPLOADS = 3;
                   [class.badge-ghost]="item.status === 'waiting' || item.status === 'cancelled'"
                   >{{ 'uploadBatch.status.' + item.status | transloco }}</span
                 >
+                @if (item.status === 'uploading' && controlOf(item.id); as control) {
+                  @if (control.resumable()) {
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost"
+                      data-testid="batch-pause"
+                      [attr.aria-pressed]="control.paused()"
+                      [attr.aria-label]="(control.paused() ? 'uploadBatch.resumeFile' : 'uploadBatch.pauseFile') | transloco: { name: item.file.name }"
+                      (click)="control.paused() ? control.resume() : control.pause()"
+                    >
+                      {{ (control.paused() ? 'upload.resume' : 'upload.pause') | transloco }}
+                    </button>
+                  }
+                }
                 @if (item.status === 'waiting' || item.status === 'uploading') {
                   <button
                     type="button"
@@ -117,6 +132,7 @@ export class UploadBatchComponent implements OnInit {
 
   readonly items = signal<BatchItem[]>([]);
   private subscriptions = new Map<number, Subscription>();
+  private controls = new Map<number, UploadControl>();
   private announced = false;
 
   readonly counts = computed(() => {
@@ -143,6 +159,11 @@ export class UploadBatchComponent implements OnInit {
       }),
     );
     this.pump();
+  }
+
+  /** Pause/resume handle of a running upload (only large files can be paused). */
+  controlOf(id: number): UploadControl | undefined {
+    return this.controls.get(id);
   }
 
   cancel(item: BatchItem): void {
@@ -180,7 +201,9 @@ export class UploadBatchComponent implements OnInit {
 
   private start(item: BatchItem): void {
     this.update(item.id, { status: 'uploading' });
-    const subscription = this.audioJobService.uploadFile(item.file, this.settings()).subscribe({
+    const control = new UploadControl();
+    this.controls.set(item.id, control);
+    const subscription = this.audioJobService.uploadFile(item.file, this.settings(), control).subscribe({
       next: (event) => {
         this.update(item.id, { progress: event.progress, ...(event.jobId ? { status: 'done' as const } : {}) });
         if (event.jobId) this.finish(item.id);
@@ -197,6 +220,7 @@ export class UploadBatchComponent implements OnInit {
   private finish(id: number): void {
     this.subscriptions.get(id)?.unsubscribe();
     this.subscriptions.delete(id);
+    this.controls.delete(id);
     this.pump();
   }
 

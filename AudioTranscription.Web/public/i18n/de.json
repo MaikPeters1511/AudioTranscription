@@ -154,7 +154,10 @@
     "tabs": {
       "file": "Datei hochladen",
       "record": "Aufnehmen"
-    }
+    },
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "paused": "Pausiert"
   },
   "toast": {
     "close": "Schließen"
@@ -444,7 +447,9 @@
     "showQueue": "Warteschlange anzeigen",
     "showJobs": "Aufträge anzeigen",
     "uploadMore": "Weitere Dateien hochladen",
-    "hint": "Sie können mehrere Dateien auf einmal wählen; bis zu 3 werden parallel hochgeladen."
+    "hint": "Sie können mehrere Dateien auf einmal wählen; bis zu 3 werden parallel hochgeladen.",
+    "pauseFile": "Upload von {{name}} pausieren",
+    "resumeFile": "Upload von {{name}} fortsetzen"
   },
   "editor": {
     "edit": "Segment bei {{time}} bearbeiten",

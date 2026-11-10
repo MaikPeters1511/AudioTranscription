@@ -1,6 +1,6 @@
 # ADR 0006: Spike – Resumable Upload (tus vs. eigenes Chunking)
 
-- **Status:** Akzeptiert (Spike; keine Implementierung in dieser Story)
+- **Status:** Akzeptiert. Spike aus S14; Entscheidung D9 für die Umsetzung in S27 siehe „Entscheidung für S27“ am Ende.
 - **Datum:** 2026-09-24
 - **Kontext-Referenz:** Epic E-01, Story S14 (#15), Task S14-T4 (#75)
 
@@ -38,3 +38,16 @@ Begründung:
 - **Kein Code in dieser Story:** S14-T4 ist als Spike abgegrenzt; die tatsächliche tus-Integration (Server-Middleware, Frontend-Client, Übergang vom tus-Upload-Objekt zum bestehenden `AudioJob`) ist eine eigene, noch zu schreibende Folge-Story.
 - **Migration bestehender Uploads nicht nötig:** Der aktuelle `POST /api/audio-jobs`-Endpunkt (S14-T1) bleibt der Standardweg für alle Uploads unterhalb einer noch festzulegenden Schwelle (z. B. Browser-Aufnahmen aus S12, die ohnehin clientseitig vollständig vorliegen); tus ergänzt ihn nur für sehr große Datei-Uploads.
 - **Offene Fragen für die Folge-Story:** ab welcher Dateigröße tus statt des einfachen Uploads angeboten wird; wie unvollständige tus-Uploads nach Ablauf einer Frist aufgeräumt werden (analog zu `OrphanedFileRetentionHours` in `UploadOptions`); ob `tusdotnet`s Dateisystem-Storage-Provider für die docker-compose-Bereitstellung ausreicht oder ein eigener Provider nötig ist.
+
+## Entscheidung für S27 (D9, 2026-11-10)
+
+**tus** (`tusdotnet` 2.12.0 serverseitig, `tus-js-client` 4.x im Frontend), additiv zum bestehenden `POST /api/audio-jobs`.
+
+Antworten auf die offenen Fragen des Spikes:
+
+- **Ab welcher Größe tus?** Das Frontend nutzt tus ab 10 MiB (Konstante `RESUMABLE_UPLOAD_THRESHOLD_BYTES`), kleinere Dateien gehen weiter über den einfachen Multipart-Upload. Browser-Aufnahmen (S12) laufen über dieselbe Weiche und nehmen tus, sobald sie die Schwelle überschreiten. Der alte Endpoint bleibt bewusst erhalten (kleine Dateien, andere Clients, Skripte).
+- **Aufräumen unvollständiger Uploads:** Jede tus-Sitzung wird in der Tabelle `UploadSessions` mit Besitzer und Zeitpunkt geführt. Ein Hintergrunddienst entfernt unvollständige Sitzungen samt Teildatei nach `Upload:IncompleteSessionRetentionHours` (Standard 24). Die tus-eigene Expiration wird nicht genutzt, weil sie nicht über `TimeProvider` testbar ist. Fertige Uploads wandern in den bestehenden Upload-Ordner und unterliegen von da an dem `OrphanedUploadCleanupService`.
+- **Speicher:** Teil-Uploads liegen im Unterordner `tus/` von `Upload:TempStoragePath` (`TusDiskStore`), derselbe Docker-Volume wie die übrigen Uploads; ein eigener Provider ist nicht nötig. Beim Abschluss wird die Datei mit `File.Move` in `{jobId}{Endung}` verschoben, nicht kopiert.
+- **Sicherheit:** Eine Sitzung gehört dem Benutzer, der sie angelegt hat; jeder tus-Request (`POST`, `HEAD`, `PATCH`, `DELETE`) verlangt Anmeldung und passenden Besitzer, fremde Sitzungen verhalten sich wie nicht vorhanden (404). Größe (`Upload:MaxFileSizeBytes`), Content-Type, Modell, Sprache, Diarisierung und Glossar werden beim Anlegen geprüft, die Magic Bytes an der fertig zusammengesetzten Datei. Ein Abschluss erzeugt genau einen Job; das Ergebnis (Job-ID oder Ablehnungsgrund) liefert `GET /api/uploads/{id}/job`.
+- **Reverse-Proxy (offen, S27-T4):** Der Proxy muss `PATCH`, `HEAD`, `DELETE` und die `Upload-*`/`Tus-*`-Header durchlassen und Request-Buffering für `/api/uploads` abschalten; das Client-Chunk-Limit (5 MiB) liegt unter jedem üblichen `client_max_body_size`. Die Anpassung der mitgelieferten Konfiguration folgt in S27-T4.
+- **Verbleibendes Risiko:** `tusdotnet` ist für `net6.0` gebaut und läuft auf .NET 10 unverändert; sollte das Projekt nicht mehr gepflegt werden, ist das Protokoll offen genug, um die Server-Seite zu ersetzen, ohne den Client zu ändern.
