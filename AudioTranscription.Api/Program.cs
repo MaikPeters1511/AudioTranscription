@@ -8,6 +8,8 @@ using AudioTranscription.Api.Configuration;
 using AudioTranscription.Api.Endpoints;
 using AudioTranscription.Api.Hubs;
 using AudioTranscription.Api.Storage;
+using AudioTranscription.Domain.Export;
+using AudioTranscription.Infrastructure.Export;
 using AudioTranscription.Infrastructure.Data;
 using AudioTranscription.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -81,6 +83,10 @@ if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 
 // Add SignalR
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<ITranscriptExporter, MarkdownExporter>(); // S21
+builder.Services.AddSingleton<ITranscriptExporter, JsonExporter>();
+builder.Services.AddSingleton<ITranscriptExporter, DocxExporter>();
+builder.Services.AddSingleton<ITranscriptExporter, PdfExporter>();
 builder.Services.AddScoped<JobAccessService>();
 builder.Services.AddScoped<IJobNotifier, JobNotifier>();
 
@@ -229,6 +235,7 @@ app.MapHub<TranscriptionHub>("/hubs/transcription");
 app.MapAudioJobEndpoints();
 app.MapTranscriptionOptionsEndpoints();
 app.MapTranscriptOutputEndpoints();
+app.MapExportEndpoints();
 app.MapVariantEndpoints();
 app.MapSpeakerEndpoints();
 app.MapSearchEndpoints();

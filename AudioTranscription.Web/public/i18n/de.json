@@ -347,5 +347,19 @@
       "folder": "Ordner",
       "noFolder": "Kein Ordner"
     }
+  },
+  "jobExport": {
+    "title": "Exportieren",
+    "format": "Format",
+    "formats": {
+      "docx": "Word (DOCX)",
+      "md": "Markdown",
+      "json": "JSON",
+      "pdf": "PDF"
+    },
+    "timestamps": "Zeitstempel",
+    "speakers": "Sprechernamen",
+    "download": "Herunterladen",
+    "downloadLabel": "Export herunterladen"
   }
 }
