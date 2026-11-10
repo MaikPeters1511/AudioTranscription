@@ -60,10 +60,19 @@ services:
       - Chat__Endpoint=${CHAT_OLLAMA_ENDPOINT:-${EMBEDDING_OLLAMA_ENDPOINT:-}}
       - Chat__ApiKey=${CHAT_OPENAI_API_KEY:-}
       - Chat__RequestsPerMinute=${CHAT_REQUESTS_PER_MINUTE:-20}
+      # S28: keys that encrypt webhook secrets (and sign sessions) must survive container re-creation
+      - DataProtection__KeysPath=/app/dataprotection
+      # S28: private webhook targets (e.g. an n8n in this network); public https only by default
+      - Webhooks__AllowPrivateTargets=${WEBHOOKS_ALLOW_PRIVATE_TARGETS:-false}
+      # S28: watched folder (mount a host folder to /watch/inbox below and enable these two lines)
+      # - Watch__Folders__0__Path=/watch/inbox
+      # - Watch__Folders__0__User=${WATCH_USER_EMAIL}
     ports:
       - "8080:8080"
     volumes:
       - api-uploads:/app/uploads
+      - api-dataprotection:/app/dataprotection
+      # - ./watch-inbox:/watch/inbox
 
   # S15-T3: GPU-accelerated variant, opt-in via `docker compose --profile gpu up api-gpu`.
   # Runs alongside the default "api" service (different host port) rather than replacing it, so
@@ -84,6 +93,7 @@ services:
       - Upload__MaxFileSizeBytes=${UPLOAD_MAX_FILE_SIZE_MB:-500}000000
       # S27: how long an unfinished resumable upload is kept before it is removed
       - Upload__IncompleteSessionRetentionHours=${UPLOAD_INCOMPLETE_RETENTION_HOURS:-24}
+      - DataProtection__KeysPath=/app/dataprotection
     deploy:
       resources:
         reservations:
@@ -95,6 +105,7 @@ services:
       - "8081:8080"
     volumes:
       - api-uploads:/app/uploads
+      - api-dataprotection:/app/dataprotection
 
   web:
     build:
@@ -150,3 +161,4 @@ volumes:
   qdrant-data:
   sql-data:
   api-uploads:
+  api-dataprotection:

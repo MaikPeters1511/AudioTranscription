@@ -66,4 +66,33 @@ public class OpenApiIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         operation.TryGetProperty("summary", out var summary).Should().BeTrue();
         summary.GetString().Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public async Task GetOpenApiDocument_DescribesTheApiKeyAuthentication()
+    {
+        using var document = await GetDocumentAsync();
+
+        var schemes = document.RootElement.GetProperty("components").GetProperty("securitySchemes");
+        var header = schemes.GetProperty("ApiKey");
+        header.GetProperty("type").GetString().Should().Be("apiKey");
+        header.GetProperty("in").GetString().Should().Be("header");
+        header.GetProperty("name").GetString().Should().Be("X-Api-Key");
+        var bearer = schemes.GetProperty("BearerApiKey");
+        bearer.GetProperty("type").GetString().Should().Be("http");
+        bearer.GetProperty("scheme").GetString().Should().Be("bearer");
+        document.RootElement.GetProperty("security").GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    [Theory]
+    [InlineData("/api/api-keys", "post")]
+    [InlineData("/api/webhooks", "post")]
+    [InlineData("/api/webhooks/{id}/test", "post")]
+    [InlineData("/api/webhooks/{id}/deliveries", "get")]
+    public async Task GetOpenApiDocument_ListsTheAutomationEndpoints(string path, string method)
+    {
+        using var document = await GetDocumentAsync();
+
+        document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method)
+            .GetProperty("summary").GetString().Should().NotBeNullOrWhiteSpace();
+    }
 }

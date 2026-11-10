@@ -44,12 +44,18 @@ public static class TestAuthenticationExtensions
 {
     public static IServiceCollection AddTestAuthentication(this IServiceCollection services)
     {
+        // Requests that carry an API key (S28) are authenticated by the real key scheme, all others by the test user
+        const string TestOrApiKey = "TestOrApiKey";
         services.AddAuthentication(o =>
             {
-                o.DefaultScheme = TestAuthHandler.SchemeName;
-                o.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-                o.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                o.DefaultScheme = TestOrApiKey;
+                o.DefaultAuthenticateScheme = TestOrApiKey;
+                o.DefaultChallengeScheme = TestOrApiKey;
             })
+            .AddPolicyScheme(TestOrApiKey, TestOrApiKey, o => o.ForwardDefaultSelector = context =>
+                AudioTranscription.Api.Automation.ApiKeyAuthentication.IsApiKeyRequest(context.Request)
+                    ? AudioTranscription.Api.Automation.ApiKeyAuthentication.Scheme
+                    : TestAuthHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         return services;
     }

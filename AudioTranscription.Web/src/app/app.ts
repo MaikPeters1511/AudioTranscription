@@ -87,6 +87,12 @@ import { AuthService } from './auth/auth.service';
                 {{ 'app.nav.templates' | transloco }}
               </a>
             }
+            <a routerLink="/api-keys" routerLinkActive="active" class="btn btn-ghost btn-sm hidden lg:inline-flex">
+              {{ 'app.nav.apiKeys' | transloco }}
+            </a>
+            <a routerLink="/webhooks" routerLinkActive="active" class="btn btn-ghost btn-sm hidden lg:inline-flex">
+              {{ 'app.nav.webhooks' | transloco }}
+            </a>
             <a routerLink="/account" routerLinkActive="active" class="btn btn-ghost btn-sm">
               {{ 'app.nav.account' | transloco }}
             </a>
