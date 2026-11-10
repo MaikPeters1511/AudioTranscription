@@ -1,6 +1,10 @@
 import { Component, DestroyRef, computed, effect, inject, output, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { TranslocoService } from '@jsverse/transloco';
 import { AudioRecorderService } from '../../services/audio-recorder.service';
+import { ConnectivityService } from '../../services/connectivity.service';
+import { OfflineUploadQueueService } from '../../services/offline-upload-queue.service';
+import { ToastService } from '../../services/toast.service';
 
 /**
  * Record a take directly in the browser (S12): start/stop, preview, then hand the recorded
@@ -16,7 +20,7 @@ import { AudioRecorderService } from '../../services/audio-recorder.service';
         <div class="flex items-center gap-4">
           <button
             type="button"
-            class="btn btn-circle btn-lg"
+            class="btn btn-circle btn-lg min-h-14 min-w-14"
             [class.btn-error]="state() === 'recording'"
             [class.btn-primary]="state() !== 'recording'"
             [attr.aria-pressed]="state() === 'recording'"
@@ -43,11 +47,24 @@ import { AudioRecorderService } from '../../services/audio-recorder.service';
           </div>
         }
 
+        @if (warningKey(); as key) {
+          <div class="alert alert-warning" role="alert">
+            <span>{{ key | transloco }}</span>
+          </div>
+        }
+
         @if (state() === 'stopped' && previewUrl(); as url) {
           <audio controls [src]="url" [attr.aria-label]="'recorder.preview' | transloco"></audio>
-          <div class="flex gap-2">
-            <button type="button" class="btn btn-primary" (click)="transcribe()">{{ 'recorder.transcribe' | transloco }}</button>
-            <button type="button" class="btn btn-ghost" (click)="discard()">{{ 'recorder.discard' | transloco }}</button>
+          @if (!connectivity.online()) {
+            <p class="text-sm">{{ 'recorder.offlineHint' | transloco }}</p>
+          }
+          <div class="flex flex-wrap gap-2">
+            @if (connectivity.online()) {
+              <button type="button" class="btn btn-primary min-h-11" (click)="transcribe()">{{ 'recorder.transcribe' | transloco }}</button>
+            } @else {
+              <button type="button" class="btn btn-primary min-h-11" [disabled]="saving()" (click)="saveForLater()">{{ 'recorder.saveOffline' | transloco }}</button>
+            }
+            <button type="button" class="btn btn-ghost min-h-11" (click)="discard()">{{ 'recorder.discard' | transloco }}</button>
           </div>
         }
 
@@ -59,6 +76,10 @@ import { AudioRecorderService } from '../../services/audio-recorder.service';
 export class RecorderComponent {
   private recorder = inject(AudioRecorderService);
   private destroyRef = inject(DestroyRef);
+  private queue = inject(OfflineUploadQueueService);
+  private toast = inject(ToastService);
+  private transloco = inject(TranslocoService);
+  protected connectivity = inject(ConnectivityService);
 
   /** Emits a File built from the recorded take, ready to be uploaded like a normal file. */
   readonly recorded = output<File>();
@@ -78,6 +99,24 @@ export class RecorderComponent {
         return 'recorder.error.unsupported';
       case 'recording-failed':
         return 'recorder.error.recordingFailed';
+      default:
+        return '';
+    }
+  });
+
+  /** Set while the take is being handed to the upload queue, and when that failed. */
+  readonly saving = signal(false);
+  private readonly saveFailed = signal(false);
+
+  readonly warningKey = computed(() => {
+    if (this.saveFailed()) {
+      return 'recorder.storage.saveFailed';
+    }
+    switch (this.recorder.storageWarning()) {
+      case 'storage-full':
+        return 'recorder.storage.full';
+      case 'storage-failed':
+        return 'recorder.storage.failed';
       default:
         return '';
     }
@@ -138,6 +177,7 @@ export class RecorderComponent {
       return;
     }
     this.elapsedSeconds.set(0);
+    this.saveFailed.set(false);
     await this.recorder.start();
     if (this.state() === 'recording') {
       this.timer = setInterval(() => this.elapsedSeconds.update((s) => s + 1), 1000);
@@ -153,6 +193,27 @@ export class RecorderComponent {
     const file = new File([blob], `recording.${extension}`, { type: blob.type });
     this.recorded.emit(file);
     this.recorder.reset();
+  }
+
+  /** Offline (S33): keeps the take on this device; the upload queue sends it once there is a connection. */
+  async saveForLater(): Promise<void> {
+    this.saving.set(true);
+    try {
+      await this.recorder.flush();
+      const id = this.recorder.recordingId();
+      if (!id) {
+        this.saveFailed.set(true); // never stored: keep it on screen so the user can still decide
+        return;
+      }
+      await this.queue.enqueue(id);
+      this.recorder.reset({ keepStored: true });
+      this.toast.show(this.transloco.translate('offline.saved'), 'info');
+    } catch (error) {
+      console.error('Saving the recording for later failed', error);
+      this.saveFailed.set(true);
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   discard(): void {

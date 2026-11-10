@@ -243,6 +243,13 @@
       "permissionDenied": "Microphone access was denied. Allow microphone access in your browser settings and try again.",
       "unsupported": "This browser cannot record audio. Try Chrome, Firefox or Safari, or upload a file instead.",
       "recordingFailed": "Recording failed unexpectedly. Please try again."
+    },
+    "saveOffline": "Save for later upload",
+    "offlineHint": "You are offline. The recording stays on this device and is uploaded automatically once you are back online.",
+    "storage": {
+      "full": "The device storage is full. The recording was stopped and what was recorded so far is kept. Free up space, then record again.",
+      "failed": "The recording cannot be kept on this device. It is not protected against a closed tab or a crash.",
+      "saveFailed": "The recording could not be saved on this device."
     }
   },
   "search": {
@@ -678,6 +685,43 @@
       "rateLimit": "Too many questions. Please wait a moment.",
       "notFound": "The recording or conversation was not found.",
       "failed": "Something went wrong. Please try again."
+    }
+  },
+  "offline": {
+    "banner": "You are offline. Recordings are saved on this device and uploaded once you are back online.",
+    "saved": "Recording saved. It will be uploaded once you are online.",
+    "uploaded": "Recording uploaded and removed from this device.",
+    "pending": {
+      "title": "Waiting for upload",
+      "recordedAt": "Recording from {{date}}",
+      "status": {
+        "pending": "Waiting for a connection",
+        "uploading": "Uploading… {{percent}} %",
+        "failed": "Failed"
+      },
+      "networkError": "No connection. The upload is retried automatically.",
+      "retry": "Retry",
+      "retryLabel": "Retry the upload of the recording from {{date}}",
+      "delete": "Delete",
+      "deleteLabel": "Delete the recording from {{date}}",
+      "confirmDelete": "Delete permanently",
+      "confirmDeleteLabel": "Delete the recording from {{date}} permanently",
+      "cancel": "Cancel",
+      "progressLabel": "Upload progress of the recording from {{date}}",
+      "privacy": "Recordings that were not uploaded yet are stored unencrypted in this browser. They are deleted after the upload and when you sign out."
+    },
+    "logout": {
+      "title": "Recordings not uploaded",
+      "message": "{{count}} recording(s) on this device have not been uploaded yet. Signing out deletes them.",
+      "confirm": "Delete and sign out",
+      "cancel": "Stay signed in"
+    },
+    "install": {
+      "title": "Install app",
+      "text": "Install the app for quick access and to record without a connection.",
+      "install": "Install",
+      "dismiss": "Not now",
+      "region": "Installation hint"
     }
   }
 }

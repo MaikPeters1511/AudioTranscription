@@ -6,13 +6,17 @@ import { ToastComponent } from './components/toast/toast.component';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { LanguageService } from './i18n/language.service';
 import { AuthService } from './auth/auth.service';
+import { OfflineBannerComponent } from './components/offline/offline-banner.component';
+import { LogoutConfirmDialogComponent } from './components/offline/logout-confirm-dialog.component';
+import { OfflineUploadQueueService } from './services/offline-upload-queue.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, TranslocoPipe],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, TranslocoPipe, OfflineBannerComponent, LogoutConfirmDialogComponent],
   template: `
     <div class="min-h-screen bg-base-100" [attr.data-theme]="theme()">
+      <app-offline-banner />
       <!-- Navbar -->
       <div class="navbar bg-base-200 shadow-sm px-4 lg:px-8">
         <div class="navbar-start">
@@ -167,6 +171,10 @@ import { AuthService } from './auth/auth.service';
       
       <!-- Global Toasts -->
       <app-toast />
+
+      @if (confirmLogoutCount(); as count) {
+        <app-logout-confirm-dialog [count]="count" (confirmed)="logoutAndDiscard()" (cancelled)="confirmLogoutCount.set(0)" />
+      }
     </div>
   `,
 })
@@ -175,6 +183,10 @@ export class App implements OnInit {
   language = inject(LanguageService);
   auth = inject(AuthService);
   private router = inject(Router);
+  /** Starts the queue of local recordings as soon as the app runs (S33). */
+  private offlineQueue = inject(OfflineUploadQueueService);
+  /** Number of unsent local recordings while the sign-out waits for the user's decision (0: no dialog). */
+  readonly confirmLogoutCount = signal(0);
   theme = signal<'light' | 'dark'>(
     (typeof localStorage !== 'undefined' && localStorage.getItem('theme') as 'light' | 'dark') || 'light'
   );
@@ -195,7 +207,27 @@ export class App implements OnInit {
   }
 
   async logout(): Promise<void> {
-    await this.auth.logout();
+    // Local recordings of this user are deleted on sign-out, so ask first when there are unsent ones (S33-T4)
+    if (await this.offlineQueue.hasLocalRecordings()) {
+      this.confirmLogoutCount.set(this.offlineQueue.items().length || 1);
+      return;
+    }
+    await this.signOut();
+  }
+
+  async logoutAndDiscard(): Promise<void> {
+    this.confirmLogoutCount.set(0);
+    await this.offlineQueue.discardAllOfCurrentUser();
+    await this.signOut();
+  }
+
+  private async signOut(): Promise<void> {
+    try {
+      await this.auth.logout();
+    } catch (error) {
+      // Offline or API down: the session is dropped locally in any case, the cookie expires on its own
+      console.warn('Sign-out request failed', error);
+    }
     await this.router.navigate(['/login']);
   }
 

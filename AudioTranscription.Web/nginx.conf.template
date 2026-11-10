@@ -13,6 +13,30 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # S33 / ADR 0012: the service worker, its file list and the manifest must always be revalidated, otherwise a
+    # new app version is not noticed. (Hashed bundles stay cacheable.) The service worker only works over HTTPS
+    # (or on localhost), see the README.
+    location = /ngsw-worker.js {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /ngsw.json {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /safety-worker.js {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache" always;
+        default_type application/manifest+json;
+        try_files $uri =404;
+    }
+
     # S27 / ADR 0006: resumable uploads (tus). Chunks are 5 MiB, so a small limit is enough here; the request is
     # streamed to the API instead of being buffered, and PATCH/HEAD/DELETE plus the Upload-* headers pass through.
     location /api/uploads {
