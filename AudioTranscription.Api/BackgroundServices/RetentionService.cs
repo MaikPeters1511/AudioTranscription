@@ -26,6 +26,9 @@ public class RetentionService(
     private static readonly AudioJobStatus[] FinishedStatuses =
         [AudioJobStatus.Completed, AudioJobStatus.Failed, AudioJobStatus.Cancelled];
 
+    /// <summary>How many jobs the audio pass loads and looks at at once, so memory does not grow with the number of jobs (S30-F2).</summary>
+    internal int BatchSize { get; init; } = 500;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
@@ -76,20 +79,26 @@ public class RetentionService(
         if (settings.TranscriptDays > 0)
             await DeleteExpiredJobsAsync(now.AddDays(-settings.TranscriptDays), settings.MaxJobsPerRun, cancellationToken);
         if (settings.AudioDays > 0)
-            await DeleteExpiredUploadsAsync(now.AddDays(-settings.AudioDays), cancellationToken);
+        {
+            // Jobs past the transcript limit are the transcript pass' business (their upload goes with them)
+            DateTime? transcriptCutoff = settings.TranscriptDays > 0 ? now.AddDays(-settings.TranscriptDays) : null;
+            await DeleteExpiredUploadsAsync(now.AddDays(-settings.AudioDays), transcriptCutoff, cancellationToken);
+        }
     }
 
     private async Task DeleteExpiredJobsAsync(DateTime cutoffUtc, int maxJobs, CancellationToken cancellationToken)
     {
-        var expired = await FindExpiredAsync(cutoffUtc, cancellationToken);
-        if (expired.Count == 0)
+        // Only this run's share is loaded, oldest first
+        var batch = await FindExpiredAsync(cutoffUtc, maxJobs, cancellationToken);
+        if (batch.Count == 0)
             return;
 
-        // Visible on purpose: switching retention on (or a clock that jumped forward) can delete a lot at once
-        var batch = expired.Take(maxJobs).ToList();
+        // Visible on purpose: switching retention on (or a clock that jumped forward) can delete a lot at once.
+        // The total is only counted when the batch is full, i.e. when there may be more than this run deletes.
+        var total = batch.Count < maxJobs ? batch.Count : await CountExpiredAsync(cutoffUtc, cancellationToken);
         logger.LogWarning(
             "Retention is about to delete {Count} of {Total} expired job(s) (limit {Max} per run)",
-            batch.Count, expired.Count, maxJobs);
+            batch.Count, total, maxJobs);
 
         var deleted = 0;
         foreach (var (id, fileName) in batch)
@@ -175,30 +184,35 @@ public class RetentionService(
         return true;
     }
 
-    private async Task DeleteExpiredUploadsAsync(DateTime cutoffUtc, CancellationToken cancellationToken)
+    private async Task DeleteExpiredUploadsAsync(DateTime audioCutoffUtc, DateTime? transcriptCutoffUtc, CancellationToken cancellationToken)
     {
-        var expired = await FindExpiredAsync(cutoffUtc, cancellationToken);
-
-        foreach (var (id, fileName) in expired)
+        for (var page = 0; ; page++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var path = tempFileStore.GetUploadPath(id, fileName);
-            if (!File.Exists(path))
-                continue;
-
-            try
+            var batch = await FindAudioExpiredAsync(audioCutoffUtc, transcriptCutoffUtc, page * BatchSize, BatchSize, cancellationToken);
+            foreach (var (id, fileName) in batch)
             {
-                // Checked again right before deleting: a retry or a lock since the list was read keeps the file
-                if (!await StillExpiredAsync(id, cutoffUtc, cancellationToken))
+                cancellationToken.ThrowIfCancellationRequested();
+                var path = tempFileStore.GetUploadPath(id, fileName);
+                if (!File.Exists(path))
                     continue;
 
-                tempFileStore.DeleteUpload(path);
-                logger.LogInformation("Retention deleted the upload of job {JobId}", id);
+                try
+                {
+                    // Checked again right before deleting: a retry or a lock since the list was read keeps the file
+                    if (!await StillExpiredAsync(id, audioCutoffUtc, cancellationToken))
+                        continue;
+
+                    tempFileStore.DeleteUpload(path);
+                    logger.LogInformation("Retention deleted the upload of job {JobId}", id);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning("Retention could not delete the upload of job {JobId} ({ErrorType}), trying again at the next run", id, ex.GetType().Name);
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogWarning("Retention could not delete the upload of job {JobId} ({ErrorType}), trying again at the next run", id, ex.GetType().Name);
-            }
+
+            if (batch.Count < BatchSize)
+                return;
         }
     }
 
@@ -209,14 +223,42 @@ public class RetentionService(
         return await ExpiredJobs(dbContext, cutoffUtc).AnyAsync(j => j.Id == id, cancellationToken);
     }
 
-    /// <summary>Oldest first, so a limit per run always works through the backlog in order.</summary>
-    private async Task<List<(Guid Id, string FileName)>> FindExpiredAsync(DateTime cutoffUtc, CancellationToken cancellationToken)
+    /// <summary>At most <paramref name="take"/> expired jobs, oldest first, so a limit per run always works through the backlog in order.</summary>
+    private async Task<List<(Guid Id, string FileName)>> FindExpiredAsync(DateTime cutoffUtc, int take, CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var rows = await ExpiredJobs(dbContext, cutoffUtc)
             .OrderBy(j => j.CompletedAtUtc ?? j.CreatedAtUtc)
+            .ThenBy(j => j.Id)
+            .Take(take)
+            .Select(j => new { j.Id, j.FileName })
+            .ToListAsync(cancellationToken);
+        return rows.Select(r => (r.Id, r.FileName)).ToList();
+    }
+
+    private async Task<int> CountExpiredAsync(DateTime cutoffUtc, CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        return await ExpiredJobs(scope.ServiceProvider.GetRequiredService<AppDbContext>(), cutoffUtc).CountAsync(cancellationToken);
+    }
+
+    /// <summary>One page of the jobs whose upload is past the audio limit but whose transcript is still kept.</summary>
+    private async Task<List<(Guid Id, string FileName)>> FindAudioExpiredAsync(
+        DateTime audioCutoffUtc, DateTime? transcriptCutoffUtc, int skip, int take, CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var query = ExpiredJobs(dbContext, audioCutoffUtc);
+        if (transcriptCutoffUtc is { } transcriptCutoff)
+            query = query.Where(j => (j.CompletedAtUtc ?? j.CreatedAtUtc) >= transcriptCutoff);
+
+        var rows = await query
+            .OrderBy(j => j.CompletedAtUtc ?? j.CreatedAtUtc)
+            .ThenBy(j => j.Id)
+            .Skip(skip).Take(take)
             .Select(j => new { j.Id, j.FileName })
             .ToListAsync(cancellationToken);
         return rows.Select(r => (r.Id, r.FileName)).ToList();
