@@ -39,6 +39,10 @@ public class ResumableUploadIntegrationTests : IClassFixture<WebApplicationFacto
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
 
             services.AddTestAuthentication();
+            // These tests cover the upload protocol only. A running worker would pick the new job up
+            // concurrently (Pending -> Processing, upload file consumed) and make the assertions race.
+            foreach (var worker in services.Where(d => d.ImplementationType == typeof(TranscriptionWorker)).ToList())
+                services.Remove(worker);
             services.Configure<UploadOptions>(o =>
             {
                 o.TempStoragePath = _dir.Path;

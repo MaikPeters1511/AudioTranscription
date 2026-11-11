@@ -3,7 +3,7 @@
 Dieses Projekt ist eine agentengesteuerte Entwicklungsumgebung, basierend auf agilen Scrum-Prozessen, Domain-Driven Design (DDD) und Clean Architecture. Diese Datei wird bei jeder Session automatisch geladen und gilt für Claude und alle Subagenten in `.claude/agents/`.
 
 ## 🚀 Tech Stack
-- **Backend:** .NET Core 10, C# 14, Wolverine
+- **Backend:** .NET 11, C# 14, Wolverine
 - **Frontend:** Angular 22, TypeScript 6, DaisyUI 5, i18n (DE/EN), ARIA (Accessibility)
 - **Datenbanken:** PostgreSQL, Qdrant (Vektor-Datenbank)
 - **Infrastruktur & Hosting:** .NET Aspire, Docker
@@ -18,7 +18,7 @@ Für jede Rolle existiert ein Subagent unter `.claude/agents/` (per Task-Tool au
 2. **`sm-agent`** (Scrum Master) – moderiert Dailys, löst Blocker, übernimmt Sprintplanung.
 3. **`architect-agent`** (Tech Lead) – überwacht Clean Architecture/Vertical Slices, schreibt ADRs, High-Level Reviews.
 4. **`frontend-agent`** – Angular 22 Standalone Components mit DaisyUI, TDD.
-5. **`backend-agent`** – APIs/Domain-Logik (.NET 10, C# 14, PostgreSQL), TDD, Clean Architecture/Vertical Slices.
+5. **`backend-agent`** – APIs/Domain-Logik (.NET 11, C# 14, PostgreSQL), TDD, Clean Architecture/Vertical Slices.
 6. **`ai-agent`** (KI & Data Engineer) – LLM-Integrationen, RAG-Pipelines, Vector-Embeddings mit Qdrant.
 7. **`qa-agent`** – E2E-, Last- und API-Compliance-Tests.
 8. **`devops-agent`** – .NET Aspire, Docker, CI/CD, Observability.

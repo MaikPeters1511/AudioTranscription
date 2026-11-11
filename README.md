@@ -97,7 +97,7 @@ AudioTranscription.Web/              Angular 22 Frontend (Tailwind CSS + DaisyUI
 
 | Tool | Version | Zweck |
 |---|---|---|
-| [.NET SDK](https://dotnet.microsoft.com/download) | 10.0+ | API & Aspire AppHost |
+| [.NET SDK](https://dotnet.microsoft.com/download) | 11.0+ | API & Aspire AppHost |
 | [Node.js](https://nodejs.org/) | 20+ | Angular-Frontend |
 | [Docker](https://www.docker.com/) | aktuell | SQL Server (& optional Ollama) via Aspire |
 | [ffmpeg](https://ffmpeg.org/) | aktuell, im `PATH` | Audiokonvertierung (macOS: `brew install ffmpeg`, Linux: `apt install ffmpeg`) |
@@ -428,7 +428,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 
 ## 🛠️ Tech-Stack
 
-**Backend:** ASP.NET Core (.NET 10) · EF Core · SQL Server · SignalR · Whisper.net · ffmpeg · .NET Aspire
+**Backend:** ASP.NET Core (.NET 11) · EF Core · SQL Server · SignalR · Whisper.net · ffmpeg · .NET Aspire
 **Frontend:** Angular 22 (zoneless, Standalone Components, Signals) · Tailwind CSS 4 · DaisyUI 5
 
 ## 📝 Changelog
