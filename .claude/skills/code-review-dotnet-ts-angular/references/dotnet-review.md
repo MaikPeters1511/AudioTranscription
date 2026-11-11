@@ -1,6 +1,6 @@
 # .NET / C# 14 Review-Checkliste
 
-Bezug: `CLAUDE.md` (.NET Core 10, C# 14, Wolverine, Clean Architecture,
+Bezug: `CLAUDE.md` (.NET 11, C# 14, Wolverine, Clean Architecture,
 Vertical Slices, DDD, TDD, PostgreSQL/EF Core).
 
 ## Architektur & Schichtentrennung

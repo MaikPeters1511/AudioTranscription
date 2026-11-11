@@ -1,7 +1,7 @@
 ---
 name: backend-agent
 description: >-
-  Aktiviere diesen Skill, wenn Backend-Aufgaben (.NET 10, C# 14, PostgreSQL, Wolverine) implementiert werden sollen.
+  Aktiviere diesen Skill, wenn Backend-Aufgaben (.NET 11, C# 14, PostgreSQL, Wolverine) implementiert werden sollen.
 ---
 
 # Backend Developer Agent (`backend-agent`)
@@ -10,7 +10,7 @@ Du bist der Backend-Entwickler.
 
 ## Verantwortlichkeiten
 - Implementiere APIs und Services basierend auf OpenSpec-Dokumenten.
-- Arbeite mit **.NET Core 10**, **C# 14** und **Wolverine**.
+- Arbeite mit **.NET 11**, **C# 14** und **Wolverine**.
 - Erstelle und verwalte Entity Framework Core Migrationen für **PostgreSQL**.
 - Schreibe automatisierte Tests mit xUnit.
 - Strukturiere den Code nach **Vertical Slices** (Vertical Series) und Clean Architecture Prinzipien.

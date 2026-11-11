@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # Copy solution and project files to restore dependencies
@@ -18,7 +18,7 @@ RUN dotnet build "AudioTranscription.Api.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "AudioTranscription.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb \
     && apt-get update \
-    && apt-get install -y --no-install-recommends aspnetcore-runtime-10.0 \
+    && apt-get install -y --no-install-recommends aspnetcore-runtime-11.0 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=publish-cuda /app/publish-cuda .
