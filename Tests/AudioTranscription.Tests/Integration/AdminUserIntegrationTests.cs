@@ -309,8 +309,12 @@ public class AdminUserIntegrationTests(WebApplicationFactory<Program> baseFactor
             first.PutAsJsonAsync($"/api/admin/users/{user.Id}/roles", new { roles = Array.Empty<string>() }),
             second.PutAsJsonAsync($"/api/admin/users/{firstId}/roles", new { roles = Array.Empty<string>() }));
 
+        // Exactly one demotion may succeed - two would leave the system without an admin. The loser is
+        // either refused by the last-admin guard (409) or, when the winner finished first and its security
+        // stamp already invalidated the loser's session/role, rejected before reaching the guard (401/403).
         results.Count(r => r.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
-        results.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
+        results.Single(r => r.StatusCode != HttpStatusCode.NoContent).StatusCode
+            .Should().BeOneOf(HttpStatusCode.Conflict, HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
     }
 
     [Fact]
