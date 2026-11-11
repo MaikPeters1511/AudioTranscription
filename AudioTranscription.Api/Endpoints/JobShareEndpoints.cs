@@ -93,13 +93,16 @@ public static class JobShareEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<NoContent> RevokeShare(Guid id, string userId, AppDbContext dbContext)
+    private static async Task<NoContent> RevokeShare(Guid id, string userId, AppDbContext dbContext, IJobNotifier notifier)
     {
         var share = await dbContext.JobShares.SingleOrDefaultAsync(s => s.AudioJobId == id && s.UserId == userId);
         if (share is not null)
         {
             dbContext.JobShares.Remove(share);
             await dbContext.SaveChangesAsync();
+
+            // The user no longer sees the job: their open list and detail view drop it at once (S19-F1)
+            await notifier.SendAsync([userId], "JobUnshared", id);
         }
         return TypedResults.NoContent();
     }

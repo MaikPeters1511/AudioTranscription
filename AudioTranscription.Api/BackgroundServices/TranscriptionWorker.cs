@@ -296,18 +296,31 @@ public class TranscriptionWorker : BackgroundService
     /// Keeps the latest value for clients that load the job later and pushes throttled "JobProgress" events.
     /// Called on Whisper's thread, so sending is not awaited.
     /// </summary>
-    private ThrottledProgress CreateProgress(IServiceProvider services, IJobNotifier notifier, IReadOnlyList<string> recipients, Guid jobId)
+    /// <summary>How often the recipients of the progress of a running job are looked up again, so a revoked share stops them.</summary>
+    internal static readonly TimeSpan RecipientsRefreshInterval = TimeSpan.FromSeconds(15);
+
+    private ThrottledProgress CreateProgress(IServiceProvider services, IJobNotifier notifier, IReadOnlyList<string> initialRecipients, Guid jobId)
     {
         var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
+        // The lookup runs on another thread than the worker: it gets its own scope (and database context)
+        var recipients = new ProgressRecipients(async cancellationToken =>
+        {
+            using var scope = _scopeFactory.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<IJobNotifier>().GetRecipientsAsync(jobId, cancellationToken);
+        }, timeProvider, RecipientsRefreshInterval, initialRecipients);
+
         return new ThrottledProgress(timeProvider, percent =>
         {
             _progressStore.Set(jobId, percent);
-            notifier.SendAsync(recipients, "JobProgress", new JobProgressDto(jobId, percent))
+            SendProgressAsync(notifier, recipients, jobId, percent)
                 .ContinueWith(
                     t => _logger.LogWarning(t.Exception, "Failed to push progress of job {JobId}", jobId),
                     CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
         });
     }
+
+    private static async Task SendProgressAsync(IJobNotifier notifier, ProgressRecipients recipients, Guid jobId, int percent) =>
+        await notifier.SendAsync(await recipients.GetAsync(), "JobProgress", new JobProgressDto(jobId, percent));
 
     private void CleanupUpload(ITempFileStore tempFileStore, string filePath, AudioJobStatus? outcome)
     {

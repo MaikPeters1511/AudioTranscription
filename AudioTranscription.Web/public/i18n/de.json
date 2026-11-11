@@ -14,7 +14,8 @@
       "templates": "Vorlagen",
       "apiKeys": "API-Keys",
       "webhooks": "Webhooks",
-      "chat": "Chat"
+      "chat": "Chat",
+      "unassignedJobs": "Jobs ohne Eigentümer"
     },
     "connection": {
       "live": "Live verbunden",
@@ -318,6 +319,27 @@
         "lastAdminDeactivate": "Der letzte aktive Administrator kann nicht deaktiviert werden.",
         "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
       }
+    },
+    "unassigned": {
+      "title": "Jobs ohne Eigentümer",
+      "pageTitle": "Jobs ohne Eigentümer · Transkription",
+      "intro": "Diese Jobs stammen aus der Zeit, bevor jeder Job einen Eigentümer hatte. Niemand sieht sie, bis du sie einem Benutzer zuordnest.",
+      "loading": "Jobs werden geladen…",
+      "loadFailed": "Die Jobs konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Es gibt keine Jobs ohne Eigentümer.",
+      "caption": "Jobs ohne Eigentümer",
+      "file": "Datei",
+      "created": "Erstellt",
+      "owner": "Neuer Eigentümer",
+      "actions": "Aktionen",
+      "chooseUser": "Neuer Eigentümer von {{file}}",
+      "choosePlaceholder": "Benutzer wählen…",
+      "assign": "Zuordnen",
+      "assignLabel": "{{file}} dem gewählten Benutzer zuordnen",
+      "assigned": "{{file}} wurde zugeordnet.",
+      "gone": "Dieser Job hat schon einen Eigentümer oder existiert nicht mehr. Die Liste wurde aktualisiert.",
+      "failed": "Der Job konnte nicht zugeordnet werden. Bitte versuche es erneut."
     }
   },
   "jobShare": {

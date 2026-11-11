@@ -79,6 +79,11 @@ Die Zugangsdaten werden ausschließlich aus der Konfiguration gelesen (`Auth:Ini
 - **Session-Cookie:** Es ist `HttpOnly`, `Secure` und `SameSite=Strict`. Außerhalb von `localhost` muss die App deshalb über **HTTPS** erreichbar sein.
 - **CORS:** Frontend und API laufen same-origin (Dev-Proxy bzw. nginx), CORS ist deshalb standardmäßig zu. Andere Origins lassen sich über `Cors:AllowedOrigins` freigeben.
 
+### Freigaben entziehen, Jobs ohne Eigentümer
+
+- Entzieht der Eigentümer eine Freigabe, bekommt der Betroffene sofort das SignalR-Event `JobUnshared`: Der Job verschwindet aus seiner Liste, eine offene Detailansicht schließt sich wie bei einem gelöschten Job. Die Fortschrittsmeldungen eines laufenden Jobs lösen ihre Empfänger alle 15 Sekunden neu auf, ein Entzug wirkt also auch dort nach höchstens 15 Sekunden.
+- Jobs aus der Zeit vor der Eigentümer-Zuordnung (S19) sieht niemand. Admins ordnen sie unter **Jobs ohne Eigentümer** (`/admin/jobs`, nur für Admins) einem aktiven Benutzer zu; ein Job, der inzwischen einen Eigentümer hat, wird als nicht mehr vorhanden gemeldet und die Liste aktualisiert.
+
 ### Passwörter, Sperre und Rate-Limits
 
 - **Passwörter** brauchen mindestens **12 Zeichen** (gilt für den initialen Admin, neue Benutzer durch Admins und das Ändern des eigenen Passworts). Ein kürzeres `Auth:InitialUser:Password` wird abgelehnt, der Seeder protokolliert dann den Grund und legt kein Konto an.
