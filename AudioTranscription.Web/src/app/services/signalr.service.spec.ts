@@ -46,4 +46,14 @@ describe('SignalRService', () => {
 
     expect(refresh).toHaveBeenCalledWith('job-1');
   });
+
+  it('drops a job from the list when its share was revoked (S19-F1)', () => {
+    TestBed.inject(SignalRService).start('');
+    const jobs = TestBed.inject(AudioJobService);
+    const removed = vi.spyOn(jobs, 'removeJobFromList');
+
+    handlers['JobUnshared']('job-7');
+
+    expect(removed).toHaveBeenCalledWith('job-7');
+  });
 });

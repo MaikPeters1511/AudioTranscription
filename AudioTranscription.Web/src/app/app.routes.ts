@@ -86,5 +86,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./components/chat/chat.component').then((m) => m.ChatComponent),
   },
+  {
+    path: 'admin/jobs',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./components/unassigned-jobs/unassigned-jobs.component').then((m) => m.UnassignedJobsComponent),
+  },
   { path: '**', redirectTo: 'upload' },
 ];

@@ -391,6 +391,28 @@ public class JobAccessIntegrationTests : IClassFixture<WebApplicationFactory<Pro
         _userClients.Verify(c => c.SendCoreAsync("JobDeleted", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task RevokingAShare_TellsOnlyTheRevokedUser_WithTheJobId()
+    {
+        var id = await AddJobAsync(_alice, sharedWith: _bob);
+        var carol = await AddJobAsync(_carol);
+
+        (await As(_alice).DeleteAsync($"/api/audio-jobs/{id}/shares/{_bob}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        _notifiedUsers.Should().ContainSingle().Which.Should().Equal(_bob);
+        _userClients.Verify(c => c.SendCoreAsync("JobUnshared", It.Is<object?[]>(a => a.Length == 1 && (Guid)a[0]! == id), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RevokingAShareThatDoesNotExist_SendsNothing()
+    {
+        var id = await AddJobAsync(_alice);
+
+        (await As(_alice).DeleteAsync($"/api/audio-jobs/{id}/shares/{_bob}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        _notifiedUsers.Should().BeEmpty();
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static Task<HttpResponseMessage> Send(HttpClient client, string method, string url, object? body = null)
