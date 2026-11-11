@@ -11,6 +11,8 @@ public record MeResponse(string Email, string[] Roles);
 
 public static class AuthEndpoints
 {
+    public const string LoginRateLimitPolicy = "login";
+
     /// <summary>
     /// Identity endpoints that must work without a session. Everything else, including /manage/*,
     /// stays behind the fallback policy that requires a signed-in user.
@@ -29,6 +31,8 @@ public static class AuthEndpoints
             var route = (endpoint as RouteEndpointBuilder)?.RoutePattern.RawText ?? string.Empty;
             if (AnonymousIdentityEndpoints.Any(path => route.EndsWith(path, StringComparison.OrdinalIgnoreCase)))
                 endpoint.Metadata.Add(new AllowAnonymousAttribute());
+            if (route.EndsWith("/login", StringComparison.OrdinalIgnoreCase))
+                endpoint.Metadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(LoginRateLimitPolicy));
         });
         identityEndpoints
             .AddEndpointFilter(async (context, next) =>

@@ -134,6 +134,24 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
         });
     });
+    // Sign-in attempts per remote address, whichever account they aim at (S18-F1)
+    options.AddPolicy(AuthEndpoints.LoginRateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            "ip:" + context.Connection.RemoteIpAddress,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, context.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.LoginAttemptsPerMinute),
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            }));
+    // Looking up users by e-mail address when sharing, per user (S18-F1)
+    options.AddPolicy(JobShareEndpoints.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            JobAccessService.GetUserId(context.User) ?? "ip:" + context.Connection.RemoteIpAddress,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, context.RequestServices.GetRequiredService<IOptions<AuthOptions>>().Value.ShareRequestsPerMinute),
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            }));
     options.AddPolicy(WebhookEndpoints.TestRateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(
             JobAccessService.GetUserId(context.User) ?? "ip:" + context.Connection.RemoteIpAddress,
@@ -174,9 +192,19 @@ builder.AddChat(semanticSearchAvailable); // S24, ADR 0011
 
 // Authentication: local ASP.NET Core Identity with cookie sessions (ADR 0003)
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
-builder.Services.AddIdentityApiEndpoints<IdentityUser>(options => options.User.RequireUniqueEmail = true)
+builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 12; // NIST: length over composition rules
+    })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.AddOptions<IdentityOptions>().Configure<IOptions<AuthOptions>>((identity, auth) =>
+{
+    identity.Lockout.AllowedForNewUsers = true;
+    identity.Lockout.MaxFailedAccessAttempts = Math.Max(1, auth.Value.Lockout.MaxFailedAttempts);
+    identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(Math.Max(1, auth.Value.Lockout.DurationMinutes));
+});
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;

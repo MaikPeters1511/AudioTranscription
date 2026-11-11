@@ -1,3 +1,4 @@
+using AudioTranscription.Infrastructure.Data;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -61,16 +62,26 @@ public static class AdminUserEndpoints
     private static async Task<AdminUserDto> ToDtoAsync(IdentityUser user, UserManager<IdentityUser> users) =>
         new(user.Id, user.Email ?? user.UserName ?? string.Empty, (await users.GetRolesAsync(user)).ToArray(), IsActive(user));
 
-    private static async Task<Ok<AdminUserPage>> ListAsync(UserManager<IdentityUser> users, int page = 1, int pageSize = 25)
+    private static async Task<Ok<AdminUserPage>> ListAsync(UserManager<IdentityUser> users, AppDbContext db, int page = 1, int pageSize = 25)
     {
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
         page = Math.Max(page, 1);
 
         var total = await users.Users.CountAsync();
-        var slice = await users.Users.OrderBy(u => u.Email).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        var items = new List<AdminUserDto>(slice.Count);
-        foreach (var user in slice)
-            items.Add(await ToDtoAsync(user, users));
+        // Email is not unique per se (and can be empty): the id makes the order, and so the paging, stable
+        var slice = await users.Users.OrderBy(u => u.Email).ThenBy(u => u.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        // One query for the roles of the whole page instead of one per user
+        var ids = slice.Select(u => u.Id).ToList();
+        var roleRows = await db.UserRoles
+            .Where(ur => ids.Contains(ur.UserId))
+            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, Role = r.Name })
+            .ToListAsync();
+        var rolesByUser = roleRows.GroupBy(r => r.UserId).ToDictionary(g => g.Key, g => g.Select(r => r.Role!).Order().ToArray());
+
+        var items = slice
+            .Select(u => new AdminUserDto(u.Id, u.Email ?? u.UserName ?? string.Empty, rolesByUser.GetValueOrDefault(u.Id, []), IsActive(u)))
+            .ToList();
         return TypedResults.Ok(new AdminUserPage(items, total));
     }
 

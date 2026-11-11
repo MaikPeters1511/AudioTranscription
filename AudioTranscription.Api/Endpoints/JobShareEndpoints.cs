@@ -12,6 +12,8 @@ namespace AudioTranscription.Api.Endpoints;
 /// <summary>The owner of a job shares it read-only with other users (S19, ADR 0007).</summary>
 public static class JobShareEndpoints
 {
+    public const string RateLimitPolicy = "share-lookup";
+
     public static void MapJobShareEndpoints(this WebApplication app)
     {
         // Only the owner manages shares, whatever the HTTP method
@@ -25,6 +27,7 @@ public static class JobShareEndpoints
             .WithDescription("Users the job is shared with (read only); owner only");
 
         group.MapPost("/", ShareJob)
+            .RequireRateLimiting(RateLimitPolicy)
             .WithName("ShareJob")
             .WithSummary("Share a job read-only with a user")
             .WithDescription("Gives the user with the given e-mail address read access; repeating it changes nothing; owner only");
