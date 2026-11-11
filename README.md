@@ -79,6 +79,12 @@ Die Zugangsdaten werden ausschließlich aus der Konfiguration gelesen (`Auth:Ini
 - **Session-Cookie:** Es ist `HttpOnly`, `Secure` und `SameSite=Strict`. Außerhalb von `localhost` muss die App deshalb über **HTTPS** erreichbar sein.
 - **CORS:** Frontend und API laufen same-origin (Dev-Proxy bzw. nginx), CORS ist deshalb standardmäßig zu. Andere Origins lassen sich über `Cors:AllowedOrigins` freigeben.
 
+### Passwörter, Sperre und Rate-Limits
+
+- **Passwörter** brauchen mindestens **12 Zeichen** (gilt für den initialen Admin, neue Benutzer durch Admins und das Ändern des eigenen Passworts). Ein kürzeres `Auth:InitialUser:Password` wird abgelehnt, der Seeder protokolliert dann den Grund und legt kein Konto an.
+- **Sperre:** Nach `Auth:Lockout:MaxFailedAttempts` (Standard 10) falschen Passwörtern in Folge ist das Konto `Auth:Lockout:DurationMinutes` (Standard 5) gesperrt; die Antwort verrät das nicht (immer `401`). Die Werte sind bewusst großzügig: Eine Sperre lässt sich auch absichtlich für fremde Konten, auch für das des einzigen Admins, auslösen.
+- **Rate-Limits (`429`):** Anmeldeversuche höchstens `Auth:LoginAttemptsPerMinute` (Standard 60) pro Minute und Absenderadresse, das Freigeben von Aufnahmen (`POST /api/audio-jobs/{id}/shares`, prüft E-Mail-Adressen auf Existenz) höchstens `Auth:ShareRequestsPerMinute` (Standard 30) pro Minute und Benutzer. Hinter einem Reverse Proxy sieht die API nur dessen Adresse, alle Benutzer teilen sich dann das Anmelde-Limit; der Standard ist deshalb hoch angesetzt. Die Weitergabe der Client-Adresse (Forwarded Headers) ist nicht eingerichtet.
+
 ## 🏗️ Architektur
 
 ```
