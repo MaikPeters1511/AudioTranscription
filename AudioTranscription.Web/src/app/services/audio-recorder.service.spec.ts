@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { AuthService } from '../auth/auth.service';
 import { AudioRecorderService } from './audio-recorder.service';
+import { InMemoryRecordingStore } from './in-memory-recording-store';
+import { RECORDING_STORE } from './recording-store.provider';
 
 /** Minimal fake standing in for the browser's MediaRecorder (jsdom has none). */
 class FakeMediaRecorder {
@@ -13,6 +18,7 @@ class FakeMediaRecorder {
   onstop: (() => void) | null = null;
   onerror: (() => void) | null = null;
   started = false;
+  timeslice?: number;
 
   constructor(
     public stream: MediaStream,
@@ -21,8 +27,9 @@ class FakeMediaRecorder {
     FakeMediaRecorder.instances.push(this);
   }
 
-  start(): void {
+  start(timeslice?: number): void {
     this.started = true;
+    this.timeslice = timeslice;
   }
 
   stop(): void {
@@ -39,9 +46,11 @@ function fakeStream(): MediaStream {
 describe('AudioRecorderService', () => {
   let service: AudioRecorderService;
   let getUserMedia: ReturnType<typeof vi.fn>;
+  let store: InMemoryRecordingStore;
 
   beforeEach(() => {
     FakeMediaRecorder.instances = [];
+    FakeMediaRecorder.supportedTypes = new Set(['audio/webm;codecs=opus']);
     (globalThis as any).MediaRecorder = FakeMediaRecorder;
     getUserMedia = vi.fn().mockResolvedValue(fakeStream());
     Object.defineProperty(globalThis.navigator, 'mediaDevices', {
@@ -49,7 +58,11 @@ describe('AudioRecorderService', () => {
       configurable: true,
     });
 
-    TestBed.configureTestingModule({});
+    store = new InMemoryRecordingStore();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: RECORDING_STORE, useValue: store }],
+    });
+    vi.spyOn(TestBed.inject(AuthService), 'user').mockReturnValue({ email: 'alice@example.com' });
     service = TestBed.inject(AudioRecorderService);
   });
 
@@ -128,5 +141,94 @@ describe('AudioRecorderService', () => {
 
     expect(service.state()).toBe('error');
     expect(service.errorKind()).toBe('recording-failed');
+  });
+  // --- S33: sections are kept in the local store while recording -----------------------------------
+
+  it('asks the recorder for a section every few seconds', async () => {
+    await service.start();
+
+    expect(FakeMediaRecorder.instances[0].timeslice).toBe(5000);
+  });
+
+  it('opens a stored recording for the signed-in user', async () => {
+    await service.start();
+
+    const [stored] = await store.list();
+    expect(stored).toMatchObject({ userEmail: 'alice@example.com', mimeType: 'audio/webm;codecs=opus', status: 'recording' });
+    expect(service.recordingId()).toBe(stored.id);
+  });
+
+  it('stores every section as it arrives and marks the recording as a draft when stopped', async () => {
+    await service.start();
+    const fake = FakeMediaRecorder.instances[0];
+
+    fake.ondataavailable?.({ data: new Blob(['abc']) });
+    fake.ondataavailable?.({ data: new Blob(['de']) });
+    await service.flush();
+    expect((await store.list())[0]).toMatchObject({ chunkCount: 2, sizeBytes: 5, status: 'recording' });
+
+    service.stop(); // the fake adds one last section
+    await service.flush();
+    expect((await store.list())[0]).toMatchObject({ chunkCount: 3, status: 'draft' });
+    expect(service.storageWarning()).toBeNull();
+  });
+
+  it('stops cleanly and keeps the take when the storage is full', async () => {
+    await service.start();
+    const fake = FakeMediaRecorder.instances[0];
+    fake.ondataavailable?.({ data: new Blob(['first']) });
+    await service.flush();
+    vi.spyOn(store, 'appendChunk').mockRejectedValue(new DOMException('full', 'QuotaExceededError'));
+
+    fake.ondataavailable?.({ data: new Blob(['second']) });
+    await service.flush();
+
+    expect(service.storageWarning()).toBe('storage-full');
+    expect(service.state()).toBe('stopped');
+    expect(service.recordedBlob()).toBeInstanceOf(Blob);
+    expect(service.recordedBlob()!.size).toBeGreaterThan(5); // nothing recorded so far is lost
+  });
+
+  it('keeps recording but warns when the local store cannot be used at all', async () => {
+    vi.spyOn(store, 'create').mockRejectedValue(new Error('IndexedDB unavailable'));
+
+    await service.start();
+
+    expect(service.state()).toBe('recording');
+    expect(service.recordingId()).toBeNull();
+    expect(service.storageWarning()).toBe('storage-failed');
+  });
+
+  it('deletes the stored take when it is discarded', async () => {
+    await service.start();
+    service.stop();
+    await service.flush();
+
+    service.reset();
+    await service.flush();
+
+    expect(await store.list()).toEqual([]);
+    expect(service.recordingId()).toBeNull();
+  });
+
+  it('keeps the stored take when it is handed over to the upload queue', async () => {
+    await service.start();
+    service.stop();
+    await service.flush();
+
+    service.reset({ keepStored: true });
+    await service.flush();
+
+    expect(await store.list()).toHaveLength(1);
+    expect(service.recordingId()).toBeNull();
+  });
+
+  it('asks the browser to keep the local data', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    Object.defineProperty(globalThis.navigator, 'storage', { value: { persist }, configurable: true });
+
+    await service.start();
+
+    expect(persist).toHaveBeenCalled();
   });
 });

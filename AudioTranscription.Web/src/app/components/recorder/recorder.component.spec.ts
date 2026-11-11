@@ -1,4 +1,10 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { ConnectivityService } from '../../services/connectivity.service';
+import { OfflineUploadQueueService } from '../../services/offline-upload-queue.service';
+import { ToastService } from '../../services/toast.service';
 import { RecorderComponent } from './recorder.component';
 import { AudioRecorderService } from '../../services/audio-recorder.service';
 import { translocoTesting } from '../../i18n/transloco-testing';
@@ -16,6 +22,7 @@ function fakeRecorder(): AudioRecorderService {
     recorder.state.set('stopped');
   });
   vi.spyOn(recorder, 'reset').mockImplementation(() => {
+    recorder.recordingId.set(null);
     recorder.recordedBlob.set(null);
     recorder.errorKind.set(null);
     recorder.state.set('idle');
@@ -25,17 +32,30 @@ function fakeRecorder(): AudioRecorderService {
 
 describe('RecorderComponent', () => {
   let recorder: AudioRecorderService;
+  let online: ReturnType<typeof signal<boolean>>;
+  let queue: { enqueue: ReturnType<typeof vi.fn> };
+  let toast: { show: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.useFakeTimers();
     (globalThis.URL as any).createObjectURL = vi.fn(() => 'blob:fake-url');
     (globalThis.URL as any).revokeObjectURL = vi.fn();
 
-    recorder = fakeRecorder();
+    online = signal(true);
+    queue = { enqueue: vi.fn().mockResolvedValue(undefined) };
+    toast = { show: vi.fn() };
     TestBed.configureTestingModule({
       imports: [RecorderComponent, translocoTesting('en')],
-      providers: [{ provide: AudioRecorderService, useValue: recorder }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ConnectivityService, useValue: { online } },
+        { provide: OfflineUploadQueueService, useValue: queue },
+        { provide: ToastService, useValue: toast },
+        { provide: AudioRecorderService, useFactory: fakeRecorder }, // built in an injection context
+      ],
     });
+    recorder = TestBed.inject(AudioRecorderService);
   });
 
   afterEach(() => {
@@ -159,5 +179,72 @@ describe('RecorderComponent', () => {
     fixture.detectChanges();
 
     expect(el.textContent).toContain('Microphone access was denied');
+  });
+  // --- S33: offline ------------------------------------------------------------------------------
+
+  async function recordAndStop(fixture: ReturnType<typeof render>['fixture'], el: HTMLElement) {
+    el.querySelector<HTMLButtonElement>('button[aria-pressed]')!.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('button[aria-pressed]')!.click();
+    fixture.detectChanges();
+  }
+
+  it('offers to save for later instead of transcribing while offline', async () => {
+    online.set(false);
+    const { fixture, el } = render();
+    await recordAndStop(fixture, el);
+
+    const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(labels).toContain('Save for later upload');
+    expect(labels).not.toContain('Transcribe');
+    expect(el.textContent).toContain('You are offline');
+  });
+
+  it('hands the take to the upload queue when saved offline, keeps it stored and tells the user', async () => {
+    online.set(false);
+    const { fixture, el } = render();
+    await recordAndStop(fixture, el);
+    recorder.recordingId.set('rec-1');
+    let emitted = false;
+    fixture.componentInstance.recorded.subscribe(() => (emitted = true));
+
+    [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Save for later upload'))!.click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(queue.enqueue).toHaveBeenCalledWith('rec-1');
+    expect(recorder.reset).toHaveBeenCalledWith({ keepStored: true });
+    expect(toast.show).toHaveBeenCalledWith(expect.stringContaining('Recording saved'), 'info');
+    expect(emitted).toBe(false);
+  });
+
+  it('keeps the take on screen and says so when it cannot be saved offline', async () => {
+    online.set(false);
+    const { fixture, el } = render();
+    await recordAndStop(fixture, el); // the store failed: there is no stored id
+
+    [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Save for later upload'))!.click();
+    await vi.advanceTimersByTimeAsync(0);
+    fixture.detectChanges();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(el.querySelector('[role="alert"]')!.textContent).toContain('could not be saved on this device');
+    expect(el.querySelector('audio')).not.toBeNull();
+  });
+
+  it('warns when the device storage is full', async () => {
+    const { fixture, el } = render();
+    recorder.storageWarning.set('storage-full');
+    fixture.detectChanges();
+
+    expect(el.querySelector('[role="alert"]')!.textContent).toContain('storage is full');
+  });
+
+  it('warns when the take cannot be protected against a crash', () => {
+    const { fixture, el } = render();
+    recorder.storageWarning.set('storage-failed');
+    fixture.detectChanges();
+
+    expect(el.querySelector('[role="alert"]')!.textContent).toContain('cannot be kept on this device');
   });
 });

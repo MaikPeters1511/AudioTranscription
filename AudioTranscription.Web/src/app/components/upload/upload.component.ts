@@ -11,6 +11,8 @@ import { PageTitleService } from '../../i18n/page-title.service';
 import { languageName } from '../../i18n/language-names';
 import { AUTO_LANGUAGE, TranscriptionOptions } from '../../models/audio-job.model';
 import { RecorderComponent } from '../recorder/recorder.component';
+import { InstallPromptComponent } from '../offline/install-prompt.component';
+import { PendingUploadsComponent } from '../offline/pending-uploads.component';
 import { UploadBatchComponent } from '../upload-batch/upload-batch.component';
 import { UploadControl } from '../../services/resumable-upload.service';
 import { validateUploadFile } from './upload-validation';
@@ -18,10 +20,12 @@ import { validateUploadFile } from './upload-validation';
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslocoPipe, RecorderComponent, UploadBatchComponent],
+  imports: [CommonModule, RouterLink, TranslocoPipe, RecorderComponent, UploadBatchComponent, InstallPromptComponent, PendingUploadsComponent],
   template: `
     <div class="max-w-2xl mx-auto">
       <h1 class="text-3xl font-bold mb-6">{{ 'upload.title' | transloco }}</h1>
+
+      <app-install-prompt />
 
       <div class="tabs tabs-boxed mb-6 w-fit" role="tablist">
         <button
@@ -249,6 +253,8 @@ import { validateUploadFile } from './upload-validation';
           <span>{{ successMessage() }}</span>
         </div>
       }
+    
+      <app-pending-uploads />
     </div>
   `,
 })

@@ -243,6 +243,13 @@
       "permissionDenied": "Der Mikrofonzugriff wurde verweigert. Erlaube den Zugriff in den Browser-Einstellungen und versuche es erneut.",
       "unsupported": "Dieser Browser kann keine Audioaufnahmen erstellen. Nutze Chrome, Firefox oder Safari, oder lade stattdessen eine Datei hoch.",
       "recordingFailed": "Die Aufnahme ist unerwartet fehlgeschlagen. Bitte versuche es erneut."
+    },
+    "saveOffline": "Für späteren Upload speichern",
+    "offlineHint": "Du bist offline. Die Aufnahme bleibt auf diesem Gerät und wird automatisch hochgeladen, sobald wieder eine Verbindung besteht.",
+    "storage": {
+      "full": "Der Speicher des Geräts ist voll. Die Aufnahme wurde beendet, das bisher Aufgenommene bleibt erhalten. Schaffe Platz und nimm dann erneut auf.",
+      "failed": "Die Aufnahme kann nicht auf diesem Gerät zwischengespeichert werden. Sie ist daher nicht gegen ein geschlossenes Tab oder einen Absturz geschützt.",
+      "saveFailed": "Die Aufnahme konnte nicht auf diesem Gerät gespeichert werden."
     }
   },
   "search": {
@@ -678,6 +685,43 @@
       "rateLimit": "Zu viele Fragen. Bitte warte einen Moment.",
       "notFound": "Die Aufnahme oder das Gespräch wurde nicht gefunden.",
       "failed": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+    }
+  },
+  "offline": {
+    "banner": "Du bist offline. Aufnahmen werden auf diesem Gerät gespeichert und hochgeladen, sobald wieder eine Verbindung besteht.",
+    "saved": "Aufnahme gespeichert. Sie wird hochgeladen, sobald du online bist.",
+    "uploaded": "Aufnahme hochgeladen und von diesem Gerät entfernt.",
+    "pending": {
+      "title": "Wartet auf Upload",
+      "recordedAt": "Aufnahme vom {{date}}",
+      "status": {
+        "pending": "Wartet auf Verbindung",
+        "uploading": "Wird hochgeladen… {{percent}} %",
+        "failed": "Fehlgeschlagen"
+      },
+      "networkError": "Keine Verbindung. Der Upload wird automatisch wiederholt.",
+      "retry": "Erneut versuchen",
+      "retryLabel": "Upload der Aufnahme vom {{date}} erneut versuchen",
+      "delete": "Löschen",
+      "deleteLabel": "Aufnahme vom {{date}} löschen",
+      "confirmDelete": "Endgültig löschen",
+      "confirmDeleteLabel": "Aufnahme vom {{date}} endgültig löschen",
+      "cancel": "Abbrechen",
+      "progressLabel": "Upload-Fortschritt der Aufnahme vom {{date}}",
+      "privacy": "Nicht hochgeladene Aufnahmen liegen unverschlüsselt im Speicher dieses Browsers. Sie werden nach dem Upload und beim Abmelden gelöscht."
+    },
+    "logout": {
+      "title": "Nicht hochgeladene Aufnahmen",
+      "message": "Auf diesem Gerät liegen noch {{count}} Aufnahme(n), die nicht hochgeladen wurden. Beim Abmelden werden sie gelöscht.",
+      "confirm": "Löschen und abmelden",
+      "cancel": "Angemeldet bleiben"
+    },
+    "install": {
+      "title": "App installieren",
+      "text": "Installiere die App für den schnellen Start und um auch ohne Verbindung aufzunehmen.",
+      "install": "Installieren",
+      "dismiss": "Nicht jetzt",
+      "region": "Hinweis zur Installation"
     }
   }
 }
