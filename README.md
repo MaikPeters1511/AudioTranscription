@@ -38,17 +38,27 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 
 ## 🖼️ Screenshots
 
+Die Screenshots zeigen die Oberfläche mit Demo-Daten.
+
 | Anmeldung | Upload |
 |---|---|
-| ![Anmeldeseite](docs/screenshots/login.png) | ![Upload-Seite mit Modell-/Sprachauswahl](docs/screenshots/upload.png) |
+| ![Anmeldeseite](docs/screenshots/login.png) | ![Upload-Seite mit Modell-, Sprach- und Glossarauswahl](docs/screenshots/upload.png) |
 
-| Job-Übersicht | Job-Details mit Sprechern und Fassungen |
+| Job-Übersicht mit Tags, Favoriten und Fortschritt | Warteschlange |
 |---|---|
-| ![Liste der Transkriptions-Jobs](docs/screenshots/jobs.png) | ![Job-Detailansicht mit Transkript, Sprechererkennung und Zeitstempeln](docs/screenshots/job-detail.png) |
+| ![Liste der Transkriptions-Jobs mit Tags, Favoriten und Live-Fortschritt](docs/screenshots/jobs.png) | ![Warteschlange mit Position, Priorität und geschätzter Wartezeit](docs/screenshots/queue.png) |
 
-| Volltextsuche |
+| Job-Details mit Sprechern, Kapiteln, Fassungen und Zeitstempeln |
 |---|
-| ![Volltextsuche mit hervorgehobenen Treffern](docs/screenshots/search.png) |
+| ![Job-Detailansicht mit Transkript, Fassungen, Sprechererkennung, Kapiteln und Zeitstempeln](docs/screenshots/job-detail.png) |
+
+| Suche (Wörtlich, Bedeutung, Kombiniert) | Chat mit Transkripten |
+|---|---|
+| ![Kombinierte Volltext- und semantische Suche](docs/screenshots/search.png) | ![Chat mit überprüfbaren Zitaten und Sprung in den Player](docs/screenshots/chat.png) |
+
+| API-Keys | Webhooks |
+|---|---|
+| ![Verwaltung der API-Keys](docs/screenshots/api-keys.png) | ![Verwaltung der Webhooks](docs/screenshots/webhooks.png) |
 
 ## 🔐 Datenschutz
 
@@ -428,7 +438,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 
 ## 🛠️ Tech-Stack
 
-**Backend:** ASP.NET Core (.NET 11) · EF Core · SQL Server · SignalR · Whisper.net · ffmpeg · .NET Aspire
+**Backend:** ASP.NET Core (.NET 11) · EF Core · SQL Server · Qdrant · SignalR · Whisper.net · Ollama · ffmpeg · .NET Aspire
 **Frontend:** Angular 22 (zoneless, Standalone Components, Signals) · Tailwind CSS 4 · DaisyUI 5
 
 ## 📝 Changelog
