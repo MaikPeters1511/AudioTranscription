@@ -64,7 +64,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(transcription_jobs_total{outcome=\"failed\"}[15m])) / clamp_min(sum(increase(transcription_jobs_total[15m])), 1)",
+          "expr": "(sum(increase(transcription_jobs_total{outcome=\"failed\"}[15m])) or vector(0)) / clamp_min(sum(increase(transcription_jobs_total[15m])) or vector(0), 1)",
           "legendFormat": "Fehlerquote"
         }
       ]

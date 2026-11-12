@@ -102,4 +102,56 @@ public class TranscriptionMetricsTests : IDisposable
         TranscriptionMetrics.MeterName.Should().Be("AudioTranscription");
         AudioTranscription.Infrastructure.Telemetry.AppTelemetry.Name.Should().Be("AudioTranscription");
     }
+
+    // --- bucket boundaries (S29-F1): with OpenTelemetry's defaults every p50/p95 of a short job lands in the first bucket ---
+
+    private static IReadOnlyList<double> BoundariesOf(string name)
+    {
+        using var provider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var factory = provider.GetRequiredService<IMeterFactory>();
+        IReadOnlyList<double>? found = null;
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (instrument.Name == name && instrument is Histogram<double> histogram)
+                    found = histogram.Advice?.HistogramBucketBoundaries;
+            }
+        };
+        listener.Start();
+        _ = new TranscriptionMetrics(factory, new TranscriptionQueue());
+        return found ?? [];
+    }
+
+    [Theory]
+    [InlineData("transcription.duration")]
+    [InlineData("transcription.realtime_factor")]
+    [InlineData("postprocessing.duration")]
+    public void Histograms_HaveOwnBucketBoundaries_Ascending(string name)
+    {
+        var boundaries = BoundariesOf(name);
+
+        boundaries.Should().NotBeEmpty($"{name} would otherwise use the default boundaries 0, 5, 10, 25, ...");
+        boundaries.Should().BeInAscendingOrder().And.OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void TheRealtimeFactorBuckets_ResolveTheRangeAroundRealtime()
+    {
+        var boundaries = BoundariesOf("transcription.realtime_factor");
+
+        boundaries.Should().Contain(1, "one is the border between faster and slower than realtime");
+        boundaries.Count(b => b < 1).Should().BeGreaterThanOrEqualTo(3, "fast GPU runs are far below 1");
+        boundaries.Count(b => b is > 1 and <= 10).Should().BeGreaterThanOrEqualTo(3, "slow CPU runs are several times realtime");
+    }
+
+    [Fact]
+    public void TheDurationBuckets_ResolveSecondsAsWellAsHours()
+    {
+        var boundaries = BoundariesOf("transcription.duration");
+
+        boundaries.First().Should().BeLessThanOrEqualTo(1);
+        boundaries.Last().Should().BeGreaterThanOrEqualTo(1800);
+        boundaries.Count(b => b <= 30).Should().BeGreaterThanOrEqualTo(4);
+    }
 }
