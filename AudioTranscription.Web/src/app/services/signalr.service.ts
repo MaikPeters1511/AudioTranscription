@@ -68,6 +68,11 @@ export class SignalRService {
       this.audioJobService.removeJobFromList(id);
     });
 
+    // The owner stopped sharing the job with this user: it disappears like a deleted one, also from an open detail view
+    this.hubConnection.on('JobUnshared', (id: string) => {
+      this.audioJobService.removeJobFromList(id);
+    });
+
     this.hubConnection
       .start()
       .then(() => {

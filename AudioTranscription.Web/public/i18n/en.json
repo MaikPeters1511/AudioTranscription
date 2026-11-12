@@ -14,7 +14,8 @@
       "templates": "Templates",
       "apiKeys": "API keys",
       "webhooks": "Webhooks",
-      "chat": "Chat"
+      "chat": "Chat",
+      "unassignedJobs": "Unassigned jobs"
     },
     "connection": {
       "live": "Live connected",
@@ -189,7 +190,7 @@
       "pageTitle": "Change password · Transcription",
       "current": "Current password",
       "new": "New password",
-      "hint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "hint": "At least 12 characters with an uppercase and a lowercase letter, a digit and a special character.",
       "submit": "Change password",
       "failed": "The password could not be changed. Check the current password and the rules for the new one."
     }
@@ -301,7 +302,7 @@
       "count": "{{ count }} users",
       "createTitle": "Add user",
       "password": "Initial password",
-      "passwordHint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "passwordHint": "At least 12 characters with an uppercase and a lowercase letter, a digit and a special character.",
       "makeAdmin": "Create as administrator",
       "cancel": "Cancel",
       "create": "Create",
@@ -318,6 +319,27 @@
         "lastAdminDeactivate": "The last active administrator cannot be deactivated.",
         "generic": "That did not work. Please try again."
       }
+    },
+    "unassigned": {
+      "title": "Jobs without an owner",
+      "pageTitle": "Unassigned jobs · Transcription",
+      "intro": "These jobs come from before every job had an owner. Nobody can see them until you give them to a user.",
+      "loading": "Loading jobs…",
+      "loadFailed": "The jobs could not be loaded.",
+      "retry": "Try again",
+      "empty": "There are no jobs without an owner.",
+      "caption": "Jobs without an owner",
+      "file": "File",
+      "created": "Created",
+      "owner": "New owner",
+      "actions": "Actions",
+      "chooseUser": "New owner of {{file}}",
+      "choosePlaceholder": "Choose a user…",
+      "assign": "Assign",
+      "assignLabel": "Assign {{file}} to the chosen user",
+      "assigned": "{{file}} was assigned.",
+      "gone": "This job already has an owner or no longer exists. The list was refreshed.",
+      "failed": "The job could not be assigned. Please try again."
     }
   },
   "jobShare": {
@@ -407,7 +429,7 @@
     "editTitle": "Edit glossary",
     "name": "Name",
     "terms": "Terms",
-    "termsHint": "One term per line.",
+    "termsHint": "One term per line, spelled exactly as it should appear in the text. Only add terms that are otherwise misrecognised. The smaller the model, the weaker the effect (\"Small\" or larger recommended).",
     "tokens": "About {{used}} of {{max}} tokens",
     "tooLong": "The glossary is too long for Whisper. Please remove terms.",
     "save": "Save",

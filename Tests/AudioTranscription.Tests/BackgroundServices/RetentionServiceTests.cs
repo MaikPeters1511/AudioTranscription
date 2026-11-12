@@ -46,7 +46,7 @@ public class RetentionServiceTests : IDisposable
         public override DateTimeOffset GetUtcNow() => new(utcNow, TimeSpan.Zero);
     }
 
-    private RetentionService CreateSut(int transcriptDays = 0, int audioDays = 0, int maxJobsPerRun = 500)
+    private RetentionService CreateSut(int transcriptDays = 0, int audioDays = 0, int maxJobsPerRun = 500, int batchSize = 500)
     {
         var upload = Options.Create(new UploadOptions { TempStoragePath = _dir.Path, DeleteAfterTranscription = false });
         _store = new HookedFileStore(new TempFileStore(upload));
@@ -62,7 +62,7 @@ public class RetentionServiceTests : IDisposable
             _store,
             Options.Create(new RetentionOptions { TranscriptDays = transcriptDays, AudioDays = audioDays, MaxJobsPerRun = maxJobsPerRun }),
             new FixedTimeProvider(Now),
-            _logger.Object);
+            _logger.Object) { BatchSize = batchSize };
     }
 
     private async Task<(Guid Id, string File)> AddJobAsync(
@@ -375,6 +375,71 @@ public class RetentionServiceTests : IDisposable
             .Where(i => i.Method.Name == nameof(ILogger.Log) && (LogLevel)i.Arguments[0] == LogLevel.Warning)
             .Select(i => i.Arguments[2]?.ToString())
             .Should().Contain(m => m!.Contains('2') && m.Contains("job"), "an operator has to see how many jobs a run is going to delete");
+    }
+
+    // ---- S30-F2: selection in batches
+
+    [Fact]
+    public async Task TheWarning_NamesTheTotalNumberOfExpiredJobs_NotOnlyTheBatch()
+    {
+        var sut = CreateSut(transcriptDays: 30, maxJobsPerRun: 2);
+        for (var i = 0; i < 5; i++)
+            await AddJobAsync(ageDays: 40 + i);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        _logger.Invocations
+            .Where(i => i.Method.Name == nameof(ILogger.Log) && (LogLevel)i.Arguments[0] == LogLevel.Warning)
+            .Select(i => i.Arguments[2]?.ToString())
+            .Should().Contain(m => m!.Contains("2 of 5"), "the operator sees the backlog, not just this run's share");
+    }
+
+    [Fact]
+    public async Task TheAudioPass_LooksOnlyAtJobsBetweenTheAudioAndTheTranscriptLimit()
+    {
+        var sut = CreateSut(transcriptDays: 30, audioDays: 7, maxJobsPerRun: 1);
+        var oldest = await AddJobAsync(ageDays: 100);   // deleted with its upload by the transcript pass
+        var waiting = await AddJobAsync(ageDays: 90);   // past the transcript limit, but over the per-run limit: not the audio pass' business
+        var between = await AddJobAsync(ageDays: 20);   // audio expired, transcript not
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        (await JobExistsAsync(oldest.Id)).Should().BeFalse();
+        File.Exists(waiting.File).Should().BeTrue("the transcript pass owns jobs past the transcript limit and removes them at a later run");
+        File.Exists(between.File).Should().BeFalse();
+        (await JobExistsAsync(between.Id)).Should().BeTrue();
+
+        await sut.RunOnceAsync(CancellationToken.None);
+        (await JobExistsAsync(waiting.Id)).Should().BeFalse();
+        File.Exists(waiting.File).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TheAudioPass_WorksThroughAllBatches()
+    {
+        var sut = CreateSut(transcriptDays: 365, audioDays: 7, batchSize: 3);
+        var files = new List<string>();
+        for (var i = 0; i < 8; i++)
+            files.Add((await AddJobAsync(ageDays: 10 + i)).File);
+        var recent = await AddJobAsync(ageDays: 2);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        files.Should().OnlyContain(f => !File.Exists(f), "every job past the audio limit is handled, however many batches that takes");
+        File.Exists(recent.File).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task TheAudioPass_WithoutATranscriptLimit_StillCoversEveryOldJob()
+    {
+        var sut = CreateSut(audioDays: 7, batchSize: 2);
+        var files = new List<string>();
+        for (var i = 0; i < 5; i++)
+            files.Add((await AddJobAsync(ageDays: 400 + i)).File);
+
+        await sut.RunOnceAsync(CancellationToken.None);
+
+        files.Should().OnlyContain(f => !File.Exists(f));
     }
 
     // ---- M2/M3: failures

@@ -44,9 +44,11 @@ export default defineConfig({
   },
 
   /*
-   * Two kinds of specs (S31):
+   * Three kinds of specs (S31):
    *  - *.mocked.spec.ts: UI flows against a faked API, need only the dev server (webServer below)
-   *  - everything else: runs against a real, running app + API (E2E_EMAIL / E2E_PASSWORD, see the specs)
+   *  - *.stack.spec.ts: flows against a real, running stack (API, SQL Server, app) with E2E_BASE_URL, E2E_EMAIL and
+   *    E2E_PASSWORD of its initial user; E2E_SPEECH_WAV (a spoken sentence) enables the transcription flow
+   *  - everything else: runs in the browsers below against a running app + API
    */
   projects: [
     {
@@ -56,20 +58,29 @@ export default defineConfig({
     },
 
     {
+      name: 'stack',
+      testMatch: /.*\.stack\.spec\.ts/,
+      // One database, several accounts: the flows run one after the other and a flaky run may repeat once
+      fullyParallel: false,
+      retries: process.env.CI ? 1 : 0,
+      use: { ...devices['Desktop Chrome'], trace: 'retain-on-failure' },
+    },
+
+    {
       name: 'chromium',
-      testIgnore: /.*\.mocked\.spec\.ts/,
+      testIgnore: /.*\.(mocked|stack)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
-      testIgnore: /.*\.mocked\.spec\.ts/,
+      testIgnore: /.*\.(mocked|stack)\.spec\.ts/,
       use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
-      testIgnore: /.*\.mocked\.spec\.ts/,
+      testIgnore: /.*\.(mocked|stack)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
 

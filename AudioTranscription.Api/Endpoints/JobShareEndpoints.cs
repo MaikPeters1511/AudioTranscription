@@ -12,6 +12,8 @@ namespace AudioTranscription.Api.Endpoints;
 /// <summary>The owner of a job shares it read-only with other users (S19, ADR 0007).</summary>
 public static class JobShareEndpoints
 {
+    public const string RateLimitPolicy = "share-lookup";
+
     public static void MapJobShareEndpoints(this WebApplication app)
     {
         // Only the owner manages shares, whatever the HTTP method
@@ -25,6 +27,7 @@ public static class JobShareEndpoints
             .WithDescription("Users the job is shared with (read only); owner only");
 
         group.MapPost("/", ShareJob)
+            .RequireRateLimiting(RateLimitPolicy)
             .WithName("ShareJob")
             .WithSummary("Share a job read-only with a user")
             .WithDescription("Gives the user with the given e-mail address read access; repeating it changes nothing; owner only");
@@ -90,13 +93,16 @@ public static class JobShareEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<NoContent> RevokeShare(Guid id, string userId, AppDbContext dbContext)
+    private static async Task<NoContent> RevokeShare(Guid id, string userId, AppDbContext dbContext, IJobNotifier notifier)
     {
         var share = await dbContext.JobShares.SingleOrDefaultAsync(s => s.AudioJobId == id && s.UserId == userId);
         if (share is not null)
         {
             dbContext.JobShares.Remove(share);
             await dbContext.SaveChangesAsync();
+
+            // The user no longer sees the job: their open list and detail view drop it at once (S19-F1)
+            await notifier.SendAsync([userId], "JobUnshared", id);
         }
         return TypedResults.NoContent();
     }

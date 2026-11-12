@@ -14,7 +14,8 @@
       "templates": "Vorlagen",
       "apiKeys": "API-Keys",
       "webhooks": "Webhooks",
-      "chat": "Chat"
+      "chat": "Chat",
+      "unassignedJobs": "Jobs ohne Eigentümer"
     },
     "connection": {
       "live": "Live verbunden",
@@ -189,7 +190,7 @@
       "pageTitle": "Passwort ändern · Transkription",
       "current": "Aktuelles Passwort",
       "new": "Neues Passwort",
-      "hint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "hint": "Mindestens 12 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
       "submit": "Passwort ändern",
       "failed": "Das Passwort konnte nicht geändert werden. Prüfe das aktuelle Passwort und die Regeln für das neue."
     }
@@ -301,7 +302,7 @@
       "count": "{{ count }} Benutzer",
       "createTitle": "Benutzer anlegen",
       "password": "Initiales Passwort",
-      "passwordHint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "passwordHint": "Mindestens 12 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
       "makeAdmin": "Als Administrator anlegen",
       "cancel": "Abbrechen",
       "create": "Anlegen",
@@ -318,6 +319,27 @@
         "lastAdminDeactivate": "Der letzte aktive Administrator kann nicht deaktiviert werden.",
         "generic": "Das hat nicht geklappt. Bitte versuche es erneut."
       }
+    },
+    "unassigned": {
+      "title": "Jobs ohne Eigentümer",
+      "pageTitle": "Jobs ohne Eigentümer · Transkription",
+      "intro": "Diese Jobs stammen aus der Zeit, bevor jeder Job einen Eigentümer hatte. Niemand sieht sie, bis du sie einem Benutzer zuordnest.",
+      "loading": "Jobs werden geladen…",
+      "loadFailed": "Die Jobs konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Es gibt keine Jobs ohne Eigentümer.",
+      "caption": "Jobs ohne Eigentümer",
+      "file": "Datei",
+      "created": "Erstellt",
+      "owner": "Neuer Eigentümer",
+      "actions": "Aktionen",
+      "chooseUser": "Neuer Eigentümer von {{file}}",
+      "choosePlaceholder": "Benutzer wählen…",
+      "assign": "Zuordnen",
+      "assignLabel": "{{file}} dem gewählten Benutzer zuordnen",
+      "assigned": "{{file}} wurde zugeordnet.",
+      "gone": "Dieser Job hat schon einen Eigentümer oder existiert nicht mehr. Die Liste wurde aktualisiert.",
+      "failed": "Der Job konnte nicht zugeordnet werden. Bitte versuche es erneut."
     }
   },
   "jobShare": {
@@ -407,7 +429,7 @@
     "editTitle": "Glossar bearbeiten",
     "name": "Name",
     "terms": "Begriffe",
-    "termsHint": "Ein Begriff pro Zeile.",
+    "termsHint": "Ein Begriff pro Zeile, genau so geschrieben, wie er im Text stehen soll. Nur Begriffe aufnehmen, die sonst falsch erkannt werden. Je kleiner das Modell, desto geringer die Wirkung (ab „Small“ empfohlen).",
     "tokens": "Etwa {{used}} von {{max}} Tokens",
     "tooLong": "Das Glossar ist zu lang für Whisper. Bitte Begriffe entfernen.",
     "save": "Speichern",

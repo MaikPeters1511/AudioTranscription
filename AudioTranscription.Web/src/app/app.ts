@@ -87,6 +87,9 @@ import { OfflineUploadQueueService } from './services/offline-upload-queue.servi
               <a routerLink="/admin/users" routerLinkActive="active" class="btn btn-ghost btn-sm">
                 {{ 'app.nav.users' | transloco }}
               </a>
+              <a routerLink="/admin/jobs" routerLinkActive="active" class="btn btn-ghost btn-sm">
+                {{ 'app.nav.unassignedJobs' | transloco }}
+              </a>
               <a routerLink="/admin/templates" routerLinkActive="active" class="btn btn-ghost btn-sm">
                 {{ 'app.nav.templates' | transloco }}
               </a>
