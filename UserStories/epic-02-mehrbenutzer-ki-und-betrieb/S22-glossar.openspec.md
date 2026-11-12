@@ -30,11 +30,11 @@ Whisper verschreibt sich bei Eigennamen und Fachbegriffen. Ein benutzerdefiniert
 - **AC:** Liste mit Begriffen, Import aus Textfeld (ein Begriff je Zeile), Auswahl im Upload-Dialog, DE/EN, ARIA.
 
 ## 5. Acceptance Criteria (DoD)
-- [ ] Glossar wirkt nachweislich im Spike-Beispiel, Tests und Swagger sind aktuell.
+- [x] Glossar wirkt nachweislich im Spike-Beispiel, Tests und Swagger sind aktuell.
 
 ## 6. Umsetzung
 - Modelle `Glossary`/`GlossaryTerm` (Migration `AddGlossaries`), `AudioJob.InitialPrompt` speichert den Prompt beim Upload (Nachvollziehbarkeit; bleibt bestehen, wenn das Glossar geändert oder gelöscht wird).
 - `GlossaryPrompt` (Domain): Begriffe kommagetrennt, Token-Schätzung 3 Zeichen je Token, Grenze 224. Zu lange Glossare werden beim Speichern mit `400` abgelehnt statt still gekürzt.
 - Upload akzeptiert `glossaryId` (nur eigene Glossare, sonst `400`); der Worker reicht den Prompt über `TranscriptionSettings.InitialPrompt` an `WithPrompt` von Whisper.net.
 - Frontend: Seite `/glossaries` (ein Begriff pro Zeile, Token-Anzeige), Glossar-Auswahl im Upload.
-- **S22-T1 (Spike) offen:** Die Wirkung des Initial-Prompts wurde hier nicht an einer Beispieldatei gemessen (kein Whisper-Modell/Audio in der Entwicklungsumgebung). Messung mit/ohne Glossar steht aus; die Formulierung (kommagetrennte Begriffe) folgt der Empfehlung der Whisper-Dokumentation.
+- **S22-T1 (Spike) erledigt:** Gemessen mit synthetischem deutschem Audio (9 Eigennamen/Fachbegriffe): `Small` erkennt ohne Prompt 2/9, mit kommagetrenntem Glossar 9/9; `Base` 2/9 bzw. 5/9. Die kommagetrennte Formulierung bleibt, Details und Einschränkungen in [ADR 0013](../../docs/adr/0013-initial-prompt-glossar-spike.md).
