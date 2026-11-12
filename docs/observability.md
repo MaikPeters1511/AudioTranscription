@@ -16,6 +16,10 @@ externe Dienste, und weder Metriken noch Traces enthalten Dateinamen, Transkript
 
 Dazu kommen die Standardmetriken für ASP.NET Core, HttpClient und die .NET-Laufzeit.
 
+**Histogramm-Grenzen:** Die Standardgrenzen von OpenTelemetry (0, 5, 10, 25, ...) lösen Werte um 1 nicht auf; p50 und p95 hätten für jeden kurzen Job immer 2,5 und 4,75 gezeigt. Die Histogramme haben deshalb eigene Grenzen: `transcription.duration` 0,25 s bis 2 h, `transcription.realtime_factor` 0,01 bis 20 (mit 1 als Grenze zwischen schneller und langsamer als Echtzeit) und `postprocessing.duration` 1 bis 600 s.
+
+**Namen in Prometheus** (der Collector hängt Einheit und Art an): `transcription_jobs_total`, `transcription_duration_seconds_{bucket,sum,count}`, `transcription_realtime_factor_{bucket,sum,count}`, `transcription_queue_length`, `postprocessing_duration_seconds_{bucket,sum,count}`.
+
 ## Traces (Quelle `AudioTranscription`)
 
 Ein Job erzeugt den Span `transcription.job` (Tags `job.id`, `job.model`, `job.outcome`) mit den Kindern
@@ -64,3 +68,15 @@ Die Antwort enthält nur den Status, keine Pfade, Hosts oder Verbindungsdaten.
 
 In Grafana lassen sich daraus Alert-Regeln ableiten; sie gehören bewusst nicht zum mitgelieferten Dashboard,
 weil die richtigen Schwellen vom Betrieb abhängen.
+
+## Geprüft mit echten Daten (S29-F1)
+
+`docker compose --profile observability up` wurde gestartet; die API sendete an den Collector, Prometheus holte die Metriken, und jedes Panel
+des Dashboards wurde über die Grafana-API mit einer echten Abfrage geprüft (Testjobs mit einem gesprochenen Satz und einer kaputten Datei,
+Whisper `Tiny`). Ergebnis:
+
+- Alle Metriknamen des Dashboards stimmen mit denen in Prometheus überein.
+- Jobs pro Stunde, Fehlerquote, Wartende Jobs, Verarbeitungsdauer (p50/p95) und Echtzeitfaktor (p50/p95) zeigen Werte. Die Quantil-Panels brauchen mindestens zwei Messzeitpunkte mit neuen Jobs dazwischen (die API exportiert alle 60 Sekunden), sonst bleiben sie leer.
+- Gefunden und behoben: die Standard-Histogrammgrenzen (siehe oben), und die Fehlerquote war leer, solange noch kein Job fehlgeschlagen war (jetzt 0 %).
+- **Nicht geprüft:** das Panel *Nachbearbeitung* (`postprocessing_duration_seconds`), weil dafür ein Ollama-Modell laufen muss; sein Name folgt derselben Umwandlung wie die geprüften.
+- Der Compose-Dienst `api` baute das CUDA-Image (kein `target`, Compose nimmt die letzte Stufe des Dockerfiles) und scheiterte; er baut jetzt die CPU-Stufe `final`. Auf einem Apple-Silicon-Docker (arm64) lässt sich die Whisper-Bibliothek im Container nicht laden (`libggml-whisper.so.0` fehlt), die Messung lief deshalb mit der API außerhalb von Docker und dem Collector im Compose-Stack; ob das Image auf x64 läuft, ist hier nicht geprüft.

@@ -30,6 +30,8 @@ services:
     build:
       context: .
       dockerfile: AudioTranscription.Api/Dockerfile
+      # Without a target Compose builds the LAST stage of the Dockerfile, which is the CUDA image (opt-in via api-gpu)
+      target: final
     container_name: audio-transcription-api
     depends_on:
       - sql
