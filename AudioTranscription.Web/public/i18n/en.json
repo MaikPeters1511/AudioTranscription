@@ -429,7 +429,7 @@
     "editTitle": "Edit glossary",
     "name": "Name",
     "terms": "Terms",
-    "termsHint": "One term per line.",
+    "termsHint": "One term per line, spelled exactly as it should appear in the text. Only add terms that are otherwise misrecognised. The smaller the model, the weaker the effect (\"Small\" or larger recommended).",
     "tokens": "About {{used}} of {{max}} tokens",
     "tooLong": "The glossary is too long for Whisper. Please remove terms.",
     "save": "Save",

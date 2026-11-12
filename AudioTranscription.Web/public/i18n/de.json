@@ -429,7 +429,7 @@
     "editTitle": "Glossar bearbeiten",
     "name": "Name",
     "terms": "Begriffe",
-    "termsHint": "Ein Begriff pro Zeile.",
+    "termsHint": "Ein Begriff pro Zeile, genau so geschrieben, wie er im Text stehen soll. Nur Begriffe aufnehmen, die sonst falsch erkannt werden. Je kleiner das Modell, desto geringer die Wirkung (ab „Small“ empfohlen).",
     "tokens": "Etwa {{used}} von {{max}} Tokens",
     "tooLong": "Das Glossar ist zu lang für Whisper. Bitte Begriffe entfernen.",
     "save": "Speichern",
