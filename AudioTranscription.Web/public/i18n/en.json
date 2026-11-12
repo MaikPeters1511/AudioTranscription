@@ -190,7 +190,7 @@
       "pageTitle": "Change password · Transcription",
       "current": "Current password",
       "new": "New password",
-      "hint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "hint": "At least 12 characters with an uppercase and a lowercase letter, a digit and a special character.",
       "submit": "Change password",
       "failed": "The password could not be changed. Check the current password and the rules for the new one."
     }
@@ -302,7 +302,7 @@
       "count": "{{ count }} users",
       "createTitle": "Add user",
       "password": "Initial password",
-      "passwordHint": "At least 6 characters with an uppercase and a lowercase letter, a digit and a special character.",
+      "passwordHint": "At least 12 characters with an uppercase and a lowercase letter, a digit and a special character.",
       "makeAdmin": "Create as administrator",
       "cancel": "Cancel",
       "create": "Create",

@@ -190,7 +190,7 @@
       "pageTitle": "Passwort ändern · Transkription",
       "current": "Aktuelles Passwort",
       "new": "Neues Passwort",
-      "hint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "hint": "Mindestens 12 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
       "submit": "Passwort ändern",
       "failed": "Das Passwort konnte nicht geändert werden. Prüfe das aktuelle Passwort und die Regeln für das neue."
     }
@@ -302,7 +302,7 @@
       "count": "{{ count }} Benutzer",
       "createTitle": "Benutzer anlegen",
       "password": "Initiales Passwort",
-      "passwordHint": "Mindestens 6 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
+      "passwordHint": "Mindestens 12 Zeichen mit Groß- und Kleinbuchstabe, Ziffer und Sonderzeichen.",
       "makeAdmin": "Als Administrator anlegen",
       "cancel": "Abbrechen",
       "create": "Anlegen",
