@@ -207,6 +207,25 @@ cd AudioTranscription.Web
 npm test -- --watch=false
 ```
 
+### End-to-End-Tests (Playwright)
+
+```bash
+cd AudioTranscription.Web
+npx playwright install chromium
+
+# Stufe 1: Kern-Flows gegen eine gefakte API, braucht nur den Angular-Dev-Server (startet von selbst)
+npx playwright test --project=mocked
+
+# Stufe 2: Flows gegen den echten Stack (API, SQL Server mit Volltextsuche, App). Der Stack läuft schon, z. B. SQL Server mit
+# `docker compose up -d --build sql`, die API mit einem Admin als Auth__InitialUser__* und die App mit `npm start`
+# (Proxy auf die API über services__api__http__0).
+E2E_BASE_URL=http://localhost:4200 E2E_EMAIL=<admin> E2E_PASSWORD=<passwort> npx playwright test --project=stack
+# Optional: ein kurzer gesprochener Satz aktiviert den Flow Upload → Transkript → Suche (mit englischer Stimme, Satz mit „fox“)
+#   E2E_SPEECH_WAV=/pfad/zu/sprache.wav   (z. B. mit `espeak-ng -w sprache.wav "The quick brown fox jumps over the lazy dog"`)
+```
+
+Die Stack-Flows (`*.stack.spec.ts`) decken Anmelden/Abmelden, den Job-Lebenszyklus, den Upload, ein Mehrbenutzer-Szenario (Admin legt zwei Benutzer an, Freigabe, Entzug mit Live-Update über SignalR, Zugriff verweigert) und, mit Sprachdatei, Upload bis Transkript, Kopieren, `.txt`-Download und Suche mit Sprung ins Audio ab. Die CI führt beide Stufen als eigene Jobs aus (`Frontend E2E (mocked API)` und `Frontend E2E (real stack)`), die Zugangsdaten werden für jeden Lauf neu erzeugt.
+
 Ablage der Tests: siehe [ADR 0001](docs/adr/0001-ablageort-von-tests.md).
 
 ## 📁 Konfiguration

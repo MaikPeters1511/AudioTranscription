@@ -123,3 +123,114 @@ jobs:
           path: AudioTranscription.Web/playwright-report/
           if-no-files-found: warn
           retention-days: 7
+
+  e2e-stack:
+    # S31 stage 2: the same kind of flows against the real stack - SQL Server with full-text search, the API with a
+    # real Whisper model, and the app - including a second and third user and live updates over SignalR
+    name: Frontend E2E (real stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_EMAIL: admin@e2e.example.com
+      E2E_BASE_URL: http://localhost:4200
+      E2E_SPEECH_PHRASE: fox
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 11.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: AudioTranscription.Web/package-lock.json
+
+      - name: Throw-away admin password for this run
+        run: echo "E2E_PASSWORD=E2e-$(openssl rand -hex 12)-Aa1!" >> "$GITHUB_ENV"
+
+      - name: Install ffmpeg (used by the API) and a speech synthesizer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+
+      - name: Generate a spoken test sentence
+        run: |
+          espeak-ng -v en -s 130 -w "$RUNNER_TEMP/speech.wav" "The quick brown fox jumps over the lazy dog"
+          echo "E2E_SPEECH_WAV=$RUNNER_TEMP/speech.wav" >> "$GITHUB_ENV"
+
+      - name: Start SQL Server (with Full-Text Search)
+        run: |
+          docker compose up -d --build sql
+          for i in $(seq 1 60); do
+            docker logs audio-transcription-sql 2>&1 | grep -q "SQL Server is now ready for client connections" && exit 0
+            sleep 5
+          done
+          echo "::error::SQL Server did not become ready"; docker logs audio-transcription-sql | tail -30; exit 1
+
+      - name: Start the API
+        env:
+          ConnectionStrings__transcriptiondb: Server=localhost,1433;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+          Auth__InitialUser__Email: ${{ env.E2E_EMAIL }}
+          Auth__InitialUser__Password: ${{ env.E2E_PASSWORD }}
+          ASPNETCORE_URLS: http://localhost:5081
+          Whisper__DefaultModel: Base
+          Upload__TempStoragePath: ${{ runner.temp }}/uploads
+        run: |
+          dotnet run --project AudioTranscription.Api -c Release --no-launch-profile > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5081/api/auth/me || true)
+            [ "$code" = "401" ] && exit 0
+            sleep 3
+          done
+          echo "::error::The API did not start"; tail -50 "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Install dependencies
+        working-directory: AudioTranscription.Web
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: AudioTranscription.Web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the app (dev server with the proxy to the API)
+        working-directory: AudioTranscription.Web
+        env:
+          services__api__http__0: http://localhost:5081
+        run: |
+          npm start -- --port 4200 > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://localhost:4200 && exit 0
+            sleep 2
+          done
+          echo "::error::The app did not start"; tail -30 "$RUNNER_TEMP/web.log"; exit 1
+
+      - name: E2E tests (real stack)
+        working-directory: AudioTranscription.Web
+        run: npx playwright test --project=stack
+
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-stack
+          path: |
+            AudioTranscription.Web/playwright-report/
+            AudioTranscription.Web/test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload the API log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log-stack
+          path: ${{ runner.temp }}/api.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Stop SQL Server
+        if: always()
+        run: docker compose down -v
+
