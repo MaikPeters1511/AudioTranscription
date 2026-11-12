@@ -10,7 +10,7 @@ Vor dem Umbau auf Mehrbenutzer (S18/S19) brauchen wir ein Sicherheitsnetz. Playw
 
 ## 3. Vorgehen (gestaffelt)
 - **Stufe 1 (umgesetzt):** UI-Flows gegen eine gefakte API (`tests/support/mock-api.ts`, `*.mocked.spec.ts`), laufen mit dem Angular-Dev-Server allein, eigener CI-Job `Frontend E2E (mocked API)`.
-- **Stufe 2 (offen):** dieselben Flows gegen den echten Stack (docker-compose: API, SQL Server, Frontend) als zweiter CI-Job.
+- **Stufe 2 (umgesetzt):** Flows gegen den echten Stack als zweiter CI-Job `Frontend E2E (real stack)`: SQL Server mit Volltextsuche (`docker compose up -d --build sql`), die API (`dotnet run`) mit einem echten Whisper-Modell (`Base`, wird beim ersten Job geladen) und der Angular-Dev-Server mit Proxy. Playwright-Projekt `stack` (`*.stack.spec.ts`, ein Worker, ein Wiederholungsversuch): Anmelden/Abmelden und falsches Passwort, Job-Lebenszyklus (fehlgeschlagen, neu starten, löschen), Upload-Seite, **Mehrbenutzer (S31-F1)** mit drei Browser-Kontexten (Admin legt zwei Benutzer an, Freigabe, schreibgeschützte Ansicht, Entzug verschwindet live, kein Zugriff auf die Benutzerverwaltung) und, mit einer in der CI per `espeak-ng` erzeugten Sprachdatei, Upload → Transkript → Kopieren → `.txt` → Suche mit Sprungmarke. Zugangsdaten werden pro Lauf erzeugt, nichts davon liegt im Repo. Offen: Sprecher umbenennen im Echtbetrieb (braucht Diarisierungsmodelle) und die Trace-Auswertung bei Fehlern in der Praxis (Artefakte werden hochgeladen).
 
 ## 3a. Tasks
 
