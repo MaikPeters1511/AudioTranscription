@@ -147,8 +147,10 @@ jobs:
           cache: npm
           cache-dependency-path: AudioTranscription.Web/package-lock.json
 
-      - name: Throw-away admin password for this run
-        run: echo "E2E_PASSWORD=E2e-$(openssl rand -hex 12)-Aa1!" >> "$GITHUB_ENV"
+      - name: Throw-away passwords for this run (admin account and SQL Server)
+        run: |
+          echo "E2E_PASSWORD=E2e-$(openssl rand -hex 12)-Aa1!" >> "$GITHUB_ENV"
+          echo "SQL_PASSWORD=Sq1-$(openssl rand -hex 12)-Aa!" >> "$GITHUB_ENV"
 
       - name: Install ffmpeg (used by the API) and a speech synthesizer
         run: |
@@ -162,16 +164,17 @@ jobs:
 
       - name: Start SQL Server (with Full-Text Search)
         run: |
-          docker compose up -d --build sql
+          docker build -t audio-transcription-sql-e2e docker/mssql-fts
+          docker run -d --name e2e-sql -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$SQL_PASSWORD" audio-transcription-sql-e2e
           for i in $(seq 1 60); do
-            docker logs audio-transcription-sql 2>&1 | grep -q "SQL Server is now ready for client connections" && exit 0
+            docker logs e2e-sql 2>&1 | grep -q "SQL Server is now ready for client connections" && exit 0
             sleep 5
           done
-          echo "::error::SQL Server did not become ready"; docker logs audio-transcription-sql | tail -30; exit 1
+          echo "::error::SQL Server did not become ready"; docker logs e2e-sql | tail -30; exit 1
 
       - name: Start the API
         env:
-          ConnectionStrings__transcriptiondb: Server=localhost,1433;Database=transcriptiondb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+          ConnectionStrings__transcriptiondb: Server=localhost,1433;Database=transcriptiondb;User Id=sa;Password=${{ env.SQL_PASSWORD }};TrustServerCertificate=True;
           Auth__InitialUser__Email: ${{ env.E2E_EMAIL }}
           Auth__InitialUser__Password: ${{ env.E2E_PASSWORD }}
           ASPNETCORE_URLS: http://localhost:5081
@@ -232,5 +235,5 @@ jobs:
 
       - name: Stop SQL Server
         if: always()
-        run: docker compose down -v
+        run: docker rm -f e2e-sql
 
