@@ -104,25 +104,8 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
             });
         }
         await db.SaveChangesAsync();
-        await WaitForFullTextPopulationAsync(db, "AudioJobs");
-        await WaitForFullTextPopulationAsync(db, "TranscriptSegments");
-        await WaitForFullTextPopulationAsync(db, "TranscriptVariants");
+        await FullTextPopulation.WaitAsync(db);
         return jobId;
-    }
-
-    private static async Task WaitForFullTextPopulationAsync(AppDbContext db, string tableName)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (DateTime.UtcNow < deadline)
-        {
-            var status = await db.Database.SqlQuery<int>(
-                $"SELECT OBJECTPROPERTYEX(OBJECT_ID({tableName}), 'TableFulltextPopulateStatus') AS Value")
-                .SingleAsync();
-            if (status == 0)
-                return;
-            await Task.Delay(200);
-        }
-        throw new TimeoutException($"Full-text population on {tableName} did not finish in time.");
     }
 
     [Fact]
@@ -165,7 +148,7 @@ public class SearchIntegrationTests : IClassFixture<SearchSqlServerFixture>, ICl
         (await client.PutAsJsonAsync($"/api/audio-jobs/{job}/segments/0", new EditSegmentRequest("Der Drachentöter kam.", 0)))
             .EnsureSuccessStatusCode();
         using (var scope = _factory.Services.CreateScope())
-            await WaitForFullTextPopulationAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), "TranscriptSegments");
+            await FullTextPopulation.WaitAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), "TranscriptSegments");
 
         var corrected = await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Drachentöter");
         var original = await client.GetFromJsonAsync<PaginatedResult<SearchHitDto>>("/api/search?q=Zauberer");
