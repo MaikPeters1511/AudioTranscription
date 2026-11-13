@@ -6,6 +6,8 @@ import { adminEmail, adminPassword, login, stackConfigured } from './support/sta
  * S31-T3/T4 against the real stack with a real Whisper model: a spoken sentence is uploaded, transcribed, copied and
  * downloaded, found by the search, and the hit opens the player at its time. The audio is generated outside the test
  * (espeak-ng in the CI), its path comes in E2E_SPEECH_WAV, and E2E_SPEECH_PHRASE is a phrase the model reliably hears.
+ * The stack has to keep uploads after transcription (Upload:DeleteAfterTranscription=false, the Development default),
+ * otherwise there is no audio to play.
  */
 const speechFile = process.env['E2E_SPEECH_WAV'];
 const phrase = process.env['E2E_SPEECH_PHRASE'] ?? 'fox';
@@ -58,7 +60,11 @@ test('upload a spoken sentence, read, copy and download the transcript, find it 
   await expect(timedHit).toBeVisible();
   await timedHit.click();
   await expect(page).toHaveURL(new RegExp(`${jobUrl.split('/').at(-1)}\\?t=\\d+$`));
-  await expect(page.locator('audio')).toBeVisible();
+  // The player really has the audio: the element exists before the file has loaded and disappears when loading
+  // fails, so its mere presence proves nothing. The stack must keep uploads (Upload:DeleteAfterTranscription=false).
+  const audio = page.locator('audio');
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => el.readyState), { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect(page.getByText('Die Audiodatei ist nicht mehr vorhanden')).toHaveCount(0);
 
   // Clean up
   await page.goto(jobUrl);

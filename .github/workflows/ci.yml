@@ -182,6 +182,8 @@ jobs:
           ASPNETCORE_URLS: http://localhost:5081
           Whisper__DefaultModel: Base
           Upload__TempStoragePath: ${{ runner.temp }}/uploads
+          # The transcript test opens the player at a search hit; without this the upload is deleted after transcription
+          Upload__DeleteAfterTranscription: 'false'
         run: |
           dotnet run --project AudioTranscription.Api -c Release --no-launch-profile > "$RUNNER_TEMP/api.log" 2>&1 &
           for i in $(seq 1 90); do
