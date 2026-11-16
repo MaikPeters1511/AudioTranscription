@@ -7,7 +7,7 @@ public class PostProcessingOptions
 
     /// <summary>
     /// Approximate character limit per chunk for Map-Reduce chunking (Summary/ActionItems).
-    /// No tokenizer is available for the configured Ollama model, so characters approximate tokens.
+    /// No tokenizer is available for the configured language model, so characters approximate tokens.
     /// </summary>
     public int MaxChunkLength { get; set; } = 6000;
 }

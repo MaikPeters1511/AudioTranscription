@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Configuration;
 using System.ClientModel;
 using System.Threading.RateLimiting;
 using AudioTranscription.Api.Access;
@@ -9,7 +10,7 @@ using OpenAI;
 namespace AudioTranscription.Api.Chat;
 
 /// <summary>
-/// Registers the chat (S24, ADR 0011). It needs semantic search (retrieval) and a language model: local Ollama by default,
+/// Registers the chat (S24, ADR 0011). It needs semantic search (retrieval) and a language model: local LM Studio by default,
 /// OpenAI only when <c>Chat:Provider=OpenAI</c> and a key are set. Without them the endpoints answer 503.
 /// </summary>
 public static class ChatSetup
@@ -58,7 +59,9 @@ public static class ChatSetup
             return new OpenAIClient(new ApiKeyCredential(settings.ApiKey), clientOptions).GetChatClient(settings.Model).AsIChatClient();
         }
 
-        var endpoint = settings.Endpoint ?? configuration.GetConnectionString("llama3.2");
-        return string.IsNullOrWhiteSpace(endpoint) ? null : new OllamaChatClient(new Uri(endpoint), settings.Model);
+        var endpoint = string.IsNullOrWhiteSpace(settings.Endpoint) ? LmStudioConnection.GetEndpoint(configuration) : settings.Endpoint;
+        return string.IsNullOrWhiteSpace(endpoint)
+            ? null
+            : LmStudioConnection.CreateClient(endpoint, settings.ApiKey).GetChatClient(settings.Model).AsIChatClient();
     }
 }

@@ -76,14 +76,16 @@ builder.Services.AddHostedService<JobRecoveryService>(); // must start before th
 builder.Services.AddHostedService<TranscriptionWorker>();
 
 // Optional: Register the LLM-backed variant generator (S10; formerly ITranscriptPostProcessor/S04)
-// if an Ollama connection string is present.
-var ollamaConnectionString = builder.Configuration.GetConnectionString("llama3.2");
-if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
+// if an LM Studio endpoint is configured (LmStudio:Endpoint).
+var lmStudioEndpoint = LmStudioConnection.GetEndpoint(builder.Configuration);
+if (!string.IsNullOrWhiteSpace(lmStudioEndpoint))
 {
-    builder.Services.AddSingleton<Microsoft.Extensions.AI.IChatClient>(new Microsoft.Extensions.AI.OllamaChatClient(new Uri(ollamaConnectionString), "llama3.2"));
+    builder.Services.AddSingleton<Microsoft.Extensions.AI.IChatClient>(
+        Microsoft.Extensions.AI.OpenAIClientExtensions.AsIChatClient(
+            LmStudioConnection.CreateClient(lmStudioEndpoint).GetChatClient(LmStudioConnection.GetModel(builder.Configuration))));
     builder.Services.Configure<PostProcessingOptions>(builder.Configuration.GetSection(PostProcessingOptions.SectionName));
     builder.Services.AddSingleton<IPostProcessingPromptCatalog, PostProcessingPromptCatalog>();
-    builder.Services.AddScoped<IVariantGenerator, OllamaVariantGenerator>();
+    builder.Services.AddScoped<IVariantGenerator, LlmVariantGenerator>();
     builder.Services.AddSingleton<VariantQueue>();
     builder.Services.AddHostedService<VariantRecoveryService>(); // must start before the worker
     builder.Services.AddScoped<ITemplateVariantGenerator, LlmTemplateVariantGenerator>(); // S26
@@ -180,10 +182,9 @@ var healthChecks = builder.Services.AddHealthChecks()
         var whisper = sp.GetRequiredService<IOptions<WhisperOptions>>().Value;
         return new WhisperModelHealthCheck(Path.Combine(AppContext.BaseDirectory, whisper.ModelsDirectory), whisper.DefaultModel);
     }, failureStatus: null, tags: ["ready"]));
-if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("llama3.2")))
+if (LmStudioConnection.GetEndpoint(builder.Configuration) is { } lmStudioAddress)
 {
-    var ollamaAddress = new Uri(builder.Configuration.GetConnectionString("llama3.2")!);
-    healthChecks.AddCheck("ollama", new OllamaHealthCheck(new HttpClient { Timeout = TimeSpan.FromSeconds(3) }, ollamaAddress), tags: ["ready"]);
+    healthChecks.AddCheck("lm-studio", new LmStudioHealthCheck(new HttpClient { Timeout = TimeSpan.FromSeconds(3) }, new Uri(lmStudioAddress)), tags: ["ready"]);
 }
 
 // Semantic search (S23, ADR 0010): only with a Qdrant connection string and a usable embedding model

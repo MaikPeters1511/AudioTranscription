@@ -66,21 +66,23 @@ public sealed class WhisperModelHealthCheck(string modelsDirectory, string defau
     }
 }
 
-/// <summary>Ollama (post-processing) answers. Optional, so a problem is <em>degraded</em>, not unhealthy.</summary>
-public sealed class OllamaHealthCheck(HttpClient httpClient, Uri baseAddress) : IHealthCheck
+/// <summary>LM Studio (post-processing, chat, embeddings) answers. Optional, so a problem is <em>degraded</em>, not unhealthy.</summary>
+public sealed class LmStudioHealthCheck(HttpClient httpClient, Uri baseAddress) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var response = await httpClient.GetAsync(new Uri(baseAddress, "/api/tags"), cancellationToken);
+            // The endpoint is the OpenAI-compatible base ("http://host:1234/v1"); the model list is a cheap read-only call
+            var root = baseAddress.AbsoluteUri.EndsWith('/') ? baseAddress : new Uri(baseAddress.AbsoluteUri + "/");
+            using var response = await httpClient.GetAsync(new Uri(root, "models"), cancellationToken);
             return response.IsSuccessStatusCode
-                ? HealthCheckResult.Healthy("Ollama reachable")
-                : HealthCheckResult.Degraded("Ollama answered with an error; post-processing may fail");
+                ? HealthCheckResult.Healthy("LM Studio reachable")
+                : HealthCheckResult.Degraded("LM Studio answered with an error; post-processing may fail");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            return HealthCheckResult.Degraded("Ollama not reachable; post-processing is unavailable");
+            return HealthCheckResult.Degraded("LM Studio not reachable; post-processing is unavailable");
         }
     }
 }

@@ -53,7 +53,7 @@ den Status des Spans auf `Error`, ohne Meldung.
 | `database` | Healthy, wenn die Datenbank antwortet, sonst Unhealthy |
 | `ffmpeg` | Healthy, wenn `ffmpeg` im `PATH` liegt, sonst Unhealthy |
 | `whisper-model` | Healthy, wenn das Standardmodell heruntergeladen ist, sonst Degraded (der erste Job lädt es) |
-| `ollama` | nur wenn konfiguriert; Degraded, wenn nicht erreichbar (die Transkription läuft trotzdem) |
+| `lm-studio` | nur wenn konfiguriert; Degraded, wenn nicht erreichbar (die Transkription läuft trotzdem) |
 
 Die Antwort enthält nur den Status, keine Pfade, Hosts oder Verbindungsdaten.
 
@@ -64,7 +64,7 @@ Die Antwort enthält nur den Status, keine Pfade, Hosts oder Verbindungsdaten.
 | Fehlerquote `failed / alle` über 15 min | über 20 % | Modell, ffmpeg oder Eingaben prüfen |
 | `transcription.queue.length` | über 10 für mehr als 30 min | Worker zu langsam oder blockiert |
 | Echtzeitfaktor p95 | über 3 | Hardware zu schwach für das gewählte Modell (GPU oder kleineres Modell) |
-| `postprocessing.duration` p95 | über 300 s | Ollama überlastet |
+| `postprocessing.duration` p95 | über 300 s | LM Studio überlastet |
 
 In Grafana lassen sich daraus Alert-Regeln ableiten; sie gehören bewusst nicht zum mitgelieferten Dashboard,
 weil die richtigen Schwellen vom Betrieb abhängen.
@@ -78,5 +78,5 @@ Whisper `Tiny`). Ergebnis:
 - Alle Metriknamen des Dashboards stimmen mit denen in Prometheus überein.
 - Jobs pro Stunde, Fehlerquote, Wartende Jobs, Verarbeitungsdauer (p50/p95) und Echtzeitfaktor (p50/p95) zeigen Werte. Die Quantil-Panels brauchen mindestens zwei Messzeitpunkte mit neuen Jobs dazwischen (die API exportiert alle 60 Sekunden), sonst bleiben sie leer.
 - Gefunden und behoben: die Standard-Histogrammgrenzen (siehe oben), und die Fehlerquote war leer, solange noch kein Job fehlgeschlagen war (jetzt 0 %).
-- **Nicht geprüft:** das Panel *Nachbearbeitung* (`postprocessing_duration_seconds`), weil dafür ein Ollama-Modell laufen muss; sein Name folgt derselben Umwandlung wie die geprüften.
+- **Nicht geprüft:** das Panel *Nachbearbeitung* (`postprocessing_duration_seconds`), weil dafür ein LM-Studio-Modell laufen muss; sein Name folgt derselben Umwandlung wie die geprüften.
 - Der Compose-Dienst `api` baute das CUDA-Image (kein `target`, Compose nimmt die letzte Stufe des Dockerfiles) und scheiterte; er baut jetzt die CPU-Stufe `final`. Zum Zeitpunkt der Messung ließ sich die Whisper-Bibliothek im Container nicht laden, die Messung lief deshalb mit der API außerhalb von Docker und dem Collector im Compose-Stack. Ursache waren zwei fehlende Pakete im Image (`libgomp1` für die Whisper-Bibliothek und `ffmpeg` für die Konvertierung); beide sind inzwischen im Dockerfile, und ein Upload im Compose-Stack wird auf arm64 transkribiert.

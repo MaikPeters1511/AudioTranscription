@@ -15,7 +15,10 @@
       "apiKeys": "API keys",
       "webhooks": "Webhooks",
       "chat": "Chat",
-      "unassignedJobs": "Unassigned jobs"
+      "unassignedJobs": "Unassigned jobs",
+      "admin": "Administration",
+      "menu": "Menu",
+      "userMenu": "User menu"
     },
     "connection": {
       "live": "Live connected",

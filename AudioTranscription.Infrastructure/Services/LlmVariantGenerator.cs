@@ -8,18 +8,18 @@ using Polly.Retry;
 namespace AudioTranscription.Infrastructure.Services;
 
 /// <summary>
-/// Generates on-demand transcript variants (S10) via a local Ollama model: builds the prompt for the
+/// Generates on-demand transcript variants (S10) via a local LM Studio model: builds the prompt for the
 /// mode (T1), chunks long transcripts for Summary/ActionItems with Map-Reduce (T4), and retries
 /// transient failures (T4 resilience requirement in CLAUDE.md).
 /// </summary>
-public class OllamaVariantGenerator(
+public class LlmVariantGenerator(
     IChatClient chatClient,
     IPostProcessingPromptCatalog prompts,
     IOptions<PostProcessingOptions> options,
-    ILogger<OllamaVariantGenerator> logger) : IVariantGenerator
+    ILogger<LlmVariantGenerator> logger) : IVariantGenerator
 {
     /// <summary>
-    /// Retries a transient failure (e.g. Ollama briefly unreachable) 2 times with a short exponential
+    /// Retries a transient failure (e.g. LM Studio briefly unreachable) 2 times with a short exponential
     /// backoff. A caller's own cancellation is never retried: Polly detects that the ambient
     /// CancellationToken passed to ExecuteAsync is set and stops regardless of ShouldHandle.
     /// </summary>

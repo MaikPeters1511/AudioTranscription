@@ -6,7 +6,7 @@
 
 Lokale, private Audio-Transkription auf Basis von [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp) — läuft komplett offline, ohne dass Audiodaten an einen externen Dienst gesendet werden.
 
-Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR und erhalte das fertige Transkript direkt im Browser — mit optionaler Nachbearbeitung durch ein lokales Ollama-LLM.
+Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR und erhalte das fertige Transkript direkt im Browser — mit optionaler Nachbearbeitung durch ein lokales LLM über LM Studio.
 
 ## ✨ Features
 
@@ -21,7 +21,7 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 📄 **Weitere Exportformate** — Transkript und nachbearbeitete Fassungen als Word (DOCX), Markdown, JSON oder PDF, optional mit Zeitstempeln und Sprechernamen (Export-Menü in der Detailansicht)
 - 📚 **Glossar für Fachbegriffe** — eigene Begriffslisten, die beim Upload wählbar sind und Whisper als Initial-Prompt für Namen und Fachwörter mitgegeben werden (zu lange Listen werden gemeldet statt still abgeschnitten)
 - 📥 **Batch-Upload und Warteschlange** — mehrere Dateien auf einmal hochladen (bis zu 3 parallel, Fortschritt und Abbruch je Datei, ein Fehler stoppt die anderen nicht); die Warteschlange zeigt Position, geschätzte Wartezeit und erlaubt Priorität ändern und Abbrechen
-- 🧠 **Nachbearbeitung mit Ollama** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
+- 🧠 **Nachbearbeitung mit LM Studio** — aus jedem fertigen Transkript per Klick eine bereinigte Fassung, Zusammenfassung, Stichpunkte, Aufgabenliste oder Übersetzung erzeugen
 - 🗣️ **Sprechererkennung (optional)** — „Wer spricht wann?“: Segmente werden Sprechern zugeordnet, die sich umbenennen lassen; Export (SRT/VTT) enthält die Sprechernamen; läuft vollständig offline (sherpa-onnx)
 - 🏷️ **Tags, Ordner und Favoriten** — jeder Benutzer ordnet seine Jobs persönlich (auch geteilte), filtert die Liste und die Suche danach und verwaltet alles unter „Organisieren“
 - 🔍 **Volltextsuche** — alle Transkripte (Rohtext, Segmente, Fassungen) durchsuchen, inkl. Stemming für gebeugte deutsche Wortformen; Treffer springen direkt an die passende Stelle im Player
@@ -29,12 +29,12 @@ Lade eine Audiodatei hoch, verfolge den Verarbeitungsstatus live über SignalR u
 - 🔁 **Wiederaufnehmbarer Upload** — Dateien ab 10 MiB werden in Chunks per tus-Protokoll hochgeladen: automatische Wiederholung bei Verbindungsabbruch, Pause/Fortsetzen, Abbruch räumt den Teil-Upload auf; kleinere Dateien und der bisherige Endpoint bleiben unverändert (siehe [ADR 0006](docs/adr/0006-resumable-upload-spike.md))
 - 📑 **Automatische Kapitel** — das lokale Sprachmodell gliedert lange Aufnahmen in Abschnitte mit Überschrift und Kurzzusammenfassung (Map-Reduce über Fenster, Grenzen auf Segmentgrenzen); Marker auf der Zeitleiste und Kapitelliste im Player, Sprung per Klick oder Tastatur, Kapitel umbenennen und löschen
 - 📝 **Protokoll-Vorlagen** — strukturierte Nachbearbeitung mit Vorlagen (eingebaut: Besprechungsprotokoll, Entscheidungsliste, Aufgaben mit Verantwortlichen; eigene Vorlagen durch Admins): das Ergebnis wird gegen ein JSON-Schema geprüft und als Markdown gerendert, Verantwortliche erscheinen nur für benannte Sprecher
-- 🧠 **Semantische Suche** — Suche in natürlicher Sprache über Embeddings in Qdrant („Wann ging es ums Geld?“ findet die Budgetrunde): Modi Wörtlich, Bedeutung und Kombiniert (Reciprocal Rank Fusion mit der Volltextsuche); Modell lokal über Ollama (`bge-m3`), OpenAI nur per ausdrücklicher Konfiguration; Berechtigungen serverseitig erzwungen (siehe [ADR 0010](docs/adr/0010-semantische-suche-embeddings.md))
-- 💬 **Chat mit Transkripten (RAG)** — Fragen an eine Aufnahme, einen Ordner oder alles stellen; die Antwort wird gestreamt und nennt überprüfbare Fundstellen mit Sprung in den Player. Standardmäßig lokal (Ollama); die Oberfläche zeigt immer, welches Modell antwortet und ob es ein externer Dienst ist. Transkripte gelten als untrusted Data, Zitate verweisen nur auf gelieferte Quellen (siehe [ADR 0011](docs/adr/0011-rag-chat-prompt-und-injection-schutz.md))
+- 🧠 **Semantische Suche** — Suche in natürlicher Sprache über Embeddings in Qdrant („Wann ging es ums Geld?“ findet die Budgetrunde): Modi Wörtlich, Bedeutung und Kombiniert (Reciprocal Rank Fusion mit der Volltextsuche); Modell lokal über LM Studio (`text-embedding-bge-m3`), OpenAI nur per ausdrücklicher Konfiguration; Berechtigungen serverseitig erzwungen (siehe [ADR 0010](docs/adr/0010-semantische-suche-embeddings.md))
+- 💬 **Chat mit Transkripten (RAG)** — Fragen an eine Aufnahme, einen Ordner oder alles stellen; die Antwort wird gestreamt und nennt überprüfbare Fundstellen mit Sprung in den Player. Standardmäßig lokal (LM Studio); die Oberfläche zeigt immer, welches Modell antwortet und ob es ein externer Dienst ist. Transkripte gelten als untrusted Data, Zitate verweisen nur auf gelieferte Quellen (siehe [ADR 0011](docs/adr/0011-rag-chat-prompt-und-injection-schutz.md))
 - 📱 **PWA und Offline-Aufnahme** — App auf dem Handy installierbar; Aufnahmen werden abschnittsweise auf dem Gerät gesichert (überstehen Absturz und geschlossenes Tab) und bei Verbindung automatisch hochgeladen; der Service Worker cacht nur die App-Shell, nie API-Antworten oder Transkripte (siehe [ADR 0012](docs/adr/0012-pwa-und-offline-aufnahme.md) und [Installation und Offline-Aufnahme](#installation-und-offline-aufnahme))
 - 🤖 **Automatisierung** — API-Keys für Skripte (gehasht gespeichert, Scopes, Ablauf, jederzeit entziehbar), signierte Webhooks mit Wiederholung und Zustellungsprotokoll für n8n/Zapier und ein überwachter Ordner („Datei ablegen, Transkript erhalten“); SSRF-geschützt (siehe [ADR 0009](docs/adr/0009-automatisierung-api-keys-webhooks-ordner-watch.md) und [Automatisierung](#-automatisierung))
 - 📈 **Observability** — fachliche Metriken (Jobs, Dauer, Echtzeitfaktor, Warteschlange), Traces der Pipeline und Readiness-Checks, optional mit Prometheus und Grafana; ohne Dateinamen oder Inhalte (siehe [docs/observability.md](docs/observability.md))
-- 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend (und optional Ollama) für lokale Entwicklung
+- 🐳 **.NET Aspire** orchestriert API, Datenbank, Web-Frontend für lokale Entwicklung (LM Studio läuft separat auf dem Rechner)
 
 ## 🖼️ Screenshots
 
@@ -120,7 +120,7 @@ AudioTranscription.Web/              Angular 22 Frontend (Tailwind CSS + DaisyUI
 |---|---|---|
 | [.NET SDK](https://dotnet.microsoft.com/download) | 11.0+ | API & Aspire AppHost |
 | [Node.js](https://nodejs.org/) | 20+ | Angular-Frontend |
-| [Docker](https://www.docker.com/) | aktuell | SQL Server (& optional Ollama) via Aspire |
+| [Docker](https://www.docker.com/) | aktuell | SQL Server und Qdrant via Aspire |
 | [ffmpeg](https://ffmpeg.org/) | aktuell, im `PATH` | Audiokonvertierung (macOS: `brew install ffmpeg`, Linux: `apt install ffmpeg`) |
 
 ## 🚀 Schnellstart (lokale Entwicklung mit Aspire)
@@ -134,17 +134,17 @@ dotnet run
 
 Das Aspire-Dashboard zeigt dir die zugewiesenen Ports für API und Web-Frontend an. Whisper.net lädt jedes Modell beim ersten Einsatz automatisch herunter (siehe [Whisper-Modelle](#-whisper-modelle)).
 
-### Optional: Ollama-Nachbearbeitung aktivieren
+### Optional: LM Studio für Nachbearbeitung, Chat und semantische Suche
 
-In `AudioTranscription.Api/appsettings.json`:
+Die lokalen Sprachmodelle laufen in [LM Studio](https://lmstudio.ai/) auf deinem Rechner (nicht als Container) und werden über dessen OpenAI-kompatible API angesprochen.
 
-```json
-"Features": { "OllamaPostProcessing": true }
-```
+1. In LM Studio ein Chat-Modell (z. B. `llama-3.2-3b-instruct`) und ein Embedding-Modell (z. B. `text-embedding-bge-m3`) laden und den **lokalen Server** starten (Standard: `http://localhost:1234/v1`).
+2. Endpoint und Modellnamen stehen in `AudioTranscription.AppHost/appsettings.json` (Abschnitt `LmStudio`: `Endpoint`, `Model`, `EmbeddingModel`, `EmbeddingDimensions` — die Vektorlänge muss zum Embedding-Modell passen, z. B. 1024 für bge-m3, 768 für nomic-embed-text-v1.5) und lassen sich per User-Secrets überschreiben. Die Namen müssen exakt denen in LM Studio entsprechen. Ein leerer `Endpoint` schaltet Nachbearbeitung, Chat und semantische Suche ab.
+3. Der AppHost reicht die Werte als `LmStudio__Endpoint`, `LmStudio__Model`, `Chat__Model` und `Embedding__Model` an die API durch. Ohne Aspire (docker compose) setzt du `LMSTUDIO_ENDPOINT=http://host.docker.internal:1234/v1` in der `.env`.
 
-Beim nächsten `dotnet run` startet Aspire zusätzlich einen Ollama-Container inkl. `llama3.2`-Modell.
+Der Health-Check `lm-studio` (`/health/ready`) meldet *Degraded*, wenn der Server nicht erreichbar ist; die Transkription läuft trotzdem.
 
-In der Detailansicht eines abgeschlossenen Jobs erscheint dann eine Aktionsleiste „Weitere Fassungen“ mit einem Knopf je Modus (Bereinigen, Zusammenfassen, Stichpunkte, Aufgaben, Übersetzen). Ergebnisse erscheinen als zusätzliche Tabs neben „Original“; ein erneuter Klick auf denselben Modus ersetzt das Ergebnis. Lange Transkripte werden für Zusammenfassung und Aufgaben in Abschnitten verarbeitet und anschließend zusammengeführt (`PostProcessing:MaxChunkLength` in `appsettings.json`, Richtwert in Zeichen statt Tokens, da für das gewählte Ollama-Modell kein Tokenizer verfügbar ist).
+In der Detailansicht eines abgeschlossenen Jobs erscheint dann eine Aktionsleiste „Weitere Fassungen“ mit einem Knopf je Modus (Bereinigen, Zusammenfassen, Stichpunkte, Aufgaben, Übersetzen). Ergebnisse erscheinen als zusätzliche Tabs neben „Original“; ein erneuter Klick auf denselben Modus ersetzt das Ergebnis. Lange Transkripte werden für Zusammenfassung und Aufgaben in Abschnitten verarbeitet und anschließend zusammengeführt (`PostProcessing:MaxChunkLength` in `appsettings.json`, Richtwert in Zeichen statt Tokens, da für das gewählte Modell kein Tokenizer verfügbar ist).
 
 ### Optional: Sprechererkennung (Diarisierung) aktivieren
 
@@ -263,7 +263,7 @@ Wichtige Einstellungen in `AudioTranscription.Api/appsettings.json`:
   "Auth": { "AllowRegistration": false },
   "Cors": { "AllowedOrigins": [] },
   "PostProcessing": { "MaxChunkLength": 6000 },
-  "Features": { "OllamaPostProcessing": false },
+  "LmStudio": { "Endpoint": "", "Model": "llama-3.2-3b-instruct" },
   "Diarization": {
     "Enabled": false,
     "SegmentationModelPath": "",
@@ -446,7 +446,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 | `GET` | `/api/audio-jobs/{id}/speakers` | Erkannte Sprecher eines Jobs mit aufgelöstem Namen (`Sprecher N` bis umbenannt) |
 | `PUT` | `/api/audio-jobs/{id}/speakers/{index}` | Sprecher umbenennen (`{ displayName }`, max. 100 Zeichen); `404` bei unbekanntem Job/Sprecher |
 | `GET` | `/api/audio-jobs/{id}/audio` | Hochgeladene Audiodatei mit HTTP-Range-Support; `410`, wenn sie schon gelöscht ist |
-| `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes Ollama |
+| `POST` | `/api/audio-jobs/{id}/variants` | Fassung erzeugen/neu erzeugen (`{ mode, targetLanguage? }`); `409` außer bei `Completed`, `503` ohne konfiguriertes LM Studio |
 | `GET` | `/api/templates` | Nachbearbeitungs-Vorlagen (eingebaute zuerst); eine Vorlage anwenden: `POST /api/audio-jobs/{id}/variants` mit `mode` `5` (Template) und `templateId` |
 | `POST`/`PUT`/`DELETE` | `/api/templates[/{id}]` | Eigene Vorlagen verwalten (nur Admin): Body `{ name, description, prompt, outputSchema }`; Prompt bis 4000 Zeichen mit den Platzhaltern `{{SPEAKERS}}`/`{{LANGUAGE}}`, `outputSchema` als JSON-Schema (Typen object, array, string, integer, number, boolean). Ungültig: `400`, eingebaute Vorlagen ändern oder löschen: `409` |
 | `GET` | `/api/audio-jobs/{id}/variants` | Erzeugte Fassungen eines Jobs |
@@ -468,7 +468,7 @@ Alle Endpunkte außer Login erfordern eine Anmeldung, sonst antworten sie mit `4
 
 ## 🛠️ Tech-Stack
 
-**Backend:** ASP.NET Core (.NET 11) · EF Core · SQL Server · Qdrant · SignalR · Whisper.net · Ollama · ffmpeg · .NET Aspire
+**Backend:** ASP.NET Core (.NET 11) · EF Core · SQL Server · Qdrant · SignalR · Whisper.net · LM Studio · ffmpeg · .NET Aspire
 **Frontend:** Angular 22 (zoneless, Standalone Components, Signals) · Tailwind CSS 4 · DaisyUI 5
 
 ## 📝 Changelog

@@ -7,7 +7,7 @@ import { translocoTesting } from '../../i18n/transloco-testing';
 import { ChatConversationSummary, ChatInfo, ChatMessage } from '../../models/audio-job.model';
 
 describe('ChatComponent (S24)', () => {
-  const info = signal<ChatInfo | null>({ enabled: true, provider: 'Ollama', model: 'llama3.2', external: false });
+  const info = signal<ChatInfo | null>({ enabled: true, provider: 'LmStudio', model: 'llama-3.2-3b-instruct', external: false });
   const messages = signal<ChatMessage[]>([]);
   const conversations = signal<ChatConversationSummary[]>([]);
   const streaming = signal(false);
@@ -21,7 +21,7 @@ describe('ChatComponent (S24)', () => {
   function render(job: string | null = null) {
     Object.values(service).forEach((v) => typeof v === 'function' && (v as ReturnType<typeof vi.fn>).mockReset?.());
     service.ask.mockResolvedValue(undefined);
-    info.set({ enabled: true, provider: 'Ollama', model: 'llama3.2', external: false });
+    info.set({ enabled: true, provider: 'LmStudio', model: 'llama-3.2-3b-instruct', external: false });
     messages.set([]);
     conversations.set([]);
     streaming.set(false);
@@ -59,7 +59,7 @@ describe('ChatComponent (S24)', () => {
     const { el } = render();
 
     expect(el.querySelector('[data-testid=chat-provider]')?.textContent).toContain('locally');
-    expect(el.querySelector('[data-testid=chat-provider]')?.textContent).toContain('llama3.2');
+    expect(el.querySelector('[data-testid=chat-provider]')?.textContent).toContain('llama-3.2-3b-instruct');
   });
 
   it('warns clearly when an external provider answers', () => {

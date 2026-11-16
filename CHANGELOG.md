@@ -39,6 +39,7 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 - **CI-Pipeline (S16):** GitHub-Actions-Workflow mit Backend-/Frontend-Tests, Repo-Hygiene-Check und HTML-Testreports.
 
 ### Geändert
+- **LM Studio statt Ollama:** Nachbearbeitung, Chat und semantische Suche nutzen die OpenAI-kompatible API eines lokal laufenden LM Studio (`LmStudio:Endpoint`, Standard `http://localhost:1234/v1`). Der Ollama-Container im AppHost, das Aspire-Paket, `Microsoft.Extensions.AI.Ollama` und `OllamaVariantGenerator` (jetzt `LlmVariantGenerator`) entfallen; der Health-Check heißt `lm-studio`. Provider-Werte: `LmStudio` (Standard) und `OpenAI`; `Features:OllamaPostProcessing` entfällt (siehe [ADR 0014](docs/adr/0014-lm-studio-statt-ollama.md)).
 - **.NET 11 und Aspire 13.6.5:** Alle Projekte zielen auf `net11.0`; ASP.NET Core, EF Core und `Microsoft.Extensions.*` auf 11.0.0, Aspire-AppHost und -Pakete auf 13.6.5, Dockerfile-Basisimages und CI (`setup-dotnet`) auf 11.0.
 - **Dokumentation:** README um neue Screenshots (Chat, Warteschlange, API-Keys, Webhooks) erweitert und die bestehenden aktualisiert.
 - **Job-Wiederherstellung:** Offene Transkriptions-Jobs werden nach einem API-Neustart automatisch fortgesetzt.

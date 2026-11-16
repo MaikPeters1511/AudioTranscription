@@ -47,19 +47,22 @@ services:
       - Upload__IncompleteSessionRetentionHours=${UPLOAD_INCOMPLETE_RETENTION_HOURS:-24}
       # S29: empty = no export; with the observability profile set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      # S23: semantic search needs Qdrant and an embedding model. Local by default: set EMBEDDING_OLLAMA_ENDPOINT to an
-      # Ollama server that has the model (ollama pull bge-m3). OpenAI only with EMBEDDING_PROVIDER=OpenAI and a key.
+      # Local language models: LM Studio runs on the host (start its local server and load the models); the container
+      # reaches it through host.docker.internal. Empty = no local language model (post-processing, chat and
+      # semantic search stay off unless an external provider is configured below).
+      - LmStudio__Endpoint=${LMSTUDIO_ENDPOINT:-}
+      - LmStudio__Model=${CHAT_MODEL:-llama-3.2-3b-instruct}
+      # S23: semantic search needs Qdrant and an embedding model (LM Studio by default). OpenAI only with
+      # EMBEDDING_PROVIDER=OpenAI and a key.
       - ConnectionStrings__qdrant=Endpoint=http://qdrant:6334
-      - Embedding__Provider=${EMBEDDING_PROVIDER:-Ollama}
-      - Embedding__Model=${EMBEDDING_MODEL:-bge-m3}
+      - Embedding__Provider=${EMBEDDING_PROVIDER:-LmStudio}
+      - Embedding__Model=${EMBEDDING_MODEL:-text-embedding-bge-m3}
       - Embedding__Dimensions=${EMBEDDING_DIMENSIONS:-1024}
-      - Embedding__Endpoint=${EMBEDDING_OLLAMA_ENDPOINT:-}
       - Embedding__ApiKey=${EMBEDDING_OPENAI_API_KEY:-}
-      # S24: chat with the transcripts. Local Ollama by default (same server as the embedding model); an external
+      # S24: chat with the transcripts. Local LM Studio by default (same server as the embedding model); an external
       # provider only with CHAT_PROVIDER=OpenAI and a key. The page always shows which one answers.
-      - Chat__Provider=${CHAT_PROVIDER:-Ollama}
-      - Chat__Model=${CHAT_MODEL:-llama3.2}
-      - Chat__Endpoint=${CHAT_OLLAMA_ENDPOINT:-${EMBEDDING_OLLAMA_ENDPOINT:-}}
+      - Chat__Provider=${CHAT_PROVIDER:-LmStudio}
+      - Chat__Model=${CHAT_MODEL:-llama-3.2-3b-instruct}
       - Chat__ApiKey=${CHAT_OPENAI_API_KEY:-}
       - Chat__RequestsPerMinute=${CHAT_REQUESTS_PER_MINUTE:-20}
       # S28: keys that encrypt webhook secrets (and sign sessions) must survive container re-creation

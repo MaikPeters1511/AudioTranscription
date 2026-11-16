@@ -8,7 +8,7 @@ namespace AudioTranscription.Infrastructure.Embeddings;
 /// <summary>Which model produced the vectors; an index is only usable with the model it was built with (ADR 0010).</summary>
 public record EmbeddingModelInfo(string Provider, string Model, int Dimensions);
 
-/// <summary>Turns texts into vectors (EN-4); local (Ollama) by default, OpenAI(-compatible) only when configured.</summary>
+/// <summary>Turns texts into vectors (EN-4); local (LM Studio) by default, OpenAI(-compatible) only when configured.</summary>
 public interface IEmbeddingService
 {
     EmbeddingModelInfo Info { get; }

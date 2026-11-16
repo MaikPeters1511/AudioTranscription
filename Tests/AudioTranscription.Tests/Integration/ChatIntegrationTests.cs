@@ -44,7 +44,7 @@ public class ChatIntegrationTests : IClassFixture<WebApplicationFactory<Program>
                     services.Remove(d);
                 services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
                 services.AddTestAuthentication();
-                services.AddSingleton(new ChatModelInfo("Ollama", "llama3.2"));
+                services.AddSingleton(new ChatModelInfo("LmStudio", "llama-3.2-3b-instruct"));
                 services.AddScoped(_ => new ChatService(_embeddings, _index, _llm, Options.Create(new ChatSettings { MinScore = 0.2 }), NullLogger<ChatService>.Instance));
             });
         });
@@ -331,7 +331,7 @@ public class ChatIntegrationTests : IClassFixture<WebApplicationFactory<Program>
     {
         var info = await _client.GetFromJsonAsync<ChatInfoDto>("/api/chat/info");
 
-        info.Should().Be(new ChatInfoDto(true, "Ollama", "llama3.2", false));
+        info.Should().Be(new ChatInfoDto(true, "LmStudio", "llama-3.2-3b-instruct", false));
         new ChatModelInfo("OpenAI", "gpt-x").External.Should().BeTrue();
     }
 

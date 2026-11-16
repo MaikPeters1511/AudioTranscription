@@ -16,13 +16,13 @@ public sealed class FactIfEnvironmentAttribute : FactAttribute
     public FactIfEnvironmentAttribute(string variable)
     {
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable)))
-            Skip = $"Set {variable} (e.g. http://localhost:11434, an Ollama server with the model bge-m3) to run the evaluation with a real embedding model.";
+            Skip = $"Set {variable} (e.g. http://localhost:1234/v1, an LM Studio server with the model text-embedding-bge-m3) to run the evaluation with a real embedding model.";
     }
 }
 
 /// <summary>
 /// S23 evaluation set (DoD): searches with synonyms must find the expected passage with the real, local embedding model.
-/// The CI has no model, so this runs only on a machine with Ollama and <c>EMBEDDING_EVAL_OLLAMA_URL</c> set.
+/// The CI has no model, so this runs only on a machine with LM Studio and <c>EMBEDDING_EVAL_LMSTUDIO_URL</c> set.
 /// </summary>
 public class SemanticEvaluationTests(Xunit.Abstractions.ITestOutputHelper output)
 {
@@ -59,11 +59,12 @@ public class SemanticEvaluationTests(Xunit.Abstractions.ITestOutputHelper output
     /// <summary>Questions the material does not answer; the chat must not be given a passage for them.</summary>
     private static readonly string[] Unanswerable = ["Wie ist die Lage beim Fußball?", "Was kostet ein Flug nach Mars?"];
 
-    [FactIfEnvironment("EMBEDDING_EVAL_OLLAMA_URL")]
+    [FactIfEnvironment("EMBEDDING_EVAL_LMSTUDIO_URL")]
     public async Task ExampleSearchesWithSynonyms_FindTheExpectedPassage_InTheTopThree()
     {
-        var generator = new OllamaEmbeddingGenerator(new Uri(Environment.GetEnvironmentVariable("EMBEDDING_EVAL_OLLAMA_URL")!), "bge-m3");
-        var embeddings = new GeneratorEmbeddingService(generator, new EmbeddingModelInfo("Ollama", "bge-m3", 1024), NullLogger<GeneratorEmbeddingService>.Instance);
+        var generator = new OpenAI.OpenAIClient(new System.ClientModel.ApiKeyCredential("lm-studio"), new OpenAI.OpenAIClientOptions { Endpoint = new Uri(Environment.GetEnvironmentVariable("EMBEDDING_EVAL_LMSTUDIO_URL")!) })
+            .GetEmbeddingClient("text-embedding-bge-m3").AsIEmbeddingGenerator();
+        var embeddings = new GeneratorEmbeddingService(generator, new EmbeddingModelInfo("LmStudio", "text-embedding-bge-m3", 1024), NullLogger<GeneratorEmbeddingService>.Instance);
         var index = new InMemoryVectorIndex();
         await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var job = new AudioJob { OwnerId = "u", FileName = "a.mp3", ContentType = "audio/mpeg", Model = "Base", Status = AudioJobStatus.Completed };

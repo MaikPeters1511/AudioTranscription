@@ -94,7 +94,7 @@ public partial class LlmChapterGeneratorTests
         _chatClient
             .Setup(c => c.GetResponseAsync(It.IsAny<IEnumerable<ChatMessage>>(), It.IsAny<ChatOptions>(), It.IsAny<CancellationToken>()))
             .Returns(() => ++calls == 1
-                ? throw new HttpRequestException("Ollama kurz weg")
+                ? throw new HttpRequestException("LM Studio kurz weg")
                 : Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, """[{"startSegment":0,"title":"A","summary":""}]"""))));
 
         var drafts = await CreateSut().GenerateAsync(Segments(3));
