@@ -25,6 +25,8 @@ var qdrant = builder.AddQdrant("qdrant")
 var lmStudioEndpoint = builder.Configuration["LmStudio:Endpoint"];
 var chatModel = builder.Configuration["LmStudio:Model"] ?? "llama-3.2-3b-instruct";
 var embeddingModel = builder.Configuration["LmStudio:EmbeddingModel"] ?? "text-embedding-bge-m3";
+// Has to match the vector length of the embedding model (bge-m3: 1024, nomic-embed-text-v1.5: 768)
+var embeddingDimensions = builder.Configuration["LmStudio:EmbeddingDimensions"] ?? "1024";
 
 var api = builder.AddProject<Projects.AudioTranscription_Api>("api")
     .WithReference(db)
@@ -39,7 +41,8 @@ if (!string.IsNullOrWhiteSpace(lmStudioEndpoint))
     api.WithEnvironment("LmStudio__Endpoint", lmStudioEndpoint)
         .WithEnvironment("LmStudio__Model", chatModel)
         .WithEnvironment("Chat__Model", chatModel)
-        .WithEnvironment("Embedding__Model", embeddingModel);
+        .WithEnvironment("Embedding__Model", embeddingModel)
+        .WithEnvironment("Embedding__Dimensions", embeddingDimensions);
 }
 
 builder.AddJavaScriptApp("web", "../AudioTranscription.Web")

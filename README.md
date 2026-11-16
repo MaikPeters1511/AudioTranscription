@@ -139,7 +139,7 @@ Das Aspire-Dashboard zeigt dir die zugewiesenen Ports für API und Web-Frontend 
 Die lokalen Sprachmodelle laufen in [LM Studio](https://lmstudio.ai/) auf deinem Rechner (nicht als Container) und werden über dessen OpenAI-kompatible API angesprochen.
 
 1. In LM Studio ein Chat-Modell (z. B. `llama-3.2-3b-instruct`) und ein Embedding-Modell (z. B. `text-embedding-bge-m3`) laden und den **lokalen Server** starten (Standard: `http://localhost:1234/v1`).
-2. Endpoint und Modellnamen stehen in `AudioTranscription.AppHost/appsettings.json` (Abschnitt `LmStudio`: `Endpoint`, `Model`, `EmbeddingModel`) und lassen sich per User-Secrets überschreiben. Die Namen müssen exakt denen in LM Studio entsprechen. Ein leerer `Endpoint` schaltet Nachbearbeitung, Chat und semantische Suche ab.
+2. Endpoint und Modellnamen stehen in `AudioTranscription.AppHost/appsettings.json` (Abschnitt `LmStudio`: `Endpoint`, `Model`, `EmbeddingModel`, `EmbeddingDimensions` — die Vektorlänge muss zum Embedding-Modell passen, z. B. 1024 für bge-m3, 768 für nomic-embed-text-v1.5) und lassen sich per User-Secrets überschreiben. Die Namen müssen exakt denen in LM Studio entsprechen. Ein leerer `Endpoint` schaltet Nachbearbeitung, Chat und semantische Suche ab.
 3. Der AppHost reicht die Werte als `LmStudio__Endpoint`, `LmStudio__Model`, `Chat__Model` und `Embedding__Model` an die API durch. Ohne Aspire (docker compose) setzt du `LMSTUDIO_ENDPOINT=http://host.docker.internal:1234/v1` in der `.env`.
 
 Der Health-Check `lm-studio` (`/health/ready`) meldet *Degraded*, wenn der Server nicht erreichbar ist; die Transkription läuft trotzdem.
