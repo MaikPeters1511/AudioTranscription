@@ -220,9 +220,9 @@ describe('ChatService streaming state (S24)', () => {
 
   it('loads which model answers', () => {
     service.loadInfo();
-    http.expectOne('/api/chat/info').flush({ enabled: true, provider: 'Ollama', model: 'llama3.2', external: false });
+    http.expectOne('/api/chat/info').flush({ enabled: true, provider: 'LmStudio', model: 'llama-3.2-3b-instruct', external: false });
 
-    expect(service.info()).toEqual({ enabled: true, provider: 'Ollama', model: 'llama3.2', external: false });
+    expect(service.info()).toEqual({ enabled: true, provider: 'LmStudio', model: 'llama-3.2-3b-instruct', external: false });
   });
 
   it('treats an unreachable info endpoint as no chat', () => {

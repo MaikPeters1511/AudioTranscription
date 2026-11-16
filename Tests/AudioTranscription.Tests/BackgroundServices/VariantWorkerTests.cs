@@ -145,14 +145,14 @@ public class VariantWorkerTests : IDisposable
     {
         var (worker, variantId) = await ArrangeAsync();
         _generator.Setup(g => g.GenerateAsync(It.IsAny<PostProcessingMode>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Ollama nicht erreichbar"));
+            .ThrowsAsync(new InvalidOperationException("LM Studio nicht erreichbar"));
 
         await worker.ProcessVariantAsync(new VariantJobRequest(variantId), CancellationToken.None);
 
         var variant = await GetVariantAsync(variantId);
         variant.Status.Should().Be(VariantStatus.Failed);
         variant.Text.Should().BeNull();
-        variant.ErrorMessage.Should().Contain("Ollama nicht erreichbar");
+        variant.ErrorMessage.Should().Contain("LM Studio nicht erreichbar");
     }
 
     [Fact]

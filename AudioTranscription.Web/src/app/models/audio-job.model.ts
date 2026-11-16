@@ -87,7 +87,7 @@ export interface TranscriptionOptions {
   defaultModel: string;
   /** ISO-639-1 codes; automatic detection is always available in addition. */
   languages: string[];
-  /** Whether variant generation (S10) is available, i.e. an LLM (Ollama) is configured. */
+  /** Whether variant generation (S10) is available, i.e. an LLM (LM Studio) is configured. */
   postProcessingEnabled: boolean;
   /** Whether speaker diarization (S11) is available, i.e. the sherpa-onnx models are configured. */
   diarizationEnabled: boolean;

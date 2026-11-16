@@ -7,7 +7,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace AudioTranscription.Tests.Telemetry;
 
-/// <summary>S29-T4: readiness checks for database, ffmpeg, the Whisper model and (optionally) Ollama.</summary>
+/// <summary>S29-T4: readiness checks for database, ffmpeg, the Whisper model and (optionally) LM Studio.</summary>
 public class HealthChecksTests : IDisposable
 {
     private readonly TempDirectory _dir = new();
@@ -84,7 +84,7 @@ public class HealthChecksTests : IDisposable
         AllText(result).Should().NotContain(_dir.Path);
     }
 
-    // ---- Ollama
+    // ---- LM Studio
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
@@ -98,34 +98,34 @@ public class HealthChecksTests : IDisposable
     }
 
     [Fact]
-    public async Task Ollama_IsHealthy_WhenItAnswers_AskingOnlyForItsModelList()
+    public async Task LmStudio_IsHealthy_WhenItAnswers_AskingOnlyForItsModelList()
     {
         var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
 
-        var result = await Run(new OllamaHealthCheck(new HttpClient(handler), new Uri("http://ollama.internal:11434")));
+        var result = await Run(new LmStudioHealthCheck(new HttpClient(handler), new Uri("http://lmstudio.internal:1234/v1")));
 
         result.Status.Should().Be(HealthStatus.Healthy);
         handler.Request!.Method.Should().Be(HttpMethod.Get);
-        handler.Request.RequestUri!.AbsolutePath.Should().Be("/api/tags");
+        handler.Request.RequestUri!.AbsolutePath.Should().Be("/v1/models");
     }
 
     [Fact]
-    public async Task Ollama_IsDegraded_WhenItAnswersWithAnError_AsTheTranscriptionStillWorks()
+    public async Task LmStudio_IsDegraded_WhenItAnswersWithAnError_AsTheTranscriptionStillWorks()
     {
         var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
 
-        (await Run(new OllamaHealthCheck(new HttpClient(handler), new Uri("http://ollama.internal:11434")))).Status.Should().Be(HealthStatus.Degraded);
+        (await Run(new LmStudioHealthCheck(new HttpClient(handler), new Uri("http://lmstudio.internal:1234/v1")))).Status.Should().Be(HealthStatus.Degraded);
     }
 
     [Fact]
-    public async Task Ollama_IsDegraded_WhenItCannotBeReached_AndTheResultRevealsNothing()
+    public async Task LmStudio_IsDegraded_WhenItCannotBeReached_AndTheResultRevealsNothing()
     {
-        var handler = new StubHandler(_ => throw new HttpRequestException("Connection refused (ollama.internal:11434)"));
+        var handler = new StubHandler(_ => throw new HttpRequestException("Connection refused (lmstudio.internal:1234)"));
 
-        var result = await Run(new OllamaHealthCheck(new HttpClient(handler), new Uri("http://ollama.internal:11434")));
+        var result = await Run(new LmStudioHealthCheck(new HttpClient(handler), new Uri("http://lmstudio.internal:1234/v1")));
 
         result.Status.Should().Be(HealthStatus.Degraded);
-        AllText(result).Should().NotContain("ollama.internal");
+        AllText(result).Should().NotContain("lmstudio.internal");
         result.Exception.Should().BeNull();
     }
 

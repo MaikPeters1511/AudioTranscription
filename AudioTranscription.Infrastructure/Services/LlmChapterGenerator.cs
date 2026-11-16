@@ -18,7 +18,7 @@ public interface IChapterGenerator
 /// <summary>
 /// Chapter generation with a local LLM (S25): the numbered segments are cut into windows that fit the model
 /// (Map), each window is asked for its chapters as JSON, and the answers are merged (Reduce) with
-/// <see cref="ChapterMerger"/>. Transient failures are retried like in <see cref="OllamaVariantGenerator"/>.
+/// <see cref="ChapterMerger"/>. Transient failures are retried like in <see cref="LlmVariantGenerator"/>.
 /// </summary>
 public class LlmChapterGenerator(
     IChatClient chatClient,

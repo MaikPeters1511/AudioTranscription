@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using AudioTranscription.Api.Configuration;
 using AudioTranscription.Domain.Chat;
 using AudioTranscription.Infrastructure.Embeddings;
 using Microsoft.Extensions.AI;
@@ -12,12 +13,12 @@ namespace AudioTranscription.Api.Chat;
 public class ChatSettings
 {
     public const string SectionName = "Chat";
-    public const string OllamaProvider = "Ollama";
+    public const string LmStudioProvider = "LmStudio";
     public const string OpenAiProvider = "OpenAI";
 
-    /// <summary>Local Ollama unless OpenAI is chosen explicitly (and an API key is set).</summary>
-    public string Provider { get; set; } = OllamaProvider;
-    public string Model { get; set; } = "llama3.2";
+    /// <summary>Local LM Studio unless OpenAI is chosen explicitly (and an API key is set).</summary>
+    public string Provider { get; set; } = LmStudioProvider;
+    public string Model { get; set; } = LmStudioConnection.DefaultChatModel;
     public string? Endpoint { get; set; }
     public string? ApiKey { get; set; }
     /// <summary>Hits less similar than this are not used; without any hit the model is not asked.</summary>

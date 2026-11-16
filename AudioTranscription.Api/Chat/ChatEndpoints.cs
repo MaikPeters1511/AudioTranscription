@@ -26,7 +26,7 @@ public record ChatInfoDto(bool Enabled, string? Provider, string? Model, bool Ex
 /// <summary>Which language model answers the chat; registered together with the chat.</summary>
 public record ChatModelInfo(string Provider, string Model)
 {
-    public bool External => !string.Equals(Provider, ChatSettings.OllamaProvider, StringComparison.OrdinalIgnoreCase);
+    public bool External => !string.Equals(Provider, ChatSettings.LmStudioProvider, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Chat with the user's transcripts (S24, ADR 0011): streamed answers with citations, private conversations.</summary>

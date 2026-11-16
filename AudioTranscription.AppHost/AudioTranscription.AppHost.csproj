@@ -8,7 +8,6 @@
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.6.5" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.6.1" />
   </ItemGroup>
 
   <PropertyGroup>

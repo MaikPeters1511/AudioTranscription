@@ -5,7 +5,7 @@ namespace AudioTranscription.Infrastructure.Services;
 /// <summary>
 /// Splits long text into chunks of at most <c>maxChunkLength</c> characters for Map-Reduce
 /// post-processing (S10-T4), preferring paragraph and sentence boundaries and never splitting a word.
-/// No tokenizer is available for the configured Ollama model, so characters approximate tokens.
+/// No tokenizer is available for the configured language model, so characters approximate tokens.
 /// </summary>
 public static class TranscriptChunker
 {

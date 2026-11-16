@@ -144,7 +144,7 @@ public class VariantIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
-    public async Task CreateVariant_WhenOllamaIsNotConfigured_Returns503()
+    public async Task CreateVariant_WhenLmStudioIsNotConfigured_Returns503()
     {
         using var factory = CreateFactory(_baseFactory); // no IVariantGenerator registered
         var job = await SeedFor(factory);

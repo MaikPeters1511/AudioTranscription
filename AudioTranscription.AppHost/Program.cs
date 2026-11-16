@@ -19,50 +19,33 @@ var qdrant = builder.AddQdrant("qdrant")
     .WithDataVolume("audio-transcription-qdrant")
     .WithLifetime(ContainerLifetime.Persistent);
 
-// Ollama (optional, activated via configuration)
-var ollamaEnabled = builder.Configuration["Features:OllamaPostProcessing"] == "true";
+// LM Studio (optional): runs on the host, not in a container, and serves chat, post-processing and embeddings through its
+// OpenAI-compatible API. Start its local server (default http://localhost:1234/v1) and load the models named below.
+// An empty LmStudio:Endpoint switches the language-model features (and with them the semantic search) off.
+var lmStudioEndpoint = builder.Configuration["LmStudio:Endpoint"];
+var chatModel = builder.Configuration["LmStudio:Model"] ?? "llama-3.2-3b-instruct";
+var embeddingModel = builder.Configuration["LmStudio:EmbeddingModel"] ?? "text-embedding-bge-m3";
 
-if (ollamaEnabled)
+var api = builder.AddProject<Projects.AudioTranscription_Api>("api")
+    .WithReference(db)
+    .WaitFor(db)
+    .WithReference(qdrant)
+    .WaitFor(qdrant)
+    .WithEnvironment("Auth__InitialUser__Email", initialUserEmail)
+    .WithEnvironment("Auth__InitialUser__Password", initialUserPassword);
+
+if (!string.IsNullOrWhiteSpace(lmStudioEndpoint))
 {
-    var ollama = builder.AddOllama("ollama")
-        .WithDataVolume("audio-transcription-ollama")
-        .WithLifetime(ContainerLifetime.Persistent);
-
-    var ollamaModel = ollama.AddModel("llama3.2");
-    // Local embedding model of the semantic search (ADR 0010); its connection string is "bge-m3"
-    var embeddingModel = ollama.AddModel("bge-m3");
-
-    var api = builder.AddProject<Projects.AudioTranscription_Api>("api")
-        .WithReference(db)
-        .WaitFor(db)
-        .WithReference(ollamaModel)
-        .WaitFor(ollamaModel)
-        .WithReference(embeddingModel)
-        .WithReference(qdrant)
-        .WaitFor(qdrant)
-        .WithEnvironment("Auth__InitialUser__Email", initialUserEmail)
-        .WithEnvironment("Auth__InitialUser__Password", initialUserPassword);
-
-    builder.AddJavaScriptApp("web", "../AudioTranscription.Web")
-        .WithReference(api)
-        .WaitFor(api)
-        .WithHttpEndpoint(env: "PORT")
-        .WithExternalHttpEndpoints();
+    api.WithEnvironment("LmStudio__Endpoint", lmStudioEndpoint)
+        .WithEnvironment("LmStudio__Model", chatModel)
+        .WithEnvironment("Chat__Model", chatModel)
+        .WithEnvironment("Embedding__Model", embeddingModel);
 }
-else
-{
-    // Without Ollama the semantic search stays off (no embedding model), Qdrant is still started for later use
-    var api = builder.AddProject<Projects.AudioTranscription_Api>("api")
-        .WithReference(db)
-        .WaitFor(db)
-        .WithEnvironment("Auth__InitialUser__Email", initialUserEmail)
-        .WithEnvironment("Auth__InitialUser__Password", initialUserPassword);
 
-    builder.AddJavaScriptApp("web", "../AudioTranscription.Web")
-        .WithReference(api)
-        .WaitFor(api)
-        .WithHttpEndpoint(env: "PORT")
-        .WithExternalHttpEndpoints();
-}
+builder.AddJavaScriptApp("web", "../AudioTranscription.Web")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();

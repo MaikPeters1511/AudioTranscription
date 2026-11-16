@@ -108,7 +108,7 @@ public record TranscriptionOptionsDto(
     IReadOnlyList<string> Models,
     string DefaultModel,
     IReadOnlyList<string> Languages,
-    /// <summary>Whether variant generation (S10) is available, i.e. an LLM (Ollama) is configured.</summary>
+    /// <summary>Whether variant generation (S10) is available, i.e. an LLM (LM Studio) is configured.</summary>
     bool PostProcessingEnabled,
     /// <summary>Whether speaker diarization (S11) is available, i.e. the sherpa-onnx models are configured.</summary>
     bool DiarizationEnabled

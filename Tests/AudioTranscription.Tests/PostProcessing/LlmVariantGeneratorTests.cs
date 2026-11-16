@@ -8,14 +8,14 @@ using Moq;
 
 namespace AudioTranscription.Tests.PostProcessing;
 
-public class OllamaVariantGeneratorTests
+public class LlmVariantGeneratorTests
 {
     private readonly Mock<IChatClient> _chatClient = new();
 
-    private OllamaVariantGenerator CreateSut(int maxChunkLength = 6000) =>
+    private LlmVariantGenerator CreateSut(int maxChunkLength = 6000) =>
         new(_chatClient.Object, new PostProcessingPromptCatalog(),
             Options.Create(new PostProcessingOptions { MaxChunkLength = maxChunkLength }),
-            NullLogger<OllamaVariantGenerator>.Instance);
+            NullLogger<LlmVariantGenerator>.Instance);
 
     private void RespondWith(params string[] responses)
     {

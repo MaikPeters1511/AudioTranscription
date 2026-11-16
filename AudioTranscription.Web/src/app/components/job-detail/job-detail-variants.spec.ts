@@ -141,10 +141,10 @@ describe('JobDetailComponent post-processing actions (S10-T6)', () => {
 
   it('lists failed variants with their error message', () => {
     const fixture = render(true, [
-      { id: 'v3', mode: PostProcessingMode.ActionItems, status: VariantStatus.Failed, errorMessage: 'Ollama nicht erreichbar', createdAtUtc: '2026-09-24T10:00:00Z' },
+      { id: 'v3', mode: PostProcessingMode.ActionItems, status: VariantStatus.Failed, errorMessage: 'LM Studio nicht erreichbar', createdAtUtc: '2026-09-24T10:00:00Z' },
     ]);
 
-    expect(fixture.nativeElement.textContent).toContain('Ollama nicht erreichbar');
+    expect(fixture.nativeElement.textContent).toContain('LM Studio nicht erreichbar');
   });
 
   it('shows an error toast when the request itself fails', () => {

@@ -58,11 +58,11 @@ public static class SemanticSearchSetup
                 .AsIEmbeddingGenerator(options.Dimensions);
         }
 
-        // Local Ollama: own endpoint, or the one of the chat model (same server), or the model's own connection string (Aspire)
-        var endpoint = options.Endpoint
-            ?? OllamaConnectionStrings.Get(configuration, options.Model)
-            ?? OllamaConnectionStrings.Get(configuration, "llama3.2");
-        return string.IsNullOrWhiteSpace(endpoint) ? null : new OllamaEmbeddingGenerator(new Uri(endpoint), options.Model);
+        // Local LM Studio: own endpoint or the shared one of the LmStudio section. No dimensions are requested, the model decides.
+        var endpoint = string.IsNullOrWhiteSpace(options.Endpoint) ? LmStudioConnection.GetEndpoint(configuration) : options.Endpoint;
+        return string.IsNullOrWhiteSpace(endpoint)
+            ? null
+            : LmStudioConnection.CreateClient(endpoint, options.ApiKey).GetEmbeddingClient(options.Model).AsIEmbeddingGenerator();
     }
 }
 

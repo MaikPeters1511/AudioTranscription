@@ -18,7 +18,7 @@ public interface ITemplateVariantGenerator
 /// <summary>
 /// Template-based post-processing with a local LLM (S26): the template's prompt and schema form the instructions, the
 /// transcript is passed as clearly delimited data, and the answer is checked against the schema, stripped of owners who
-/// are not named speakers and rendered as Markdown. Transient failures are retried like in <see cref="OllamaVariantGenerator"/>.
+/// are not named speakers and rendered as Markdown. Transient failures are retried like in <see cref="LlmVariantGenerator"/>.
 /// </summary>
 public class LlmTemplateVariantGenerator(IChatClient chatClient, ILogger<LlmTemplateVariantGenerator> logger) : ITemplateVariantGenerator
 {
