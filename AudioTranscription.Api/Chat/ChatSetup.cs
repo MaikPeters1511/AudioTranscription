@@ -1,3 +1,4 @@
+using AudioTranscription.Api.Configuration;
 using System.ClientModel;
 using System.Threading.RateLimiting;
 using AudioTranscription.Api.Access;
@@ -58,7 +59,7 @@ public static class ChatSetup
             return new OpenAIClient(new ApiKeyCredential(settings.ApiKey), clientOptions).GetChatClient(settings.Model).AsIChatClient();
         }
 
-        var endpoint = settings.Endpoint ?? configuration.GetConnectionString("llama3.2");
+        var endpoint = settings.Endpoint ?? OllamaConnectionStrings.Get(configuration, "llama3.2");
         return string.IsNullOrWhiteSpace(endpoint) ? null : new OllamaChatClient(new Uri(endpoint), settings.Model);
     }
 }

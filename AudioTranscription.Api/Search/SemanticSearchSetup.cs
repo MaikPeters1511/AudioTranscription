@@ -60,8 +60,8 @@ public static class SemanticSearchSetup
 
         // Local Ollama: own endpoint, or the one of the chat model (same server), or the model's own connection string (Aspire)
         var endpoint = options.Endpoint
-            ?? configuration.GetConnectionString(options.Model)
-            ?? configuration.GetConnectionString("llama3.2");
+            ?? OllamaConnectionStrings.Get(configuration, options.Model)
+            ?? OllamaConnectionStrings.Get(configuration, "llama3.2");
         return string.IsNullOrWhiteSpace(endpoint) ? null : new OllamaEmbeddingGenerator(new Uri(endpoint), options.Model);
     }
 }

@@ -77,7 +77,7 @@ builder.Services.AddHostedService<TranscriptionWorker>();
 
 // Optional: Register the LLM-backed variant generator (S10; formerly ITranscriptPostProcessor/S04)
 // if an Ollama connection string is present.
-var ollamaConnectionString = builder.Configuration.GetConnectionString("llama3.2");
+var ollamaConnectionString = OllamaConnectionStrings.Get(builder.Configuration, "llama3.2");
 if (!string.IsNullOrWhiteSpace(ollamaConnectionString))
 {
     builder.Services.AddSingleton<Microsoft.Extensions.AI.IChatClient>(new Microsoft.Extensions.AI.OllamaChatClient(new Uri(ollamaConnectionString), "llama3.2"));
@@ -180,9 +180,9 @@ var healthChecks = builder.Services.AddHealthChecks()
         var whisper = sp.GetRequiredService<IOptions<WhisperOptions>>().Value;
         return new WhisperModelHealthCheck(Path.Combine(AppContext.BaseDirectory, whisper.ModelsDirectory), whisper.DefaultModel);
     }, failureStatus: null, tags: ["ready"]));
-if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("llama3.2")))
+if (!string.IsNullOrWhiteSpace(OllamaConnectionStrings.Get(builder.Configuration, "llama3.2")))
 {
-    var ollamaAddress = new Uri(builder.Configuration.GetConnectionString("llama3.2")!);
+    var ollamaAddress = new Uri(OllamaConnectionStrings.Get(builder.Configuration, "llama3.2")!);
     healthChecks.AddCheck("ollama", new OllamaHealthCheck(new HttpClient { Timeout = TimeSpan.FromSeconds(3) }, ollamaAddress), tags: ["ready"]);
 }
 
