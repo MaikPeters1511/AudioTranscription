@@ -20,6 +20,12 @@ RUN dotnet publish "AudioTranscription.Api.csproj" -c Release -o /app/publish /p
 
 FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
+
+# The worker converts every upload with ffmpeg, and Whisper.net's native CPU library needs OpenMP (libgomp);
+# neither is part of the aspnet base image, so without them no job can be transcribed in the container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg libgomp1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY --from=publish /app/publish .
 
 # Expose port and start
@@ -43,7 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb \
     && apt-get update \
-    && apt-get install -y --no-install-recommends aspnetcore-runtime-11.0 \
+    && apt-get install -y --no-install-recommends aspnetcore-runtime-11.0 ffmpeg libgomp1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=publish-cuda /app/publish-cuda .

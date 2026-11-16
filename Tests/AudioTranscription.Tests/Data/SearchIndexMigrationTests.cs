@@ -38,9 +38,7 @@ public class SearchIndexMigrationTests(SearchSqlServerFixture sqlServer) : IClas
             });
             await db.SaveChangesAsync();
 
-            await WaitForFullTextPopulationAsync(db, "AudioJobs");
-            await WaitForFullTextPopulationAsync(db, "TranscriptSegments");
-            await WaitForFullTextPopulationAsync(db, "TranscriptVariants");
+            await FullTextPopulation.WaitAsync(db);
         }
 
         await using var query = CreateContext(connectionString);
@@ -70,7 +68,7 @@ public class SearchIndexMigrationTests(SearchSqlServerFixture sqlServer) : IClas
                 Status = AudioJobStatus.Completed, RawTranscript = "Die Kinder spielten fröhlich im Garten.",
             });
             await db.SaveChangesAsync();
-            await WaitForFullTextPopulationAsync(db, "AudioJobs");
+            await FullTextPopulation.WaitAsync(db, "AudioJobs");
         }
 
         // FREETEXT applies German stemming: "spielen" (infinitive) should still find "spielten" (past tense)
@@ -79,22 +77,6 @@ public class SearchIndexMigrationTests(SearchSqlServerFixture sqlServer) : IClas
             $"SELECT * FROM [AudioJobs] WHERE FREETEXT([RawTranscript], 'spielen')").ToListAsync();
 
         hit.Should().ContainSingle().Which.Id.Should().Be(jobId);
-    }
-
-    /// <summary>Full-text population runs in the background after CREATE/INSERT; tests must wait for it.</summary>
-    private static async Task WaitForFullTextPopulationAsync(AppDbContext db, string tableName)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (DateTime.UtcNow < deadline)
-        {
-            var status = await db.Database.SqlQuery<int>(
-                $"SELECT OBJECTPROPERTYEX(OBJECT_ID({tableName}), 'TableFulltextPopulateStatus') AS Value")
-                .SingleAsync();
-            if (status == 0)
-                return;
-            await Task.Delay(200);
-        }
-        throw new TimeoutException($"Full-text population on {tableName} did not finish in time.");
     }
 
     private AppDbContext CreateContext(string? connectionString = null) =>

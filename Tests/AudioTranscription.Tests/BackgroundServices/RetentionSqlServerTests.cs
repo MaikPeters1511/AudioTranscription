@@ -121,24 +121,6 @@ public class RetentionSqlServerTests : IClassFixture<SearchSqlServerFixture>, ID
         return await db.AudioJobs.AnyAsync(j => j.Id == jobId);
     }
 
-    private static async Task WaitForFullTextPopulationAsync(AppDbContext db)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (DateTime.UtcNow < deadline)
-        {
-            var status = 0;
-            foreach (var table in new[] { "AudioJobs", "TranscriptSegments", "TranscriptVariants" })
-            {
-                status += await db.Database.SqlQuery<int>(
-                    $"SELECT OBJECTPROPERTYEX(OBJECT_ID({table}), 'TableFulltextPopulateStatus') AS Value").SingleAsync();
-            }
-            if (status == 0)
-                return;
-            await Task.Delay(200);
-        }
-        throw new TimeoutException("Full-text population did not finish in time.");
-    }
-
     [Fact]
     public async Task ExpiredJob_IsDeleted_WithEveryDependentRow_AndOtherJobsStay()
     {
@@ -169,12 +151,12 @@ public class RetentionSqlServerTests : IClassFixture<SearchSqlServerFixture>, ID
         var expired = await AddJobAsync(ageDays: 40);
         var kept = await AddJobAsync(ageDays: 5);
         await using (var db = NewDb())
-            await WaitForFullTextPopulationAsync(db);
+            await FullTextPopulation.WaitAsync(db);
 
         await sut.RunOnceAsync(CancellationToken.None);
 
         await using var search = NewDb();
-        await WaitForFullTextPopulationAsync(search);
+        await FullTextPopulation.WaitAsync(search);
         var segmentJobs = await search.TranscriptSegments.Where(s => EF.Functions.FreeText(s.Text, Word)).Select(s => s.AudioJobId).ToListAsync();
         var variantJobs = await search.TranscriptVariants.Where(v => EF.Functions.FreeText(v.Text!, Word)).Select(v => v.AudioJobId).ToListAsync();
         var rawJobs = await search.AudioJobs.Where(j => EF.Functions.FreeText(j.RawTranscript!, Word)).Select(j => j.Id).ToListAsync();
