@@ -1,4 +1,4 @@
-import { Component, signal, inject, OnInit, effect } from '@angular/core';
+import { Component, signal, inject, OnInit, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SignalRService } from './services/signalr.service';
@@ -18,59 +18,58 @@ import { OfflineUploadQueueService } from './services/offline-upload-queue.servi
     <div class="min-h-screen bg-base-100" [attr.data-theme]="theme()">
       <app-offline-banner />
       <!-- Navbar -->
-      <div class="navbar bg-base-200 shadow-sm px-4 lg:px-8">
-        <div class="navbar-start">
-          <a routerLink="/" class="btn btn-ghost text-xl font-bold gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <header class="navbar bg-base-200 shadow-sm px-4 lg:px-8 gap-2">
+        <div class="flex-none flex items-center gap-1">
+          <a routerLink="/" class="btn btn-ghost text-xl font-bold gap-2 px-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
             {{ 'app.name' | transloco }}
           </a>
+          <!-- Compact menu: all links in one dropdown below the xl breakpoint -->
+          @if (auth.user()) {
+            <details class="nav-dd dropdown xl:hidden">
+              <summary class="btn btn-ghost btn-square btn-sm list-none" [attr.aria-label]="'app.nav.menu' | transloco">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </summary>
+              <ul class="menu menu-sm dropdown-content bg-base-200 rounded-box z-50 mt-3 w-60 p-2 shadow-lg" [attr.aria-label]="'app.nav.main' | transloco">
+                @for (link of mainLinks; track link.path) {
+                  <li><a [routerLink]="link.path" routerLinkActive="active">{{ link.label | transloco }}</a></li>
+                }
+                @if (auth.isAdmin()) {
+                  <li class="menu-title mt-2">{{ 'app.nav.admin' | transloco }}</li>
+                  @for (link of adminLinks; track link.path) {
+                    <li><a [routerLink]="link.path" routerLinkActive="active">{{ link.label | transloco }}</a></li>
+                  }
+                }
+                <li class="menu-title mt-2">{{ auth.user()?.email }}</li>
+                @for (link of accountLinks; track link.path) {
+                  <li><a [routerLink]="link.path" routerLinkActive="active">{{ link.label | transloco }}</a></li>
+                }
+              </ul>
+            </details>
+          }
         </div>
-        <nav class="navbar-center hidden sm:flex" [attr.aria-label]="'app.nav.main' | transloco">
-          <ul class="menu menu-horizontal px-1 gap-1">
-            <li>
-              <a routerLink="/upload" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.upload' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/jobs" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.jobs' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/search" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.search' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/organize" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.organize' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/queue" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.queue' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/chat" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.chat' | transloco }}
-              </a>
-            </li>
-            <li>
-              <a routerLink="/glossaries" routerLinkActive="active" class="rounded-lg">
-                {{ 'app.nav.glossaries' | transloco }}
-              </a>
-            </li>
+
+        <!-- Main navigation (xl and wider) -->
+        <nav class="flex-1 hidden xl:flex justify-center" [attr.aria-label]="'app.nav.main' | transloco">
+          <ul class="menu menu-horizontal menu-sm px-1 gap-1 flex-nowrap">
+            @for (link of mainLinks; track link.path) {
+              <li>
+                <a [routerLink]="link.path" routerLinkActive="active" class="rounded-lg whitespace-nowrap">{{ link.label | transloco }}</a>
+              </li>
+            }
           </ul>
         </nav>
-        <div class="navbar-end gap-2">
+        <div class="flex-1 xl:hidden"></div>
+
+        <div class="flex-none flex items-center gap-1">
           <!-- SignalR Connection Status -->
           <div class="tooltip tooltip-bottom" [attr.data-tip]="(signalR.connected() ? 'app.connection.live' : 'app.connection.offline') | transloco">
             <div
-              class="w-2 h-2 rounded-full"
+              class="w-2 h-2 rounded-full mx-1"
               role="status"
               [attr.aria-label]="(signalR.connected() ? 'app.connection.live' : 'app.connection.offline') | transloco"
               [class.bg-success]="signalR.connected()"
@@ -78,31 +77,38 @@ import { OfflineUploadQueueService } from './services/offline-upload-queue.servi
             ></div>
           </div>
 
-          <!-- Signed-in user -->
           @if (auth.user(); as user) {
-            <span class="hidden md:inline text-sm text-base-content/70 max-w-[14rem] truncate">
-              {{ 'auth.signedInAs' | transloco: { email: user.email } }}
-            </span>
             @if (auth.isAdmin()) {
-              <a routerLink="/admin/users" routerLinkActive="active" class="btn btn-ghost btn-sm">
-                {{ 'app.nav.users' | transloco }}
-              </a>
-              <a routerLink="/admin/jobs" routerLinkActive="active" class="btn btn-ghost btn-sm">
-                {{ 'app.nav.unassignedJobs' | transloco }}
-              </a>
-              <a routerLink="/admin/templates" routerLinkActive="active" class="btn btn-ghost btn-sm">
-                {{ 'app.nav.templates' | transloco }}
-              </a>
+              <details class="nav-dd dropdown dropdown-end hidden xl:block">
+                <summary class="btn btn-ghost btn-sm list-none gap-1">
+                  {{ 'app.nav.admin' | transloco }}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <ul class="menu menu-sm dropdown-content bg-base-200 rounded-box z-50 mt-3 w-56 p-2 shadow-lg">
+                  @for (link of adminLinks; track link.path) {
+                    <li><a [routerLink]="link.path" routerLinkActive="active">{{ link.label | transloco }}</a></li>
+                  }
+                </ul>
+              </details>
             }
-            <a routerLink="/api-keys" routerLinkActive="active" class="btn btn-ghost btn-sm hidden lg:inline-flex">
-              {{ 'app.nav.apiKeys' | transloco }}
-            </a>
-            <a routerLink="/webhooks" routerLinkActive="active" class="btn btn-ghost btn-sm hidden lg:inline-flex">
-              {{ 'app.nav.webhooks' | transloco }}
-            </a>
-            <a routerLink="/account" routerLinkActive="active" class="btn btn-ghost btn-sm">
-              {{ 'app.nav.account' | transloco }}
-            </a>
+
+            <!-- Account menu (xl and wider) -->
+            <details class="nav-dd dropdown dropdown-end hidden xl:block">
+              <summary class="btn btn-ghost btn-circle btn-sm list-none" [attr.aria-label]="'app.nav.userMenu' | transloco" [attr.title]="user.email">
+                <span class="avatar avatar-placeholder">
+                  <span class="bg-primary text-primary-content w-7 rounded-full text-xs font-semibold" aria-hidden="true">{{ initial(user.email) }}</span>
+                </span>
+              </summary>
+              <ul class="menu menu-sm dropdown-content bg-base-200 rounded-box z-50 mt-3 w-64 p-2 shadow-lg">
+                <li class="menu-title truncate">{{ 'auth.signedInAs' | transloco: { email: user.email } }}</li>
+                @for (link of accountLinks; track link.path) {
+                  <li><a [routerLink]="link.path" routerLinkActive="active">{{ link.label | transloco }}</a></li>
+                }
+              </ul>
+            </details>
+
             <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">
               {{ 'auth.logout' | transloco }}
             </button>
@@ -128,16 +134,16 @@ import { OfflineUploadQueueService } from './services/offline-upload-queue.servi
               [attr.aria-label]="'app.theme.toggle' | transloco"
             />
             <!-- Sun -->
-            <svg class="swap-off h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="swap-off h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
             <!-- Moon -->
-            <svg class="swap-on h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="swap-on h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
           </label>
         </div>
-      </div>
+      </header>
 
       <!-- Mobile Navigation -->
       <div class="btm-nav sm:hidden z-50">
@@ -190,9 +196,50 @@ export class App implements OnInit {
   private offlineQueue = inject(OfflineUploadQueueService);
   /** Number of unsent local recordings while the sign-out waits for the user's decision (0: no dialog). */
   readonly confirmLogoutCount = signal(0);
+
+  readonly mainLinks = [
+    { path: '/upload', label: 'app.nav.upload' },
+    { path: '/jobs', label: 'app.nav.jobs' },
+    { path: '/search', label: 'app.nav.search' },
+    { path: '/organize', label: 'app.nav.organize' },
+    { path: '/queue', label: 'app.nav.queue' },
+    { path: '/chat', label: 'app.nav.chat' },
+    { path: '/glossaries', label: 'app.nav.glossaries' },
+  ];
+  readonly adminLinks = [
+    { path: '/admin/users', label: 'app.nav.users' },
+    { path: '/admin/jobs', label: 'app.nav.unassignedJobs' },
+    { path: '/admin/templates', label: 'app.nav.templates' },
+  ];
+  readonly accountLinks = [
+    { path: '/api-keys', label: 'app.nav.apiKeys' },
+    { path: '/webhooks', label: 'app.nav.webhooks' },
+    { path: '/account', label: 'app.nav.account' },
+  ];
   theme = signal<'light' | 'dark'>(
     (typeof localStorage !== 'undefined' && localStorage.getItem('theme') as 'light' | 'dark') || 'light'
   );
+
+  /** Closes the open dropdown menus after a click on a link or outside of them. */
+  @HostListener('document:click', ['$event'])
+  closeMenus(event: Event): void {
+    const target = event.target as Node;
+    document.querySelectorAll<HTMLDetailsElement>('details.nav-dd[open]').forEach(menu => {
+      const clickedSummary = target instanceof Element && target.closest('summary') !== null && menu.contains(target);
+      if (!clickedSummary) {
+        menu.open = false;
+      }
+    });
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMenusOnEscape(): void {
+    document.querySelectorAll<HTMLDetailsElement>('details.nav-dd[open]').forEach(menu => (menu.open = false));
+  }
+
+  initial(email: string): string {
+    return (email.trim().charAt(0) || '?').toUpperCase();
+  }
 
   ngOnInit(): void {
     document.documentElement.setAttribute('data-theme', this.theme());
